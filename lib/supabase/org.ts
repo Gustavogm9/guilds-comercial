@@ -25,16 +25,17 @@ export async function listarOrgsDoUsuario(): Promise<
   if (error || !data) return [];
 
   // supabase retorna organizacao como objeto aninhado
-  return data
-    .map((row: { role: string; organizacao: Organizacao | null }) =>
-      row.organizacao
-        ? { ...row.organizacao, role: row.role as "gestor" | "comercial" | "sdr" }
-        : null
-    )
+  // Cast via `as any` necessário: o tipo inferido do Supabase é any[] mas o runtime retorna objeto
+  return (data as any[])
+    .map((row) => {
+      const org = row.organizacao as Organizacao | null;
+      return org
+        ? { ...org, role: row.role as "gestor" | "comercial" | "sdr" }
+        : null;
+    })
     .filter(
-      (
-        x
-      ): x is Organizacao & { role: "gestor" | "comercial" | "sdr" } => x !== null
+      (x): x is Organizacao & { role: "gestor" | "comercial" | "sdr" } =>
+        x !== null
     );
 }
 
@@ -101,26 +102,16 @@ export async function listarMembrosDaOrg(
 
   if (error || !data) return [];
 
-  return data.map(
-    (row: {
-      id: number;
-      organizacao_id: string;
-      profile_id: string;
-      role: string;
-      ativo: boolean;
-      created_at: string;
-      profile: { display_name: string; email: string } | null;
-    }) => ({
-      id: row.id,
-      organizacao_id: row.organizacao_id,
-      profile_id: row.profile_id,
-      role: row.role as "gestor" | "comercial" | "sdr",
-      ativo: row.ativo,
-      created_at: row.created_at,
-      display_name: row.profile?.display_name ?? "(sem nome)",
-      email: row.profile?.email ?? "",
-    })
-  );
+  return (data as any[]).map((row) => ({
+    id: row.id,
+    organizacao_id: row.organizacao_id,
+    profile_id: row.profile_id,
+    role: row.role as "gestor" | "comercial" | "sdr",
+    ativo: row.ativo,
+    created_at: row.created_at,
+    display_name: row.profile?.display_name ?? "(sem nome)",
+    email: row.profile?.email ?? "",
+  }));
 }
 
 export const ORG_ACTIVE_COOKIE = ORG_COOKIE;
