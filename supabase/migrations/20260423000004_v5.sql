@@ -133,20 +133,20 @@ drop policy if exists ai_prompts_org    on public.ai_prompts;
 drop policy if exists ai_invoc_org      on public.ai_invocations;
 
 create policy ai_providers_org on public.ai_providers
-  for all using (organizacao_id is null or organizacao_id in (select public.orgs_do_usuario()))
-  with check (organizacao_id in (select public.orgs_do_usuario()));
+  for all using (organizacao_id is null or organizacao_id = public.current_org_id())
+  with check (organizacao_id = public.current_org_id());
 
 create policy ai_features_org on public.ai_features
-  for all using (organizacao_id is null or organizacao_id in (select public.orgs_do_usuario()))
-  with check (organizacao_id in (select public.orgs_do_usuario()));
+  for all using (organizacao_id is null or organizacao_id = public.current_org_id())
+  with check (organizacao_id = public.current_org_id());
 
 create policy ai_prompts_org on public.ai_prompts
-  for all using (organizacao_id is null or organizacao_id in (select public.orgs_do_usuario()))
-  with check (organizacao_id in (select public.orgs_do_usuario()));
+  for all using (organizacao_id is null or organizacao_id = public.current_org_id())
+  with check (organizacao_id = public.current_org_id());
 
 create policy ai_invoc_org on public.ai_invocations
-  for all using (organizacao_id in (select public.orgs_do_usuario()))
-  with check (organizacao_id in (select public.orgs_do_usuario()));
+  for all using (organizacao_id = public.current_org_id())
+  with check (organizacao_id = public.current_org_id());
 
 -- -------------------------------------------------------------
 -- 6. View agregada: custo e uso por feature (últimos 30d)
