@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body { height: 100%; }
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Inter", Arial, sans-serif;
+}
+
+/* Scrollbar discreto */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }
+
+/* Inputs unificados */
+.input-base {
+  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm
+         focus:outline-none focus:ring-2 focus:ring-guild-500 focus:border-transparent;
+}
+.btn-primary {
+  @apply inline-flex items-center gap-2 rounded-lg bg-guild-600 px-4 py-2 text-sm font-medium
+         text-white shadow-sm hover:bg-guild-700 active:scale-[.98] transition disabled:opacity-50;
+}
+.btn-secondary {
+  @apply inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm
+         font-medium text-slate-700 shadow-sm hover:bg-slate-50 active:scale-[.98] transition;
+}
+.btn-ghost {
+  @apply inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 transition;
+}
+.card {
+  @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+}
+.label {
+  @apply block text-xs font-medium uppercase tracking-wider text-slate-500;
+}
