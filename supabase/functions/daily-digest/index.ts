@@ -6,13 +6,14 @@
 //   - Ações DE HOJE
 //   - Cadências previstas pra hoje
 //   - Newsletter devida hoje
-// Email entregue via Resend (https://resend.com).
+// Email entregue via Brevo (https://www.brevo.com) — API transacional v3.
 //
 // Variáveis de ambiente esperadas (configure em Project Settings > Edge):
 //   SUPABASE_URL              (auto)
 //   SUPABASE_SERVICE_ROLE_KEY (auto)
-//   RESEND_API_KEY            (criar no painel da Resend)
-//   FROM_EMAIL                ex.: "Guilds Comercial <comercial@guilds.com.br>"
+//   BREVO_API_KEY             (criar no painel do Brevo > SMTP & API)
+//   FROM_EMAIL                ex.: "comercial@guilds.com.br"
+//   FROM_NAME                 ex.: "Guilds Comercial"
 //   APP_URL                   ex.: "https://guilds-comercial.vercel.app"
 // ===========================================================================
 
@@ -55,11 +56,37 @@ interface Profile {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "Guilds Comercial <comercial@guilds.com.br>";
+const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY")!;
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "comercial@guilds.com.br";
+const FROM_NAME = Deno.env.get("FROM_NAME") ?? "Guilds Comercial";
 const APP_URL = Deno.env.get("APP_URL") ?? "https://guilds-comercial.vercel.app";
 
-Deno.serve(async (req) => {
+// ---------------------------------------------------------------------------
+// Brevo Transactional Email — POST https://api.brevo.com/v3/smtp/email
+// Docs: https://developers.brevo.com/reference/sendtransacemail
+// ---------------------------------------------------------------------------
+async function sendEmailViaBrevo(to: { email: string; name?: string }, subject: string, htmlContent: string) {
+  const payload = {
+    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    to: [to],
+    subject,
+    htmlContent,
+  };
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": BREVO_API_KEY,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return res;
+}
+
+Deno.serve(async (_req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
     const hoje = new Date().toISOString().slice(0, 10);
@@ -120,19 +147,11 @@ Deno.serve(async (req) => {
         leadsTime: p.role === "gestor" ? leads : [],
       });
 
-      const r = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: FROM_EMAIL,
-          to: p.email,
-          subject: `Guilds Comercial — ${total} ação(ões) hoje`,
-          html,
-        }),
-      });
+      const r = await sendEmailViaBrevo(
+        { email: p.email, name: p.display_name },
+        `Guilds Comercial — ${total} ação(ões) hoje`,
+        html,
+      );
 
       resultados.push({
         email: p.email,
