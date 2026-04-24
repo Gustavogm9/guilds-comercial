@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
+import FunilSectionExport from "@/components/funil-section-export";
 import type { CrmStage, ForecastMes } from "@/lib/types";
 import {
   TrendingDown, TrendingUp, Clock, DollarSign,
@@ -203,10 +204,16 @@ export default async function FunilPage({ searchParams }: {
               Quantos leads passam por cada etapa e qual % caem entre uma e outra.
             </p>
           </div>
-          <div className="text-xs text-slate-500">
-            Topo: <span className="font-semibold text-slate-900">{topoFunil}</span>
-            {" · "}
-            Fundo: <span className="font-semibold text-emerald-600">{ganhos}</span>
+          <div className="flex items-center gap-3">
+            <FunilSectionExport
+              data={funilPorEtapa.map(f => ({ etapa: f.crm_stage, quantidade: f.qtd, valor_aberto: f.valor_aberto, valor_weighted: f.valor_weighted }))}
+              filename="funil_conversao"
+            />
+            <div className="text-xs text-slate-500">
+              Topo: <span className="font-semibold text-slate-900">{topoFunil}</span>
+              {" · "}
+              Fundo: <span className="font-semibold text-emerald-600">{ganhos}</span>
+            </div>
           </div>
         </div>
         <FunilBarras etapas={ORDEM_ETAPAS} dados={funilPorEtapa} />
@@ -222,6 +229,10 @@ export default async function FunilPage({ searchParams }: {
                 Gargalos em vermelho (acima da mediana de todas as etapas).
               </p>
             </div>
+            <FunilSectionExport
+              data={tempoPorEtapa.map(t => ({ etapa: t.crm_stage, dias_media: t.dias_media, amostras: t.amostras }))}
+              filename="funil_tempo_etapa"
+            />
           </div>
           <TempoLista etapas={ORDEM_ETAPAS.filter(e => e !== "Fechado")} dados={tempoPorEtapa} />
         </div>
@@ -234,6 +245,10 @@ export default async function FunilPage({ searchParams }: {
                 Oportunidades abertas, ponderadas pela probabilidade da etapa.
               </p>
             </div>
+            <FunilSectionExport
+              data={valorPorEtapa.map(v => ({ etapa: v.crm_stage, leads: v.leads_abertos, valor_aberto: v.valor_aberto, valor_weighted: v.valor_weighted, prob_media: v.prob_media }))}
+              filename="funil_valor_etapa"
+            />
           </div>
           <ValorLista etapas={ORDEM_ETAPAS.filter(e => e !== "Fechado")} dados={valorPorEtapa} />
         </div>
@@ -249,6 +264,10 @@ export default async function FunilPage({ searchParams }: {
                 Quantos entraram e o que aconteceu com eles — ganho, perda, ainda aberto.
               </p>
             </div>
+            <FunilSectionExport
+              data={cohortsAgregados.map(c => ({ semana: c.semana, entraram: c.entraram, ganhos: c.ganhos, perdidos: c.perdidos, nutricao: c.nutricao, em_aberto: c.em_aberto, receita_ganha: c.receita_ganha }))}
+              filename="funil_cohort"
+            />
           </div>
           <CohortLista semanas={cohortsAgregados} />
         </div>
@@ -259,6 +278,10 @@ export default async function FunilPage({ searchParams }: {
               <h2 className="text-base font-semibold">Motivos de perda</h2>
               <p className="text-xs text-slate-500">Por que o lead sumiu.</p>
             </div>
+            <FunilSectionExport
+              data={perdasAgregadas.map(p => ({ motivo: p.motivo, quantidade: p.qtd, valor_perdido: p.valor_perdido }))}
+              filename="funil_motivos_perda"
+            />
           </div>
           <PerdasLista perdas={perdasAgregadas} total={perdidosTotal} />
         </div>

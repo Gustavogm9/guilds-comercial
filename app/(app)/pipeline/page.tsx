@@ -3,13 +3,16 @@ import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import KanbanBoard from "@/components/kanban-board";
+import PipelineToolbar from "@/components/pipeline-toolbar";
 import type { LeadEnriched } from "@/lib/types";
 import { ETAPAS_PIPELINE_VISIVEL } from "@/lib/lists";
-import { Plus, Filter } from "lucide-react";
+import { Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function PipelinePage({ searchParams }: { searchParams: { resp?: string } }) {
+export default async function PipelinePage({ searchParams }: {
+  searchParams: { resp?: string; q?: string; seg?: string; temp?: string };
+}) {
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
@@ -29,10 +32,27 @@ export default async function PipelinePage({ searchParams }: { searchParams: { r
 
   if (respFiltro !== "all") q = q.eq("responsavel_id", respFiltro);
 
+  // FR-CRM-07 — Busca por empresa/nome/email
+  if (searchParams.q?.trim()) {
+    const termo = `%${searchParams.q.trim()}%`;
+    q = q.or(`empresa.ilike.${termo},nome.ilike.${termo},email.ilike.${termo}`);
+  }
+
+  // FR-CRM-05 — Filtros avançados
+  if (searchParams.seg?.trim()) {
+    q = q.eq("segmento", searchParams.seg.trim());
+  }
+  if (searchParams.temp?.trim()) {
+    q = q.eq("temperatura", searchParams.temp.trim());
+  }
+
   const [{ data: leads }, membros] = await Promise.all([
     q,
     listarMembrosDaOrg(orgId),
   ]);
+
+  // Extrair segmentos únicos para o filtro
+  const segmentos = [...new Set((leads ?? []).map((l: any) => l.segmento).filter(Boolean))].sort() as string[];
 
   return (
     <div className="py-4">
@@ -41,23 +61,22 @@ export default async function PipelinePage({ searchParams }: { searchParams: { r
           <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
           <p className="text-sm text-slate-500">Arraste os cards entre colunas para mover de etapa.</p>
         </div>
-        <div className="flex items-center gap-2">
-          {isGestor && (
-            <form className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-slate-400"/>
-              <select name="resp" defaultValue={respFiltro}
-                className="input-base !py-1.5 !text-xs w-36">
-                <option value="all">Todo o time</option>
-                {membros.map(m => (
-                  <option key={m.profile_id} value={m.profile_id}>{m.display_name}</option>
-                ))}
-              </select>
-              <button type="submit" className="btn-secondary text-xs">Filtrar</button>
-            </form>
-          )}
-          <Link href="/base" className="btn-primary text-xs"><Plus className="w-3.5 h-3.5"/> Novo lead</Link>
-        </div>
+        <Link href="/base" className="btn-primary text-xs"><Plus className="w-3.5 h-3.5"/> Novo lead</Link>
       </header>
+
+      {/* FR-CRM-05/07/08 — Toolbar com busca, filtros e export */}
+      <div className="px-4 md:px-8 mb-4">
+        <PipelineToolbar
+          isGestor={isGestor}
+          membros={membros}
+          segmentos={segmentos}
+          respFiltro={respFiltro}
+          qFiltro={searchParams.q ?? ""}
+          segFiltro={searchParams.seg ?? ""}
+          tempFiltro={searchParams.temp ?? ""}
+          leads={(leads ?? []) as LeadEnriched[]}
+        />
+      </div>
 
       <KanbanBoard leads={(leads ?? []) as LeadEnriched[]} />
     </div>

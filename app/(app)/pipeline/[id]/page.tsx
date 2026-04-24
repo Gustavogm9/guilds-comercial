@@ -4,6 +4,7 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import LeadDetailActions from "@/components/lead-detail-actions";
 import LeadScoreCard from "@/components/lead-score-card";
+import CadenciaPassoCard from "@/components/cadencia-passo-card";
 import { STAGE_COLORS } from "@/lib/lists";
 import type { LeadEnriched, LeadScore } from "@/lib/types";
 import { ChevronLeft, MessageSquare, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin } from "lucide-react";
@@ -179,22 +180,29 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
         <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2">Cadência</h2>
         <div className="card p-3 md:p-4">
           {(cadencia?.length ?? 0) === 0 && <p className="text-sm text-slate-500">Nenhum passo de cadência registrado.</p>}
-          <ul className="grid grid-cols-3 md:grid-cols-6 gap-2">
-            {(["D0","D3","D7","D11","D16","D30"]).map(p => {
+          <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(["D0","D3","D7","D11","D16","D30"] as const).map(p => {
               const c = (cadencia ?? []).find((x: any) => x.passo === p);
-              const status = c?.status ?? "—";
-              const tone = status === "enviado" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                         : status === "respondido" ? "bg-blue-50 text-blue-700 border-blue-200"
-                         : status === "pular" ? "bg-zinc-50 text-zinc-500 border-zinc-200"
-                         : "bg-slate-50 text-slate-700 border-slate-200";
               return (
-                <li key={p} className={`rounded-lg border p-2 text-xs ${tone}`}>
-                  <div className="font-semibold">{p}</div>
-                  <div className="opacity-80 truncate">{c?.objetivo ?? "—"}</div>
-                  <div className="opacity-60 text-[10px] mt-1">
-                    {c?.data_prevista ? fmt(c.data_prevista) : ""} · {status}
-                  </div>
-                </li>
+                <CadenciaPassoCard
+                  key={p}
+                  passo={p}
+                  status={c?.status ?? "pendente"}
+                  objetivo={c?.objetivo ?? "—"}
+                  canal={c?.canal ?? "Email"}
+                  dataPrevista={c?.data_prevista ?? ""}
+                  leadId={lead.id}
+                  empresa={lead.empresa ?? "—"}
+                  nome={lead.nome ?? "—"}
+                  cargo={lead.cargo ?? undefined}
+                  dorPrincipal={lead.dor_principal ?? undefined}
+                  ultimaInteracao={(ligacoes ?? [])[0]?.resultado ?? "Sem interações"}
+                  tomAnterior={(ligacoes ?? [])[0]?.tom_interacao ?? null}
+                  raioxStatus={(raiox ?? [])[0]?.status_oferta ?? "Não ofertado"}
+                  raioxScore={(raiox ?? [])[0]?.score ?? undefined}
+                  vendedor={me.display_name}
+                  whatsapp={lead.whatsapp ?? undefined}
+                />
               );
             })}
           </ul>

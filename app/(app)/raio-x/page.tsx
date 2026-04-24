@@ -24,7 +24,7 @@ type RaioXJoin = {
   call_revisao: boolean;
   responsavel_id: string | null;
   observacoes: string | null;
-  leads: { id: number; empresa: string | null; nome: string | null; segmento: string | null } | null;
+  leads: { id: number; empresa: string | null; nome: string | null; segmento: string | null; cargo: string | null; whatsapp: string | null } | null;
 };
 
 export default async function RaioXPage({ searchParams }: { searchParams: { tab?: string; resp?: string } }) {
@@ -42,7 +42,7 @@ export default async function RaioXPage({ searchParams }: { searchParams: { tab?
 
   let q = supabase
     .from("raio_x")
-    .select("*, leads ( id, empresa, nome, segmento )")
+    .select("*, leads ( id, empresa, nome, segmento, cargo, whatsapp )")
     .eq("organizacao_id", orgId)
     .order("created_at", { ascending: false });
 
@@ -161,6 +161,11 @@ export default async function RaioXPage({ searchParams }: { searchParams: { tab?
                       raioxId={r.id} leadId={r.lead_id}
                       jaPago={r.pago}
                       jaTemResultado={r.score !== null}
+                      empresa={r.leads?.empresa ?? undefined}
+                      nome={r.leads?.nome ?? undefined}
+                      cargo={r.leads?.cargo ?? undefined}
+                      segmento={r.leads?.segmento ?? undefined}
+                      whatsapp={r.leads?.whatsapp ?? undefined}
                     />
                   </td>
                 </tr>
