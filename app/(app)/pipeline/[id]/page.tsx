@@ -8,6 +8,7 @@ import CadenciaPassoCard from "@/components/cadencia-passo-card";
 import { STAGE_COLORS } from "@/lib/lists";
 import type { LeadEnriched, LeadScore } from "@/lib/types";
 import { ChevronLeft, MessageSquare, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin } from "lucide-react";
+import ObjectionHandler from "@/components/objection-handler";
 
 // Calcula breakdown do score — mesma lógica do SQL, replicada aqui pra mostrar visualmente.
 function calcularBreakdown(lead: LeadEnriched, raioxPago: boolean, ultimasLigacoes: Array<{ tom_interacao: string | null }>) {
@@ -172,6 +173,18 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                 : "Nenhuma"
             }
           />
+        </section>
+      )}
+
+      {/* Contorno de objeções + link para proposta */}
+      {lead.funnel_stage === "pipeline" && lead.crm_stage !== "Fechado" && lead.crm_stage !== "Perdido" && (
+        <section className="mt-6 space-y-4">
+          <ObjectionHandler leadId={lead.id} empresa={lead.empresa} segmento={lead.segmento} />
+          {(lead.crm_stage === "Proposta" || lead.crm_stage === "Negociação") && (
+            <Link href={`/proposta/${lead.id}`} className="btn-secondary text-xs inline-flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5" /> Gerar Proposta com IA
+            </Link>
+          )}
         </section>
       )}
 

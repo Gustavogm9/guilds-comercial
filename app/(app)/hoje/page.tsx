@@ -6,6 +6,8 @@ import { URGENCIA_LABELS, STAGE_COLORS } from "@/lib/lists";
 import QuickActions from "@/components/quick-actions";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp } from "lucide-react";
+import BriefingPreCall from "@/components/briefing-pre-call";
+import ReativarNutricaoBtn from "@/components/reativar-nutricao-btn";
 
 export const dynamic = "force-dynamic";
 
@@ -181,10 +183,16 @@ function LeadRow({ l }: { l: LeadEnriched }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {l.crm_stage === "Nutrição" && (
+            <ReativarNutricaoBtn leadId={l.id} empresa={l.empresa} nome={l.nome} segmento={l.segmento} motivo={l.motivo_perda} />
+          )}
           <QuickActions lead={l} />
           <Link href={`/pipeline/${l.id}`} className="btn-ghost"><ChevronRight className="w-4 h-4"/></Link>
         </div>
       </div>
+      {l.crm_stage === "Call Marcada" && (
+        <BriefingPreCall leadId={l.id} empresa={l.empresa} nome={l.nome} segmento={l.segmento} dorPrincipal={l.dor_principal} observacoes={l.observacoes} />
+      )}
     </li>
   );
 }

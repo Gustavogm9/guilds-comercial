@@ -8,6 +8,7 @@ import {
   TrendingDown, TrendingUp, Clock, DollarSign,
   Users, AlertTriangle, Target, Percent, Sparkles, Gauge
 } from "lucide-react";
+import ForecastAIInsight from "@/components/forecast-ai-insight";
 
 export const dynamic = "force-dynamic";
 
@@ -191,6 +192,15 @@ export default async function FunilPage({ searchParams }: {
             label="Otimista"
             sub="Todos com score ≥ 70 fecham"
             v={moeda(forecastAgg.forecast_best)}
+          />
+        </div>
+        <div className="mt-4">
+          <ForecastAIInsight
+            forecastBest={forecastAgg.forecast_best}
+            forecastLikely={forecastAgg.forecast_likely}
+            forecastWorst={forecastAgg.forecast_worst}
+            leadsAtivos={forecastAgg.leads_ativos}
+            leadsAltos={forecastAgg.leads_altos}
           />
         </div>
       </section>

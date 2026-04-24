@@ -253,6 +253,155 @@ export async function invokeAI(input: InvokeAIInput): Promise<InvokeAIResult> {
   return { ok: true, texto, parsed, invocationId, custoUsd, latenciaMs };
 }
 
+/**
+ * Versão para chamadas server-to-server (cron, webhooks) sem sessão de usuário.
+ * Recebe orgId explicitamente e ignora verificação de role/budget de usuário.
+ */
+export async function invokeAISystem(
+  orgId: string,
+  input: Omit<InvokeAIInput, "timeoutMs"> & { timeoutMs?: number },
+): Promise<InvokeAIResult> {
+  const { createClient: createAdmin } = await import("@supabase/supabase-js");
+  const supabase = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  // 1. Carrega feature
+  const { data: featureRows } = await supabase
+    .from("ai_features")
+    .select("*")
+    .eq("codigo", input.feature)
+    .or(`organizacao_id.eq.${orgId},organizacao_id.is.null`)
+    .order("organizacao_id", { ascending: false, nullsFirst: false })
+    .limit(1);
+  const feature = featureRows?.[0] as AiFeature | undefined;
+
+  if (!feature) {
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: "Feature não cadastrada" };
+  }
+  if (!feature.ativo) {
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: "Feature desativada" };
+  }
+
+  // 2. Carrega prompt
+  const { data: promptRows } = await supabase
+    .from("ai_prompts")
+    .select("*")
+    .eq("feature_codigo", input.feature)
+    .eq("ativo", true)
+    .or(`organizacao_id.eq.${orgId},organizacao_id.is.null`)
+    .order("organizacao_id", { ascending: false, nullsFirst: false })
+    .limit(1);
+  const prompt = promptRows?.[0] as AiPrompt | undefined;
+  if (!prompt) {
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: "Prompt ativo não encontrado" };
+  }
+
+  // 3. Resolve provider
+  const { data: providerRows } = await supabase
+    .from("ai_providers")
+    .select("*")
+    .eq("codigo", feature.provider_codigo)
+    .eq("ativo", true)
+    .or(`organizacao_id.eq.${orgId},organizacao_id.is.null`)
+    .order("organizacao_id", { ascending: false, nullsFirst: false })
+    .limit(1);
+  const provider = providerRows?.[0] as AiProvider | undefined;
+  if (!provider) {
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: `Provider '${feature.provider_codigo}' não configurado` };
+  }
+
+  const adapter = ADAPTERS[provider.codigo];
+  if (!adapter) {
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: `Adapter '${provider.codigo}' não implementado` };
+  }
+
+  const apiKey = resolveApiKey(provider);
+  if (!apiKey) {
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: `API key ausente (env ${provider.api_key_ref})` };
+  }
+
+  // 4. Renderiza e chama
+  const userPrompt = renderTemplate(prompt.user_template, input.vars);
+  let texto = "";
+  let tokensIn = 0;
+  let tokensOut = 0;
+  let latenciaMs = 0;
+
+  try {
+    const result = await adapter.call({
+      apiKey,
+      baseUrl: provider.base_url ?? undefined,
+      modelo: feature.modelo,
+      systemPrompt: prompt.system_prompt ?? undefined,
+      userPrompt,
+      temperature: Number(feature.temperature),
+      maxTokens: feature.max_tokens,
+      timeoutMs: input.timeoutMs,
+    });
+    texto = result.texto;
+    tokensIn = result.tokensInput;
+    tokensOut = result.tokensOutput;
+    latenciaMs = result.latenciaMs;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Log na tabela de invocações como sistema
+    await supabase.from("ai_invocations").insert({
+      organizacao_id: orgId,
+      feature_codigo: input.feature,
+      prompt_versao: prompt?.versao ?? null,
+      provider_codigo: provider.codigo,
+      modelo: feature.modelo,
+      ator_id: null,
+      lead_id: input.leadId ?? null,
+      input_vars: input.vars,
+      output_texto: "",
+      tokens_input: 0, tokens_output: 0,
+      custo_estimado: 0, latencia_ms: 0,
+      status: msg.toLowerCase().includes("timeout") ? "timeout" : "erro",
+      erro_msg: msg.slice(0, 500),
+    });
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: msg };
+  }
+
+  const custoUsd = estimarCusto(provider, tokensIn, tokensOut);
+
+  // Log invocação
+  const { data } = await supabase
+    .from("ai_invocations")
+    .insert({
+      organizacao_id: orgId,
+      feature_codigo: input.feature,
+      prompt_versao: prompt?.versao ?? null,
+      provider_codigo: provider.codigo,
+      modelo: feature.modelo,
+      ator_id: null,
+      lead_id: input.leadId ?? null,
+      input_vars: input.vars,
+      output_texto: texto.slice(0, 20000),
+      tokens_input: tokensIn, tokens_output: tokensOut,
+      custo_estimado: custoUsd, latencia_ms: latenciaMs,
+      status: "sucesso",
+      erro_msg: null,
+    })
+    .select("id")
+    .maybeSingle();
+
+  // Parse JSON se pedido
+  let parsed: unknown = undefined;
+  if (input.outputMode === "json") {
+    try {
+      const clean = texto.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+      parsed = JSON.parse(clean);
+    } catch {
+      return { ok: false, texto, invocationId: data?.id ?? null, custoUsd, latenciaMs, erro: "Resposta não é JSON válido" };
+    }
+  }
+
+  return { ok: true, texto, parsed, invocationId: data?.id ?? null, custoUsd, latenciaMs };
+}
+
 // =============================================================
 // Helpers internos
 // =============================================================
