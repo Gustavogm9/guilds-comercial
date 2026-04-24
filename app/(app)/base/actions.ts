@@ -302,3 +302,52 @@ export async function atribuirResponsavel(lead_id: number, responsavel_id: strin
   });
   revalidatePath("/base");
 }
+
+/** Enriquecimento de Lead via IA (Copiloto) */
+export async function enriquecerLead(lead_id: number) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const orgId = await requireOrg();
+
+  // Buscar dados básicos do lead para usar como contexto
+  const { data: lead } = await supabase.from("leads").select("empresa, nome, email, segmento, cargo, cidade_uf, observacoes").eq("id", lead_id).single();
+  if (!lead) throw new Error("Lead não encontrado.");
+
+  // Import dynamic para evitar problema de ciclo
+  const { invokeAI } = await import("@/lib/ai/dispatcher");
+
+  const aiOutput = await invokeAI({
+    feature: "enriquecer_lead",
+    vars: {
+      empresa: lead.empresa ?? "",
+      nome: lead.nome ?? "",
+      email: lead.email ?? "",
+    },
+    leadId: lead_id,
+    outputMode: "json",
+  });
+
+  if (!aiOutput.ok) {
+    throw new Error(aiOutput.erro || "Falha ao enriquecer lead com IA.");
+  }
+
+  // Salvar no BD
+  const enrichedData = (aiOutput.parsed as any) ?? {};
+
+  await supabase.from("leads").update({
+    segmento: enrichedData.segmento || lead.segmento,
+    cargo: enrichedData.cargo || lead.cargo,
+    cidade_uf: enrichedData.localizacao || lead.cidade_uf,
+    observacoes: lead.observacoes
+      ? lead.observacoes + "\n\nIA: " + (enrichedData.resumo ?? aiOutput.texto)
+      : "IA: " + (enrichedData.resumo ?? aiOutput.texto),
+  }).eq("id", lead_id);
+
+  await supabase.from("lead_evento").insert({
+    organizacao_id: orgId,
+    lead_id, ator_id: user?.id ?? null,
+    tipo: "enriquecido_ia", payload: { dados: enrichedData },
+  });
+
+  revalidatePath("/base");
+}

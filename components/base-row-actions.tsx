@@ -1,8 +1,8 @@
 "use client";
 import { useState, useTransition } from "react";
-import { qualificarBase, promoverParaPipeline } from "@/app/(app)/base/actions";
+import { qualificarBase, promoverParaPipeline, enriquecerLead } from "@/app/(app)/base/actions";
 import type { LeadEnriched } from "@/lib/types";
-import { Check, ArrowRight, X, ChevronDown } from "lucide-react";
+import { Check, ArrowRight, X, ChevronDown, Sparkles } from "lucide-react";
 import MotivoSaidaModal from "./motivo-saida-modal";
 
 export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
@@ -52,6 +52,11 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
             className="btn-ghost text-xs text-slate-400 hover:text-urgent-500"
             title="Arquivar">
             <X className="w-3.5 h-3.5"/>
+          </button>
+          <button disabled={pending} onClick={() => start(async () => await enriquecerLead(lead.id))}
+            className="btn-ghost text-xs text-guild-600 hover:text-guild-700"
+            title="Enriquecer com IA">
+            <Sparkles className="w-3.5 h-3.5"/>
           </button>
         </div>
         <MotivoSaidaModal

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import { PhoneCall, PhoneOff, Phone, CheckCircle2 } from "lucide-react";
+import LigacoesHeaderActions from "@/components/ligacoes/header-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +59,12 @@ export default async function LigacoesPage({ searchParams }: { searchParams: { d
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Ligações</h1>
-        <p className="text-sm text-slate-500">Histórico de tentativas. Olho na taxa de atendimento.</p>
+      <header className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Ligações</h1>
+          <p className="text-sm text-slate-500">Histórico de tentativas. Olho na taxa de atendimento.</p>
+        </div>
+        <LigacoesHeaderActions orgId={orgId} />
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-4">
