@@ -1,0 +1,207 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Guilds Comercial API",
+    "description": "API REST para integração de CRM e automatizações B2B.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.guilds.com.br/api/v1",
+      "description": "Produção"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API Key"
+      }
+    },
+    "schemas": {
+      "Lead": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "nome": { "type": "string" },
+          "empresa": { "type": "string" },
+          "email": { "type": "string" },
+          "telefone": { "type": "string" },
+          "cargo": { "type": "string" },
+          "segmento": { "type": "string" },
+          "valor_estimado": { "type": "number" },
+          "fonte": { "type": "string" },
+          "status": { "type": "string", "enum": ["em_andamento", "ganho", "perdido"] },
+          "etapa": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "LeadInput": {
+        "type": "object",
+        "required": ["nome", "empresa"],
+        "properties": {
+          "nome": { "type": "string" },
+          "empresa": { "type": "string" },
+          "email": { "type": "string" },
+          "telefone": { "type": "string" },
+          "cargo": { "type": "string" },
+          "segmento": { "type": "string" },
+          "valor_estimado": { "type": "number" },
+          "fonte": { "type": "string" }
+        }
+      },
+      "LeadUpdate": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["em_andamento", "ganho", "perdido"] },
+          "etapa": { "type": "string" },
+          "valor_estimado": { "type": "number" }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/leads": {
+      "get": {
+        "summary": "Listar Leads",
+        "description": "Retorna uma lista paginada de leads da sua organização.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 50 }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": { "type": "integer", "default": 0 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["em_andamento", "ganho", "perdido"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de leads",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Lead" } },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "limit": { "type": "integer" },
+                        "offset": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar um Lead",
+        "description": "Cria um novo lead no pipeline na etapa inicial de Prospecção.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LeadInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lead criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Lead" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leads/{id}": {
+      "get": {
+        "summary": "Detalhar um Lead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lead encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Lead" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Atualizar Lead (Etapa ou Status)",
+        "description": "Atualize a etapa, status ou valor de um lead. Mudanças de etapa ou status acionam webhooks se configurados.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LeadUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lead atualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Lead" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

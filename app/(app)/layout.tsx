@@ -7,8 +7,20 @@ import NovoLeadFab from "@/components/novo-lead-fab";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  if (!profile) {
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      redirect("/onboarding");
+    } else {
+      redirect("/login");
+    }
+  }
 
+  if (!profile.home_organizacao_id) {
+    redirect("/onboarding");
+  }
   const [orgs, orgId, role] = await Promise.all([
     listarOrgsDoUsuario(),
     getCurrentOrgId(),
