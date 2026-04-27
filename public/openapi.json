@@ -23,17 +23,17 @@
       "Lead": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
+          "id": { "type": "integer" },
           "nome": { "type": "string" },
           "empresa": { "type": "string" },
           "email": { "type": "string" },
-          "telefone": { "type": "string" },
+          "whatsapp": { "type": "string" },
           "cargo": { "type": "string" },
           "segmento": { "type": "string" },
-          "valor_estimado": { "type": "number" },
+          "valor_potencial": { "type": "number" },
           "fonte": { "type": "string" },
-          "status": { "type": "string", "enum": ["em_andamento", "ganho", "perdido"] },
-          "etapa": { "type": "string" },
+          "funnel_stage": { "type": "string", "enum": ["base_bruta", "base_qualificada", "pipeline", "arquivado"] },
+          "crm_stage": { "type": "string" },
           "created_at": { "type": "string", "format": "date-time" }
         }
       },
@@ -44,19 +44,23 @@
           "nome": { "type": "string" },
           "empresa": { "type": "string" },
           "email": { "type": "string" },
-          "telefone": { "type": "string" },
+          "whatsapp": { "type": "string" },
+          "telefone": { "type": "string", "description": "Alias legado de whatsapp." },
           "cargo": { "type": "string" },
           "segmento": { "type": "string" },
-          "valor_estimado": { "type": "number" },
+          "valor_potencial": { "type": "number" },
+          "valor_estimado": { "type": "number", "description": "Alias legado de valor_potencial." },
           "fonte": { "type": "string" }
         }
       },
       "LeadUpdate": {
         "type": "object",
         "properties": {
-          "status": { "type": "string", "enum": ["em_andamento", "ganho", "perdido"] },
-          "etapa": { "type": "string" },
-          "valor_estimado": { "type": "number" }
+          "status": { "type": "string", "enum": ["em_andamento", "ganho", "perdido"], "description": "Alias conveniente para crm_stage." },
+          "crm_stage": { "type": "string" },
+          "etapa": { "type": "string", "description": "Alias legado de crm_stage." },
+          "valor_potencial": { "type": "number" },
+          "valor_estimado": { "type": "number", "description": "Alias legado de valor_potencial." }
         }
       }
     }
@@ -148,7 +152,7 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": { "type": "integer" }
           }
         ],
         "responses": {
@@ -175,7 +179,7 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": { "type": "integer" }
           }
         ],
         "requestBody": {

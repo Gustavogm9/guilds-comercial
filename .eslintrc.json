@@ -1,0 +1,7 @@
+{
+  "extends": "next/core-web-vitals",
+  "ignorePatterns": ["lib/database.types.ts"],
+  "rules": {
+    "react/no-unescaped-entities": "off"
+  }
+}

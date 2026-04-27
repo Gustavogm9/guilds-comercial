@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     // Busca todos os membros
     const { data: members } = await supabaseAdmin!
       .from('membros_organizacao')
-      .select('*, perfis(*)')
+      .select('*, profile:profiles(*)')
       .eq('organizacao_id', organizacao_id);
 
     // Busca todos os leads

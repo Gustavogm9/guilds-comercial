@@ -16,7 +16,7 @@ function LoginForm() {
     e.preventDefault();
     setErro(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       setErro(error.message === "Invalid login credentials"
@@ -24,6 +24,14 @@ function LoginForm() {
         : error.message);
       return;
     }
+
+    // Se o usuário precisa trocar a senha, redireciona para /trocar-senha
+    if (data.user?.user_metadata?.force_password_change === true) {
+      router.push("/trocar-senha");
+      router.refresh();
+      return;
+    }
+
     // Redireciona para ?next= se existir (ex: aceitação de convite), senão para /hoje
     const next = searchParams.get("next");
     const destino = next && next.startsWith("/") ? next : "/hoje";

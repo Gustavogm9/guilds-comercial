@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
-import { Users, Target, TrendingUp, AlertCircle, DollarSign, Trophy } from "lucide-react";
+import { Users, Target, TrendingUp, AlertCircle, DollarSign, Trophy, CheckCircle2, Circle, Rocket } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,16 @@ type KpiGlobal = {
   receita_fechada: number;
 };
 
+type AtivacaoOrg = {
+  membros_ativos: number | null;
+  convites_pendentes: number | null;
+  leads_total: number | null;
+  leads_movidos: number | null;
+  ia_sucesso_30d: number | null;
+  api_keys_ativas: number | null;
+  webhooks_ativos: number | null;
+};
+
 export default async function TimePage() {
   const me = await getCurrentProfile();
   if (!me) return null;
@@ -40,10 +50,11 @@ export default async function TimePage() {
   if (role !== "gestor") redirect("/hoje");
 
   const supabase = createClient();
+  const supabaseAny = supabase as any;
   const sete_dias_atras = new Date();
   sete_dias_atras.setDate(sete_dias_atras.getDate() - 7);
 
-  const [{ data: kpisGlobal }, { data: kpisResp }, { data: ligacoes7d }, { data: metaSemana }] = await Promise.all([
+  const [{ data: kpisGlobal }, { data: kpisResp }, { data: ligacoes7d }, { data: metaSemana }, { data: ativacaoData }] = await Promise.all([
     supabase.from("v_kpis_globais").select("*").eq("organizacao_id", orgId).maybeSingle(),
     supabase.from("v_kpis_por_responsavel").select("*").eq("organizacao_id", orgId).order("display_name"),
     supabase.from("ligacoes")
@@ -56,11 +67,13 @@ export default async function TimePage() {
       .lte("inicio", new Date().toISOString().slice(0, 10))
       .gte("fim", new Date().toISOString().slice(0, 10))
       .maybeSingle(),
+    supabaseAny.from("v_ativacao_org").select("*").eq("organizacao_id", orgId).maybeSingle(),
   ]);
 
   const g = (kpisGlobal ?? {}) as KpiGlobal;
   const lista = ((kpisResp ?? []) as KpiResp[]).filter(k => k.role !== "gestor" || k.leads_ativos > 0);
   const ligs = (ligacoes7d ?? []) as { responsavel_id: string | null; atendeu: boolean | null; resultado: string | null }[];
+  const ativacao = (ativacaoData ?? {}) as AtivacaoOrg;
 
   // Agrupa ligações por responsável (últimos 7d)
   const ligacoesPorResp = new Map<string, { total: number; atenderam: number; qualif: number }>();
@@ -94,6 +107,8 @@ export default async function TimePage() {
           <span><strong>{g.acoes_vencidas}</strong> ações vencidas no time. Cobrar nos 1:1.</span>
         </div>
       )}
+
+      <ActivationChecklist ativacao={ativacao} />
 
       {/* Meta semanal */}
       {metaSemana && (
@@ -173,6 +188,47 @@ export default async function TimePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ActivationChecklist({ ativacao }: { ativacao: AtivacaoOrg }) {
+  const items = [
+    { label: "Convidar pelo menos 1 pessoa", done: (ativacao.membros_ativos ?? 0) >= 2 || (ativacao.convites_pendentes ?? 0) > 0 },
+    { label: "Adicionar 5 leads", done: (ativacao.leads_total ?? 0) >= 5 },
+    { label: "Mover lead no pipeline", done: (ativacao.leads_movidos ?? 0) >= 1 },
+    { label: "Usar IA em um lead", done: (ativacao.ia_sucesso_30d ?? 0) >= 1 },
+    { label: "Configurar integracao", done: (ativacao.api_keys_ativas ?? 0) > 0 || (ativacao.webhooks_ativos ?? 0) > 0 },
+  ];
+  const doneCount = items.filter((item) => item.done).length;
+  const pct = Math.round((doneCount / items.length) * 100);
+
+  return (
+    <section className="card p-4 mb-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1">
+            <Rocket className="w-3.5 h-3.5" /> Ativacao da conta
+          </h2>
+          <div className="text-lg font-semibold mt-1">{doneCount}/{items.length} marcos concluidos</div>
+        </div>
+        <div className="w-full md:w-64">
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-guild-600 rounded-full" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="text-xs text-slate-500 mt-1 text-right">{pct}%</div>
+        </div>
+      </div>
+      <div className="grid md:grid-cols-5 gap-2 mt-4">
+        {items.map((item) => (
+          <div key={item.label} className={item.done ? "rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900" : "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"}>
+            <div className="flex items-center gap-2">
+              {item.done ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+              <span>{item.label}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

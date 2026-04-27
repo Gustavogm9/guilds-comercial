@@ -185,6 +185,7 @@ function ConvitesTab({ convites }: { convites: ConviteRow[] }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("comercial");
   const [ultimoLink, setUltimoLink] = useState<string | null>(null);
+  const [ultimoEmailEnviado, setUltimoEmailEnviado] = useState<boolean | null>(null);
 
   async function handleCriar() {
     if (!email) return;
@@ -192,6 +193,7 @@ function ConvitesTab({ convites }: { convites: ConviteRow[] }) {
       const result = await criarConvite({ email, role });
       const link = `${window.location.origin}/api/convite/${result.token}`;
       setUltimoLink(link);
+      setUltimoEmailEnviado(Boolean(result.email_sent));
       setEmail("");
     } catch (e) {
       alert("Erro ao criar convite: " + (e as Error).message);
@@ -237,7 +239,9 @@ function ConvitesTab({ convites }: { convites: ConviteRow[] }) {
           <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-start gap-2">
             <Check className="w-4 h-4 text-emerald-700 mt-0.5"/>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-emerald-900 mb-1">Convite criado. Envie este link:</div>
+              <div className="text-xs font-medium text-emerald-900 mb-1">
+                {ultimoEmailEnviado ? "Convite criado e enviado por email." : "Convite criado. Email nao configurado ou nao enviado."}
+              </div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-xs bg-white border border-emerald-200 rounded px-2 py-1 truncate">{ultimoLink}</code>
                 <button

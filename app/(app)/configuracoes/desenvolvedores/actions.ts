@@ -1,25 +1,27 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 
-/**
- * Gera uma nova API Key
- */
+async function requireGestorOrg() {
+  const [orgId, role] = await Promise.all([getCurrentOrgId(), getCurrentRole()]);
+  if (!orgId) throw new Error("Sem organização ativa.");
+  if (role !== "gestor") throw new Error("Acesso restrito a gestores.");
+  return orgId;
+}
+
 export async function generateApiKey(formData: FormData) {
   const supabase = createClient();
-  const name = formData.get("name") as string;
-  const organizacao_id = formData.get("organizacao_id") as string;
+  const organizacao_id = await requireGestorOrg();
+  const name = String(formData.get("name") ?? "").trim();
 
-  if (!name || !organizacao_id) {
-    return { error: "Nome e organização são obrigatórios" };
+  if (!name) {
+    return { error: "Nome é obrigatório" };
   }
 
-  // Gera um raw token aleatório (ex: gc_live_xxxxxxxxxxxxxxxxxxxxxxxx)
   const rawKey = "gc_live_" + crypto.randomBytes(32).toString("hex");
-
-  // Hash da chave com SHA-256
   const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex");
   const prefix = rawKey.substring(0, 12) + "...";
 
@@ -27,7 +29,7 @@ export async function generateApiKey(formData: FormData) {
     organizacao_id,
     name,
     key_hash: keyHash,
-    prefix
+    prefix,
   });
 
   if (error) {
@@ -35,18 +37,17 @@ export async function generateApiKey(formData: FormData) {
   }
 
   revalidatePath("/configuracoes/desenvolvedores");
-  
-  // Retornamos a rawKey apenas esta vez para ser exibida ao usuário
   return { rawKey, success: true };
 }
 
-/**
- * Revoga (deleta) uma API Key
- */
 export async function revokeApiKey(id: string) {
   const supabase = createClient();
-  const { error } = await supabase.from("api_keys").delete().eq("id", id);
-  
+  const organizacao_id = await requireGestorOrg();
+  const { error } = await supabase.from("api_keys")
+    .delete()
+    .eq("id", id)
+    .eq("organizacao_id", organizacao_id);
+
   if (error) {
     return { error: error.message };
   }
@@ -55,22 +56,27 @@ export async function revokeApiKey(id: string) {
   return { success: true };
 }
 
-/**
- * Cadastra um novo Webhook
- */
 export async function createWebhook(formData: FormData) {
   const supabase = createClient();
-  const url = formData.get("url") as string;
-  const organizacao_id = formData.get("organizacao_id") as string;
-  
-  // Pegar múltiplos eventos do form (se usar checkboxes)
-  const events = formData.getAll("events") as string[];
+  const organizacao_id = await requireGestorOrg();
+  const url = String(formData.get("url") ?? "").trim();
+  const events = formData.getAll("events").map(String);
 
-  if (!url || !organizacao_id || events.length === 0) {
-    return { error: "URL, Organização e ao menos um evento são obrigatórios" };
+  if (!url || events.length === 0) {
+    return { error: "URL e ao menos um evento são obrigatórios" };
   }
 
-  // Gerar um secret seguro
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return { error: "URL inválida" };
+  }
+
+  if (parsedUrl.protocol !== "https:") {
+    return { error: "Use uma URL HTTPS para webhooks" };
+  }
+
   const secret = "whsec_" + crypto.randomBytes(24).toString("hex");
 
   const { error } = await supabase.from("webhooks").insert({
@@ -78,7 +84,7 @@ export async function createWebhook(formData: FormData) {
     url,
     events,
     secret,
-    active: true
+    active: true,
   });
 
   if (error) {
@@ -89,13 +95,14 @@ export async function createWebhook(formData: FormData) {
   return { success: true };
 }
 
-/**
- * Deleta um Webhook
- */
 export async function deleteWebhook(id: string) {
   const supabase = createClient();
-  const { error } = await supabase.from("webhooks").delete().eq("id", id);
-  
+  const organizacao_id = await requireGestorOrg();
+  const { error } = await supabase.from("webhooks")
+    .delete()
+    .eq("id", id)
+    .eq("organizacao_id", organizacao_id);
+
   if (error) {
     return { error: error.message };
   }

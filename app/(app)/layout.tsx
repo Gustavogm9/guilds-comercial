@@ -4,6 +4,7 @@ import { getCurrentOrgId, getCurrentRole, listarOrgsDoUsuario } from "@/lib/supa
 import Sidebar from "@/components/sidebar";
 import MobileNav from "@/components/mobile-nav";
 import NovoLeadFab from "@/components/novo-lead-fab";
+import TrialBanner from "@/components/trial-banner";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
@@ -48,6 +49,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <div className="text-xs text-slate-500">{profile.display_name}</div>
         </div>
+        {isGestor && activeOrg && (
+          <TrialBanner trialEndsAt={activeOrg.trial_ends_at} billingStatus={activeOrg.billing_status} />
+        )}
         {children}
         <MobileNav />
       </main>

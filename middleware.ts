@@ -26,18 +26,51 @@ export async function middleware(req: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // rotas livres
-  const isPublic = req.nextUrl.pathname === "/login" || req.nextUrl.pathname.startsWith("/api/auth");
+  const pathname = req.nextUrl.pathname;
+
+  // Rotas livres: marketing, autenticação, convite, API pública e cron têm
+  // seus próprios controles (API key, token de cron ou callback do Supabase).
+  const publicPrefixes = [
+    "/api/auth",
+    "/api/billing",
+    "/api/convite",
+    "/api/v1",
+    "/auth/callback",
+  ];
+  const publicPaths = new Set([
+    "/",
+    "/login",
+    "/cadastro",
+    "/ajuda",
+    "/api-docs",
+    "/termos",
+    "/privacidade",
+    "/dpa",
+  ]);
+  const isPublic = publicPaths.has(pathname)
+    || publicPrefixes.some((prefix) => pathname.startsWith(prefix));
 
   if (!user && !isPublic) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
-  if (user && req.nextUrl.pathname === "/login") {
+  if (user && (pathname === "/login" || pathname === "/cadastro")) {
     const url = req.nextUrl.clone();
     url.pathname = "/hoje";
     return NextResponse.redirect(url);
+  }
+
+  // ---------- Troca obrigatória de senha ----------
+  // Se o usuário está logado e tem o flag force_password_change ativo,
+  // redireciona para /trocar-senha (exceto se já estiver nessa rota).
+  if (user && pathname !== "/trocar-senha") {
+    const forceChange = user.user_metadata?.force_password_change === true;
+    if (forceChange) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/trocar-senha";
+      return NextResponse.redirect(url);
+    }
   }
 
   return res;

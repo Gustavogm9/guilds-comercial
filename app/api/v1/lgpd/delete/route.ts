@@ -29,7 +29,8 @@ export async function DELETE(req: Request) {
         .update({
           nome: obfString,
           email: `${obfString}@anon.local`,
-          telefone: null,
+          whatsapp: null,
+          linkedin: null,
           empresa: 'Empresa Removida (LGPD)'
         })
         .eq('organizacao_id', organizacao_id);

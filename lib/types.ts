@@ -197,6 +197,12 @@ export interface Organizacao {
   slug: string;
   owner_id: string | null;
   ativa: boolean;
+  plano?: "trial" | "starter" | "growth" | "scale";
+  billing_status?: "trialing" | "active" | "past_due" | "canceled";
+  trial_started_at?: string;
+  trial_ends_at?: string;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
   created_at: string;
 }
 

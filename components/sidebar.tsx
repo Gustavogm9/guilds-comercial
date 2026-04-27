@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Kanban, Users, Search, Activity, Mail, PhoneCall, LogOut, UserCog, Radio, User, BarChart3, Bot, Terminal } from "lucide-react";
+import { Home, Kanban, Users, Search, Activity, Mail, PhoneCall, LogOut, UserCog, Radio, User, BarChart3, Bot, Terminal, CreditCard } from "lucide-react";
 import clsx from "clsx";
 import OrgSwitcher from "./org-switcher";
 
@@ -27,6 +27,7 @@ const NAV: NavItem[] = [
   { href: "/equipe",     label: "Equipe",     icon: UserCog,  gestorOnly: true },
   { href: "/admin/ai",   label: "IA",         icon: Bot,      gestorOnly: true },
   { href: "/configuracoes/desenvolvedores", label: "API & Webhooks", icon: Terminal, gestorOnly: true },
+  { href: "/configuracoes/billing", label: "Billing", icon: CreditCard, gestorOnly: true },
 ];
 
 type OrgLite = { id: string; nome: string; role: "gestor" | "comercial" | "sdr" };

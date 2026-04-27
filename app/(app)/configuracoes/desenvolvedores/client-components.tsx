@@ -71,7 +71,7 @@ export function ApiKeysManager({ organizacaoId, apiKeys }: { organizacaoId: stri
             name="name" 
             required 
             placeholder="Nome da chave (ex: Zapier)" 
-            className="input flex-1"
+            className="input-base flex-1"
           />
           <button type="submit" disabled={loading} className="btn-primary">
             {loading ? "Gerando..." : "Gerar Chave"}
@@ -152,7 +152,7 @@ export function WebhooksManager({ organizacaoId, webhooks }: { organizacaoId: st
               name="url" 
               required 
               placeholder="https://sua-api.com/webhook" 
-              className="input w-full"
+              className="input-base w-full"
             />
           </div>
           <div>

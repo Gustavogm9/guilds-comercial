@@ -3,12 +3,42 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { TEMPLATES } from "@/lib/cadencia-templates";
+import { getAppUrl, sendInviteEmail, sendWelcomeEmail } from "@/lib/email";
+import type { Role } from "@/lib/types";
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || `org-${Date.now()}`;
+}
+
+function normalizarConvites(convites: Array<{ email: string; role: Role }>) {
+  const roles: Role[] = ["gestor", "comercial", "sdr"];
+  const porEmail = new Map<string, { email: string; role: Role }>();
+
+  convites.forEach((convite) => {
+    const email = convite.email.trim().toLowerCase();
+    if (!email || !email.includes("@")) return;
+    porEmail.set(email, {
+      email,
+      role: roles.includes(convite.role) ? convite.role : "comercial",
+    });
+  });
+
+  return Array.from(porEmail.values()).slice(0, 5);
+}
 
 export async function finalizarOnboarding(dados: {
   segmento: string;
   dor_principal: string;
   cargo_foco: string;
   gerarDemo: boolean;
+  habilitarIA?: boolean;
+  convites?: Array<{ email: string; role: Role }>;
 }) {
   const cookieStore = cookies();
   const supabase = createServerClient(
@@ -24,104 +54,133 @@ export async function finalizarOnboarding(dados: {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Usuário não autenticado");
+  if (!user) throw new Error("Usuario nao autenticado");
 
-  const nome = user.user_metadata.full_name || "Usuário";
-  const empresa_nome = user.user_metadata.empresa_nome || "Minha Empresa";
+  const nome = user.user_metadata.full_name || "Usuario";
+  const empresaNome = user.user_metadata.empresa_nome || "Minha Empresa";
 
-  // 1. Garante que o profile existe
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (!profile) {
     const { error: profErr } = await supabase.from("profiles").insert({
       id: user.id,
       email: user.email,
-      nome: nome,
+      display_name: nome,
+      role: "gestor",
     });
     if (profErr) throw new Error("Erro ao criar perfil: " + profErr.message);
   }
 
-  // 2. Cria a organização
-  const { data: org, error: orgErr } = await supabase.from("organizacoes").insert({
-    nome: empresa_nome,
-    owner_id: user.id
-  }).select().single();
-  if (orgErr) throw new Error("Erro ao criar organização: " + orgErr.message);
+  let slug = slugify(empresaNome);
+  const { data: existingSlug } = await supabase.from("organizacoes")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (existingSlug) slug = `${slug}-${Date.now().toString(36)}`;
 
-  // 3. Adiciona usuário como gestor da organização
+  const { data: org, error: orgErr } = await supabase.from("organizacoes").insert({
+    nome: empresaNome,
+    slug,
+    owner_id: user.id,
+  }).select().single();
+  if (orgErr) throw new Error("Erro ao criar organizacao: " + orgErr.message);
+
   const { error: membroErr } = await supabase.from("membros_organizacao").insert({
     organizacao_id: org.id,
     profile_id: user.id,
-    papel: "gestor"
+    role: "gestor",
+    ativo: true,
   });
   if (membroErr) throw new Error("Erro ao adicionar membro: " + membroErr.message);
 
-  // 4. Define como home_organizacao_id
   await supabase.from("profiles").update({ home_organizacao_id: org.id }).eq("id", user.id);
 
-  // 5. Configurações da organização (incluindo ICP)
   const { error: confErr } = await supabase.from("organizacao_config").insert({
     organizacao_id: org.id,
-    raiox_valor_lista: 97.00,
-    raiox_voucher_valor: 50.00
-    // ICP configs removed for now, we will add them as jsonb if needed, or just let them live in the initial lead.
+    distribuicao_automatica: false,
+    distribuicao_estrategia: "manual",
   });
-  // Ignore error if columns don't exist yet, we will add them or just use generic jsonb config
-  // Wait, organizacao_config doesn't have icp_* columns. Let's check schema.
+  if (confErr) throw new Error("Erro ao criar configuracoes: " + confErr.message);
 
-  // 6. Faz o seed dos templates de cadência para a organização
-  const templatesToInsert = TEMPLATES.map(t => ({
+  const templatesToInsert = TEMPLATES.map((template) => ({
     organizacao_id: org.id,
-    passo: t.passo,
-    canal: t.canal,
-    objetivo: t.objetivo,
-    assunto: t.assunto,
-    corpo: t.corpo
+    passo: template.passo,
+    canal: template.canal,
+    objetivo: template.objetivo,
+    assunto: template.assunto,
+    corpo: template.corpo,
   }));
   const { error: tplErr } = await supabase.from("cadencia_templates").insert(templatesToInsert);
-  if (tplErr) throw new Error("Erro ao criar templates de cadência: " + tplErr.message);
+  if (tplErr) throw new Error("Erro ao criar templates de cadencia: " + tplErr.message);
 
-  // 7. Enviar evento/email de boas vindas no Brevo (assíncrono)
-  dispararBrevoBoasVindas(user.email!, nome, empresa_nome).catch(console.error);
+  const { data: featuresGlobais } = await supabase
+    .from("ai_features")
+    .select("codigo,nome,descricao,etapa_fluxo,provider_codigo,modelo,temperature,max_tokens,limite_dia_org,limite_dia_usuario,papel_minimo")
+    .is("organizacao_id", null);
 
-  // 8. Opcional: Gerar dados de demo
+  if (featuresGlobais?.length) {
+    await supabase.from("ai_features").insert(featuresGlobais.map((feature) => ({
+      ...feature,
+      organizacao_id: org.id,
+      ativo: dados.habilitarIA ?? true,
+    })));
+  }
+
+  sendWelcomeEmail({ email: user.email!, name: nome, orgName: empresaNome }).catch(console.error);
+
   if (dados.gerarDemo) {
-    // Insere um lead de teste para a pessoa brincar
     await supabase.from("leads").insert({
       organizacao_id: org.id,
       nome: "Carlos Silva",
       empresa: "Empresa Exemplo LTDA",
-      cargo: dados.cargo_foco || "Sócio Diretor",
-      etapa: "base",
+      cargo: dados.cargo_foco || "Socio Diretor",
+      funnel_stage: "pipeline",
+      crm_stage: "Prospecção",
       temperatura: "Morno",
+      dor_principal: dados.dor_principal || null,
+      segmento: dados.segmento || null,
       valor_potencial: 5000,
-      vendedor_id: user.id
+      responsavel_id: user.id,
+      data_primeiro_contato: new Date().toISOString().slice(0, 10),
+      proxima_acao: "Enviar D0",
+      data_proxima_acao: new Date().toISOString().slice(0, 10),
     });
   }
 
-  return { sucesso: true, organizacao_id: org.id };
-}
+  const convites = normalizarConvites(dados.convites ?? []);
+  if (convites.length) {
+    const { data: convitesCriados, error: convitesErr } = await supabase
+      .from("convites")
+      .insert(convites.map((convite) => ({
+        organizacao_id: org.id,
+        email: convite.email,
+        role: convite.role,
+        convidado_por: user.id,
+      })))
+      .select("email, role, token");
 
-async function dispararBrevoBoasVindas(email: string, nome: string, empresa: string) {
-  const BREVO_API_KEY = process.env.BREVO_API_KEY;
-  if (!BREVO_API_KEY) return;
+    if (convitesErr) throw new Error("Erro ao criar convites: " + convitesErr.message);
 
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "accept": "application/json",
-      "api-key": BREVO_API_KEY,
-      "content-type": "application/json"
+    await Promise.allSettled((convitesCriados ?? []).map((convite) => sendInviteEmail({
+      email: convite.email,
+      orgName: empresaNome,
+      inviterName: nome,
+      inviteUrl: `${getAppUrl()}/api/convite/${convite.token}`,
+      role: convite.role,
+    })));
+  }
+
+  await (supabase as any).from("organizacao_evento").insert({
+    organizacao_id: org.id,
+    ator_id: user.id,
+    tipo: "onboarding_concluido",
+    payload: {
+      segmento: dados.segmento,
+      cargo_foco: dados.cargo_foco,
+      gerar_demo: dados.gerarDemo,
+      convites: convites.length,
+      ia_habilitada: dados.habilitarIA ?? true,
     },
-    body: JSON.stringify({
-      sender: { name: "Equipe Guilds", email: "hello@guilds.com.br" },
-      to: [{ email, name: nome }],
-      subject: "Bem-vindo ao Guilds Comercial 🚀",
-      htmlContent: `<p>Olá ${nome},</p><p>Sua conta da <strong>${empresa}</strong> foi criada com sucesso!</p><p>O próximo passo é acessar a plataforma, adicionar seus leads e testar a automação do funil com inteligência artificial.</p><p>Um abraço,<br>Equipe Guilds</p>`
-    })
   });
 
-  if (!res.ok) {
-    const data = await res.json();
-    console.error("Erro Brevo:", data);
-  }
+  return { sucesso: true, organizacao_id: org.id };
 }

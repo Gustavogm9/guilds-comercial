@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { revalidatePath } from "next/cache";
 import type { Role } from "@/lib/types";
+import { getAppUrl, sendInviteEmail } from "@/lib/email";
 
 async function requireGestorOrg() {
   const orgId = await getCurrentOrgId();
@@ -65,9 +66,28 @@ export async function criarConvite(input: {
 
   if (error) throw error;
 
-  // TODO: disparar email via Resend com link /api/convite/{token}
+  const [{ data: org }, { data: profile }] = await Promise.all([
+    supabase.from("organizacoes").select("nome").eq("id", orgId).maybeSingle(),
+    supabase.from("profiles").select("display_name").eq("id", user?.id ?? "").maybeSingle(),
+  ]);
+
+  const inviteUrl = `${getAppUrl()}/api/convite/${convite!.token}`;
+  let emailSent = false;
+  try {
+    const result = await sendInviteEmail({
+      email: input.email.trim().toLowerCase(),
+      orgName: org?.nome ?? "sua organizacao",
+      inviterName: profile?.display_name ?? user?.email ?? "Um gestor",
+      inviteUrl,
+      role: input.role,
+    });
+    emailSent = result.sent;
+  } catch (err) {
+    console.error("Erro ao enviar convite:", err);
+  }
+
   revalidatePath("/equipe");
-  return { token: convite!.token, expira_em: convite!.expira_em };
+  return { token: convite!.token, expira_em: convite!.expira_em, email_sent: emailSent };
 }
 
 export async function revogarConvite(convite_id: number) {
