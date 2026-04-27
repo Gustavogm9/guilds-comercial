@@ -10,8 +10,8 @@ SELECT cron.schedule(
     '0 8 * * *', 
     $$
     SELECT net.http_post(
-        url := 'https://guilds-comercial.vercel.app/api/v1/cron/daily-digest',
-        headers := '{"Content-Type": "application/json", "Authorization": "Bearer SEU_CRON_SECRET"}'::jsonb,
+        url := 'https://crm.guilds.com.br/api/v1/cron/daily-digest',
+        headers := '{"Content-Type": "application/json", "Authorization": "Bearer cfo1i8aw49vbp7tksry53lzqnx0jem2h"}'::jsonb,
         body := '{}'::jsonb
     );
     $$
