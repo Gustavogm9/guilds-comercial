@@ -96,14 +96,14 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               <h1 className="text-2xl font-semibold tracking-tight truncate">
                 {lead.empresa || lead.nome || "(sem nome)"}
               </h1>
-              {lead.is_demo && <span className="text-[10px] uppercase bg-amber-50 text-warning-500 px-2 py-0.5 rounded border border-amber-200">demo</span>}
+              {lead.is_demo && <span className="text-[10px] uppercase tracking-[0.12em] bg-warning-500/10 text-warning-500 px-2 py-0.5 rounded border border-warning-500/25">demo</span>}
               {lead.crm_stage && stage && (
                 <span className={`text-xs px-2 py-1 rounded border ${stage.bg} ${stage.text} ${stage.border}`}>
                   {lead.crm_stage}
                 </span>
               )}
             </div>
-            <div className="text-sm text-slate-500 mt-1">
+            <div className="text-sm text-muted-foreground mt-1">
               {lead.nome && <span>{lead.nome}{lead.cargo && ` · ${lead.cargo}`}</span>}
               {lead.responsavel_nome && <span> · resp: {lead.responsavel_nome}</span>}
             </div>
@@ -149,7 +149,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       {/* Score de fechamento — só para leads ativos no pipeline */}
       {lead.funnel_stage === "pipeline" && lead.crm_stage !== "Fechado" && lead.crm_stage !== "Perdido" && (
         <section className="mt-6">
-          <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2">
+          <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">
             Potencial de fechamento
           </h2>
           <LeadScoreCard
@@ -190,9 +190,9 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 
       {/* Cadência */}
       <section className="mt-6">
-        <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2">Cadência</h2>
+        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">Cadência</h2>
         <div className="card p-3 md:p-4">
-          {(cadencia?.length ?? 0) === 0 && <p className="text-sm text-slate-500">Nenhum passo de cadência registrado.</p>}
+          {(cadencia?.length ?? 0) === 0 && <p className="text-sm text-muted-foreground">Nenhum passo de cadência registrado.</p>}
           <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {(["D0","D3","D7","D11","D16","D30"] as const).map(p => {
               const c = (cadencia ?? []).find((x: any) => x.passo === p);
@@ -224,17 +224,17 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 
       {/* Ligações */}
       <section className="mt-6">
-        <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2 flex items-center gap-1">
+        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
           <PhoneCall className="w-3.5 h-3.5"/> Ligações ({(ligacoes ?? []).length})
         </h2>
         <div className="card divide-y">
-          {(ligacoes ?? []).length === 0 && <p className="p-4 text-sm text-slate-500">Sem ligações registradas.</p>}
+          {(ligacoes ?? []).length === 0 && <p className="p-4 text-sm text-muted-foreground">Sem ligações registradas.</p>}
           {(ligacoes ?? []).map((l: any) => (
             <div key={l.id} className="p-3 text-sm flex items-start gap-3">
-              <div className="text-xs text-slate-500 w-28 shrink-0">{fmtDateTime(l.data_hora)}</div>
+              <div className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums">{fmtDateTime(l.data_hora)}</div>
               <div className="flex-1">
                 <div className="font-medium">{l.resultado}</div>
-                {l.observacoes && <div className="text-slate-500 text-xs mt-0.5">{l.observacoes}</div>}
+                {l.observacoes && <div className="text-muted-foreground text-xs mt-0.5">{l.observacoes}</div>}
               </div>
             </div>
           ))}
@@ -244,7 +244,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       {/* Raio-X */}
       {(raiox ?? []).length > 0 && (
         <section className="mt-6">
-          <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2 flex items-center gap-1">
+          <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
             <FileText className="w-3.5 h-3.5"/> Raio-X
           </h2>
           <div className="card p-4 grid md:grid-cols-3 gap-4 text-sm">
@@ -258,16 +258,16 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 
       {/* Timeline */}
       <section className="mt-6">
-        <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2 flex items-center gap-1">
+        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
           <MessageSquare className="w-3.5 h-3.5"/> Timeline
         </h2>
         <div className="card divide-y">
-          {(eventos ?? []).length === 0 && <p className="p-4 text-sm text-slate-500">Sem eventos.</p>}
+          {(eventos ?? []).length === 0 && <p className="p-4 text-sm text-muted-foreground">Sem eventos.</p>}
           {(eventos ?? []).map((ev: any) => (
             <div key={ev.id} className="p-3 text-sm flex items-start gap-3">
-              <div className="text-xs text-slate-500 w-28 shrink-0">{fmtDateTime(ev.created_at)}</div>
+              <div className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums">{fmtDateTime(ev.created_at)}</div>
               <div className="flex-1">
-                <span className="text-xs uppercase tracking-wider text-slate-500 mr-2">{ev.tipo}</span>
+                <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold mr-2">{ev.tipo}</span>
                 <span>{summarizePayload(ev.payload)}</span>
               </div>
             </div>
@@ -281,8 +281,8 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 function Field({ icon: Icon, label, value }: any) {
   return (
     <div className="flex items-center gap-2 min-w-0">
-      <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0"/>
-      <span className="text-xs uppercase tracking-wider text-slate-500 w-24 shrink-0">{label}</span>
+      <Icon className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0"/>
+      <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground w-24 shrink-0">{label}</span>
       <span className="truncate">{value || "—"}</span>
     </div>
   );
@@ -291,8 +291,8 @@ function KV({ label, v, sub }: { label: string; v: string; sub?: string }) {
   return (
     <div>
       <div className="label">{label}</div>
-      <div className="text-base font-medium leading-tight mt-0.5">{v}</div>
-      {sub && <div className="text-xs text-slate-500">{sub}</div>}
+      <div className="text-base font-medium leading-tight mt-0.5 tabular-nums">{v}</div>
+      {sub && <div className="text-xs text-muted-foreground tabular-nums">{sub}</div>}
     </div>
   );
 }

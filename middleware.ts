@@ -62,8 +62,11 @@ export async function middleware(req: NextRequest) {
   }
 
   // ---------- Troca obrigatória de senha ----------
-  // Se o usuário está logado e tem o flag force_password_change ativo,
-  // redireciona para /trocar-senha (exceto se já estiver nessa rota).
+  // O flag user_metadata.force_password_change é definido manualmente no Supabase
+  // (Auth → Users → user_metadata) quando uma conta é provisionada com senha
+  // temporária — por exemplo, quando o gestor cria um SDR e quer forçar troca
+  // no primeiro login. O flag é limpo automaticamente em /trocar-senha.
+  // Onboarding self-service NÃO seta esse flag (usuário escolheu a própria senha).
   if (user && pathname !== "/trocar-senha") {
     const forceChange = user.user_metadata?.force_password_change === true;
     if (forceChange) {

@@ -1,0 +1,39 @@
+# Normaliza line endings em todos os arquivos de texto.
+# Resolve o aviso "LF will be replaced by CRLF" no Windows e mantém o repo
+# consistente entre dev em Windows/macOS/Linux.
+
+* text=auto eol=lf
+
+# Arquivos sempre LF (mesmo no Windows) — scripts, configs, código
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.sql       text eol=lf
+*.css       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.toml      text eol=lf
+*.sh        text eol=lf
+*.html      text eol=lf
+*.svg       text eol=lf
+
+# Arquivos sempre CRLF (Windows-only)
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# Binários — não normalizar
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.pdf       binary
+*.xlsx      binary
+*.zip       binary
+*.woff      binary
+*.woff2     binary

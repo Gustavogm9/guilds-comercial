@@ -12,7 +12,7 @@ export default async function ImportarPage() {
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-4">
         <h1 className="text-2xl font-semibold tracking-tight">Importar leads em massa</h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Suba um arquivo <code>.csv</code> com as colunas abaixo. Primeira linha é o cabeçalho.
           Todos os leads entram na <b>Base bruta</b>.
         </p>

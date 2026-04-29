@@ -52,7 +52,8 @@ Os códigos são fixos — não renomear (quebra o dispatcher).
 
 ### 1. Rodar a migration v5
 
-No SQL Editor do Supabase, execute `supabase/migration_v5_ai.sql`.
+No SQL Editor do Supabase, execute `supabase/migrations/20260423000004_v5.sql`
+(parte da sequência alfabética de migrations da pasta — veja [`SETUP_SUPABASE.md`](./SETUP_SUPABASE.md#2-rodar-as-migrations-em-ordem)).
 Cria as 4 tabelas (`ai_providers`, `ai_features`, `ai_prompts`, `ai_invocations`)
 + a view `v_ai_uso_30d` + **seeds dos 15 features e prompts iniciais em português**.
 

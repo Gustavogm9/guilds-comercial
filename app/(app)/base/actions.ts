@@ -111,7 +111,9 @@ export async function criarLead(input: {
 
 /** Importação em massa via CSV. Recebe array de rows já parseados.
  *  Retorna { criados, ignorados, erros }. */
-export async function importarLeadsEmMassa(rows: Array<{
+export type DedupPolitica = "ignorar" | "atualizar" | "criar_mesmo_assim";
+
+export interface ImportRow {
   empresa?: string;
   nome?: string;
   cargo?: string;
@@ -122,44 +124,122 @@ export async function importarLeadsEmMassa(rows: Array<{
   cidade_uf?: string;
   fonte?: string;
   observacoes?: string;
-}>) {
+  site?: string;
+  valor_potencial?: number;
+}
+
+/**
+ * Import em massa com dedup por email/whatsapp.
+ *
+ * politica_dedup:
+ *  - 'ignorar' (default): pula rows que batem com lead existente
+ *  - 'atualizar': faz update no lead existente com campos não-vazios do CSV
+ *  - 'criar_mesmo_assim': insere mesmo com duplicata (cria lead novo)
+ */
+export async function importarLeadsEmMassa(
+  rows: ImportRow[],
+  politica_dedup: DedupPolitica = "ignorar"
+) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
 
-  const valid = rows.filter(r => (r.empresa ?? "").trim().length > 0);
-  if (valid.length === 0) return { criados: 0, ignorados: rows.length, erros: [] as string[] };
+  const valid = rows.filter((r) => (r.empresa ?? "").trim().length > 0);
+  const sem_empresa = rows.length - valid.length;
+  if (valid.length === 0) {
+    return { criados: 0, atualizados: 0, ignorados: sem_empresa, sem_empresa, duplicados: 0, erros: [] as string[] };
+  }
 
-  const payload = valid.map(r => ({
-    organizacao_id: orgId,
-    empresa: (r.empresa ?? "").trim(),
-    nome: r.nome?.trim() || null,
-    cargo: r.cargo?.trim() || null,
-    email: r.email?.trim() || null,
-    whatsapp: r.whatsapp?.trim() || null,
-    linkedin: r.linkedin?.trim() || null,
-    segmento: r.segmento?.trim() || null,
-    cidade_uf: r.cidade_uf?.trim() || null,
-    fonte: r.fonte?.trim() || "Lista fria",
-    observacoes: r.observacoes?.trim() || null,
-    responsavel_id: user?.id ?? null,
-    funnel_stage: "base_bruta" as const,
-  }));
+  // Carrega leads existentes pra dedup (email + whatsapp normalizado pra dígitos)
+  const { data: existentes } = await supabase
+    .from("leads")
+    .select("id, email, whatsapp")
+    .eq("organizacao_id", orgId);
+  const indexEmail = new Map<string, number>();
+  const indexWhats = new Map<string, number>();
+  for (const lead of existentes ?? []) {
+    if (lead.email) indexEmail.set(lead.email.toLowerCase().trim(), lead.id);
+    if (lead.whatsapp) {
+      const norm = String(lead.whatsapp).replace(/\D/g, "");
+      if (norm) indexWhats.set(norm, lead.id);
+    }
+  }
 
-  const { data, error } = await supabase.from("leads").insert(payload).select("id");
-  if (error) throw error;
+  let criados = 0;
+  let atualizados = 0;
+  let duplicados = 0;
+  const erros: string[] = [];
 
-  const eventos = (data ?? []).map(row => ({
-    organizacao_id: orgId,
-    lead_id: row.id,
-    ator_id: user?.id ?? null,
-    tipo: "criado",
-    payload: { fonte: "importado_csv" },
-  }));
-  if (eventos.length > 0) await supabase.from("lead_evento").insert(eventos);
+  const novosPayload: any[] = [];
+
+  for (const r of valid) {
+    const emailKey = (r.email ?? "").toLowerCase().trim();
+    const whatsKey = String(r.whatsapp ?? "").replace(/\D/g, "");
+    const existenteId =
+      (emailKey && indexEmail.get(emailKey)) ||
+      (whatsKey && indexWhats.get(whatsKey)) ||
+      null;
+
+    if (existenteId && politica_dedup !== "criar_mesmo_assim") {
+      duplicados++;
+      if (politica_dedup === "atualizar") {
+        const update: any = {};
+        if (r.empresa) update.empresa = r.empresa.trim();
+        if (r.nome) update.nome = r.nome.trim();
+        if (r.cargo) update.cargo = r.cargo.trim();
+        if (r.email) update.email = r.email.trim();
+        if (r.whatsapp) update.whatsapp = r.whatsapp.trim();
+        if (r.linkedin) update.linkedin = r.linkedin.trim();
+        if (r.segmento) update.segmento = r.segmento.trim();
+        if (r.cidade_uf) update.cidade_uf = r.cidade_uf.trim();
+        if (r.site) update.site = r.site.trim();
+        if (r.observacoes) update.observacoes = r.observacoes.trim();
+        if (r.valor_potencial && r.valor_potencial > 0) update.valor_potencial = r.valor_potencial;
+        const { error: upErr } = await supabase.from("leads").update(update).eq("id", existenteId);
+        if (upErr) erros.push(`update lead ${existenteId}: ${upErr.message}`);
+        else atualizados++;
+      }
+      continue;
+    }
+
+    novosPayload.push({
+      organizacao_id: orgId,
+      empresa: (r.empresa ?? "").trim(),
+      nome: r.nome?.trim() || null,
+      cargo: r.cargo?.trim() || null,
+      email: r.email?.trim() || null,
+      whatsapp: r.whatsapp?.trim() || null,
+      linkedin: r.linkedin?.trim() || null,
+      segmento: r.segmento?.trim() || null,
+      cidade_uf: r.cidade_uf?.trim() || null,
+      site: r.site?.trim() || null,
+      fonte: r.fonte?.trim() || "Lista fria",
+      observacoes: r.observacoes?.trim() || null,
+      valor_potencial: r.valor_potencial && r.valor_potencial > 0 ? r.valor_potencial : 0,
+      responsavel_id: user?.id ?? null,
+      funnel_stage: "base_bruta" as const,
+    });
+  }
+
+  if (novosPayload.length > 0) {
+    const { data, error } = await supabase.from("leads").insert(novosPayload).select("id");
+    if (error) {
+      erros.push(`insert: ${error.message}`);
+    } else {
+      criados = data?.length ?? 0;
+      const eventos = (data ?? []).map((row) => ({
+        organizacao_id: orgId,
+        lead_id: row.id,
+        ator_id: user?.id ?? null,
+        tipo: "criado",
+        payload: { fonte: "importado_csv", politica_dedup },
+      }));
+      if (eventos.length > 0) await supabase.from("lead_evento").insert(eventos);
+    }
+  }
 
   revalidatePath("/base");
-  return { criados: data?.length ?? 0, ignorados: rows.length - valid.length, erros: [] as string[] };
+  return { criados, atualizados, ignorados: sem_empresa, sem_empresa, duplicados, erros };
 }
 
 /** Move um lead da Base Bruta → Base Qualificada (pré-triagem) */

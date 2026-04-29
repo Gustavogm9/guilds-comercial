@@ -83,6 +83,10 @@ quando quiser).
 | [`AI_SETUP.md`](./AI_SETUP.md) | Setup e operação da camada de IA (15 features, providers, prompts) |
 | [`SETUP_SUPABASE.md`](./SETUP_SUPABASE.md) | Setup passo a passo do ambiente (migrations, Auth, env vars, Edge Functions) |
 | [`COMPARATIVO_PLANILHAS.md`](./COMPARATIVO_PLANILHAS.md) | Mapeamento das planilhas originais → schema atual |
+| [`docs/DISASTER_RECOVERY.md`](./docs/DISASTER_RECOVERY.md) | Backups, RPO/RTO, procedimento de restore |
+| [`docs/PWA.md`](./docs/PWA.md) | PWA — manifest, service worker, install prompt, push (TODO) |
+| [`docs/AI_OVERAGE_BILLING.md`](./docs/AI_OVERAGE_BILLING.md) | Cobrança por consumo de IA — preços, Stripe metered, auditoria |
+| [`docs/I18N.md`](./docs/I18N.md) | Internacionalização — locales, países, multi-currency, IA/push/email locale-aware |
 
 4. **Rodar:**
 

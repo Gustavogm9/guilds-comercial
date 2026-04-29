@@ -62,13 +62,13 @@ export default function LeadScoreCard({
   const [tomMarcado, setTomMarcado] = useState<TomInteracao | null>(null);
 
   const corScore =
-    score >= 70 ? "text-emerald-600"
-    : score >= 45 ? "text-amber-600"
-    : "text-rose-600";
+    score >= 70 ? "text-success-500"
+    : score >= 45 ? "text-warning-500"
+    : "text-destructive";
   const corGauge =
-    score >= 70 ? "bg-emerald-500"
-    : score >= 45 ? "bg-amber-500"
-    : "bg-rose-500";
+    score >= 70 ? "bg-success-500"
+    : score >= 45 ? "bg-warning-500"
+    : "bg-destructive";
   const rotulo =
     score >= 85 ? "Quase certo"
     : score >= 70 ? "Forte candidato"
@@ -96,7 +96,7 @@ export default function LeadScoreCard({
         <div className="flex items-center gap-3">
           <div className="relative w-20 h-20 shrink-0">
             <svg viewBox="0 0 80 80" className="transform -rotate-90">
-              <circle cx="40" cy="40" r="34" strokeWidth="8" stroke="#f1f5f9" fill="none" />
+              <circle cx="40" cy="40" r="34" strokeWidth="8" stroke="hsl(var(--secondary))" fill="none" />
               <circle
                 cx="40" cy="40" r="34" strokeWidth="8" fill="none"
                 className={corScore}
@@ -110,19 +110,19 @@ export default function LeadScoreCard({
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500 uppercase tracking-wider">Score de fechamento</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">Score de fechamento</div>
             <div className={`text-lg font-semibold ${corScore}`}>{rotulo}</div>
-            <div className="text-xs text-slate-500 mt-0.5">
-              Valor esperado: <b className="text-slate-800">{moeda(valorEsperado)}</b>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Valor esperado: <b className="text-foreground tabular-nums">{moeda(valorEsperado)}</b>
               {" "}
-              <span className="text-slate-400">de {moeda(valorPotencial)}</span>
+              <span className="text-muted-foreground/70 tabular-nums">de {moeda(valorPotencial)}</span>
             </div>
           </div>
         </div>
 
         {/* Percepção do vendedor */}
         <div className="min-w-[220px]">
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold mb-1">
             Sua percepção
           </div>
           <div className="grid grid-cols-5 gap-1">
@@ -132,25 +132,25 @@ export default function LeadScoreCard({
                 disabled={pending}
                 onClick={() => handlePercepcao(p)}
                 title={p}
-                className={`text-[10px] py-1.5 rounded border transition ${
+                className={`text-[10px] py-1.5 rounded border transition-colors ${
                   percepcao === p
-                    ? "bg-guild-600 text-white border-guild-600 font-semibold"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                    ? "bg-primary text-primary-foreground border-primary font-semibold"
+                    : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground dark:bg-white/[0.02] dark:border-white/[0.08]"
                 }`}
               >
                 {p.charAt(0) + (p === "Muito baixa" ? "B" : p === "Muito alta" ? "A" : "")}
               </button>
             ))}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">
+          <div className="text-[10px] text-muted-foreground/70 mt-1">
             {percepcao ?? "Não avaliado — entra como neutro no score"}
           </div>
         </div>
       </div>
 
       {/* Breakdown */}
-      <div className="mt-5 pt-5 border-t border-slate-100">
-        <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-2">
+      <div className="mt-5 pt-5 border-t border-border dark:border-white/[0.06]">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold mb-2">
           De onde vem o score
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5">
@@ -182,27 +182,27 @@ export default function LeadScoreCard({
 
       {/* Tom da última interação */}
       {temLigacoes && (
-        <div className="mt-5 pt-5 border-t border-slate-100">
+        <div className="mt-5 pt-5 border-t border-border dark:border-white/[0.06]">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">
                 Como foi a última interação?
               </div>
-              <div className="text-xs text-slate-500 mt-0.5">
+              <div className="text-xs text-muted-foreground mt-0.5">
                 Alimenta o score. Marque só se houve ligação registrada.
               </div>
             </div>
             <div className="flex gap-1.5">
               <BtnTom label="Positivo" tom="positivo" icon={<TrendingUp className="w-3.5 h-3.5" />}
-                cor="emerald" active={tomMarcado === "positivo"} onClick={handleTom} disabled={pending} />
+                cor="success" active={tomMarcado === "positivo"} onClick={handleTom} disabled={pending} />
               <BtnTom label="Neutro" tom="neutro" icon={<Minus className="w-3.5 h-3.5" />}
-                cor="slate" active={tomMarcado === "neutro"} onClick={handleTom} disabled={pending} />
+                cor="muted" active={tomMarcado === "neutro"} onClick={handleTom} disabled={pending} />
               <BtnTom label="Negativo" tom="negativo" icon={<TrendingDown className="w-3.5 h-3.5" />}
-                cor="rose" active={tomMarcado === "negativo"} onClick={handleTom} disabled={pending} />
+                cor="destructive" active={tomMarcado === "negativo"} onClick={handleTom} disabled={pending} />
             </div>
           </div>
           {tomMarcado && (
-            <div className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+            <div className="text-xs text-success-500 mt-2 flex items-center gap-1">
               <Check className="w-3.5 h-3.5" /> Tom registrado. Score atualizado.
             </div>
           )}
@@ -217,11 +217,11 @@ function FatorBar({ label, value, max, cor }: { label: string; value: number; ma
   const pct = Math.min(100, (value / max) * 100);
   return (
     <div className="flex items-center gap-2 text-xs">
-      <div className="w-24 text-slate-600 text-right shrink-0">{label}</div>
-      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+      <div className="w-24 text-muted-foreground text-right shrink-0">{label}</div>
+      <div className="flex-1 h-2 bg-secondary dark:bg-white/[0.05] rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${cor}`} style={{ width: `${pct}%` }} />
       </div>
-      <div className="w-10 text-right text-slate-500 shrink-0">
+      <div className="w-10 text-right text-muted-foreground shrink-0 tabular-nums">
         {value}/{max}
       </div>
     </div>
@@ -229,19 +229,19 @@ function FatorBar({ label, value, max, cor }: { label: string; value: number; ma
 }
 
 function BtnTom({ label, tom, icon, cor, active, onClick, disabled }: {
-  label: string; tom: TomInteracao; icon: React.ReactNode; cor: "emerald" | "slate" | "rose";
+  label: string; tom: TomInteracao; icon: React.ReactNode; cor: "success" | "muted" | "destructive";
   active: boolean; onClick: (t: TomInteracao) => void; disabled: boolean;
 }) {
   const classes = active
-    ? cor === "emerald" ? "bg-emerald-500 text-white border-emerald-500"
-    : cor === "rose" ? "bg-rose-500 text-white border-rose-500"
-    : "bg-slate-600 text-white border-slate-600"
-    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300";
+    ? cor === "success" ? "bg-success-500 text-white border-success-500"
+    : cor === "destructive" ? "bg-destructive text-destructive-foreground border-destructive"
+    : "bg-foreground text-background border-foreground"
+    : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground dark:bg-white/[0.02] dark:border-white/[0.08]";
   return (
     <button
       disabled={disabled}
       onClick={() => onClick(tom)}
-      className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded border transition ${classes}`}
+      className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded border transition-colors ${classes}`}
     >
       {icon} {label}
     </button>

@@ -1,20 +1,13 @@
 "use server";
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { TEMPLATES } from "@/lib/cadencia-templates";
+import { getTemplatesByLocale } from "@/lib/cadencia-templates";
+import { getServerLocale, getT, type Locale } from "@/lib/i18n";
 import { getAppUrl, sendInviteEmail, sendWelcomeEmail } from "@/lib/email";
+import { slugify } from "@/lib/utils/slugify";
 import type { Role } from "@/lib/types";
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40) || `org-${Date.now()}`;
-}
 
 function normalizarConvites(convites: Array<{ email: string; role: Role }>) {
   const roles: Role[] = ["gestor", "comercial", "sdr"];
@@ -38,6 +31,16 @@ export async function finalizarOnboarding(dados: {
   cargo_foco: string;
   gerarDemo: boolean;
   habilitarIA?: boolean;
+  razao_social?: string;
+  cnpj?: string;
+  /** ISO 3166-1 alpha-2. Default 'BR' se não fornecido. */
+  pais?: string;
+  /** Tax ID genérico (CNPJ/EIN/VAT/etc.) — substitui CNPJ pra estrangeiros. */
+  tax_id?: string;
+  /** Locale da org. Default 'pt-BR'. */
+  idioma_padrao?: string;
+  /** Moeda da org. Default 'BRL'. */
+  moeda_padrao?: string;
   convites?: Array<{ email: string; role: Role }>;
 }) {
   const cookieStore = cookies();
@@ -54,14 +57,22 @@ export async function finalizarOnboarding(dados: {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Usuario nao autenticado");
+  if (!user) {
+    const t = getT(await getServerLocale());
+    throw new Error(t("erros.usuario_nao_autenticado"));
+  }
+
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   const nome = user.user_metadata.full_name || "Usuario";
   const empresaNome = user.user_metadata.empresa_nome || "Minha Empresa";
 
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+  const { data: profile } = await supabaseAdmin.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (!profile) {
-    const { error: profErr } = await supabase.from("profiles").insert({
+    const { error: profErr } = await supabaseAdmin.from("profiles").insert({
       id: user.id,
       email: user.email,
       display_name: nome,
@@ -71,20 +82,34 @@ export async function finalizarOnboarding(dados: {
   }
 
   let slug = slugify(empresaNome);
-  const { data: existingSlug } = await supabase.from("organizacoes")
+  const { data: existingSlug } = await supabaseAdmin.from("organizacoes")
     .select("id")
     .eq("slug", slug)
     .maybeSingle();
   if (existingSlug) slug = `${slug}-${Date.now().toString(36)}`;
 
-  const { data: org, error: orgErr } = await supabase.from("organizacoes").insert({
+  // CNPJ e razao_social vêm opcionais do wizard. CNPJ só persiste se BR e
+  // se passar no constraint `^\d{14}$`. Tax ID é genérico (qualquer país).
+  const pais = (dados.pais ?? "BR").toUpperCase();
+  const isBR = pais === "BR";
+  const cnpjLimpo = dados.cnpj?.replace(/\D/g, "") || null;
+  const cnpjFinal = isBR && cnpjLimpo && cnpjLimpo.length === 14 ? cnpjLimpo : null;
+  const taxIdFinal = dados.tax_id?.trim() || null;
+
+  const { data: org, error: orgErr } = await supabaseAdmin.from("organizacoes").insert({
     nome: empresaNome,
     slug,
     owner_id: user.id,
+    razao_social: dados.razao_social?.trim() || null,
+    cnpj: cnpjFinal,
+    tax_id: taxIdFinal,
+    pais,
+    idioma_padrao: dados.idioma_padrao || "pt-BR",
+    moeda_padrao: dados.moeda_padrao || "BRL",
   }).select().single();
   if (orgErr) throw new Error("Erro ao criar organizacao: " + orgErr.message);
 
-  const { error: membroErr } = await supabase.from("membros_organizacao").insert({
+  const { error: membroErr } = await supabaseAdmin.from("membros_organizacao").insert({
     organizacao_id: org.id,
     profile_id: user.id,
     role: "gestor",
@@ -92,16 +117,18 @@ export async function finalizarOnboarding(dados: {
   });
   if (membroErr) throw new Error("Erro ao adicionar membro: " + membroErr.message);
 
-  await supabase.from("profiles").update({ home_organizacao_id: org.id }).eq("id", user.id);
+  await supabaseAdmin.from("profiles").update({ home_organizacao_id: org.id }).eq("id", user.id);
 
-  const { error: confErr } = await supabase.from("organizacao_config").insert({
+  const { error: confErr } = await supabaseAdmin.from("organizacao_config").insert({
     organizacao_id: org.id,
     distribuicao_automatica: false,
     distribuicao_estrategia: "manual",
   });
   if (confErr) throw new Error("Erro ao criar configuracoes: " + confErr.message);
 
-  const templatesToInsert = TEMPLATES.map((template) => ({
+  const orgLocale: Locale = (dados.idioma_padrao === "en-US" ? "en-US" : "pt-BR");
+  const templatesParaIdioma = getTemplatesByLocale(orgLocale);
+  const templatesToInsert = templatesParaIdioma.map((template) => ({
     organizacao_id: org.id,
     passo: template.passo,
     canal: template.canal,
@@ -109,26 +136,31 @@ export async function finalizarOnboarding(dados: {
     assunto: template.assunto,
     corpo: template.corpo,
   }));
-  const { error: tplErr } = await supabase.from("cadencia_templates").insert(templatesToInsert);
+  const { error: tplErr } = await supabaseAdmin.from("cadencia_templates").insert(templatesToInsert);
   if (tplErr) throw new Error("Erro ao criar templates de cadencia: " + tplErr.message);
 
-  const { data: featuresGlobais } = await supabase
+  const { data: featuresGlobais } = await supabaseAdmin
     .from("ai_features")
     .select("codigo,nome,descricao,etapa_fluxo,provider_codigo,modelo,temperature,max_tokens,limite_dia_org,limite_dia_usuario,papel_minimo")
     .is("organizacao_id", null);
 
   if (featuresGlobais?.length) {
-    await supabase.from("ai_features").insert(featuresGlobais.map((feature) => ({
+    await supabaseAdmin.from("ai_features").insert(featuresGlobais.map((feature) => ({
       ...feature,
       organizacao_id: org.id,
       ativo: dados.habilitarIA ?? true,
     })));
   }
 
-  sendWelcomeEmail({ email: user.email!, name: nome, orgName: empresaNome }).catch(console.error);
+  sendWelcomeEmail({
+    email: user.email!,
+    name: nome,
+    orgName: empresaNome,
+    locale: dados.idioma_padrao || "pt-BR",
+  }).catch(console.error);
 
   if (dados.gerarDemo) {
-    await supabase.from("leads").insert({
+    await supabaseAdmin.from("leads").insert({
       organizacao_id: org.id,
       nome: "Carlos Silva",
       empresa: "Empresa Exemplo LTDA",
@@ -148,7 +180,7 @@ export async function finalizarOnboarding(dados: {
 
   const convites = normalizarConvites(dados.convites ?? []);
   if (convites.length) {
-    const { data: convitesCriados, error: convitesErr } = await supabase
+    const { data: convitesCriados, error: convitesErr } = await supabaseAdmin
       .from("convites")
       .insert(convites.map((convite) => ({
         organizacao_id: org.id,
@@ -166,10 +198,11 @@ export async function finalizarOnboarding(dados: {
       inviterName: nome,
       inviteUrl: `${getAppUrl()}/api/convite/${convite.token}`,
       role: convite.role,
+      locale: dados.idioma_padrao || "pt-BR",
     })));
   }
 
-  await (supabase as any).from("organizacao_evento").insert({
+  await supabaseAdmin.from("organizacao_evento").insert({
     organizacao_id: org.id,
     ator_id: user.id,
     tipo: "onboarding_concluido",

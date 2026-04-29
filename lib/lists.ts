@@ -126,27 +126,30 @@ export const PROXIMAS_ACOES = [
   "Sem ação",
 ] as const;
 
-// Cores por etapa para o kanban
+// Cores por etapa para o kanban — light + dark friendly via opacity stepping.
+// Cada stage usa um hue Tailwind como label visual. Tokens de design ficam pros
+// elementos estruturais (cards, inputs); aqui o que precisamos é distinguir
+// rapidamente por cor entre 11 estados — então usamos uma palette categórica.
 export const STAGE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  "Base":               { bg: "bg-stone-50",  text: "text-stone-700",  border: "border-stone-200" },
-  "Prospecção":         { bg: "bg-slate-50",  text: "text-slate-700",  border: "border-slate-200" },
-  "Qualificado":        { bg: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200" },
-  "Raio-X Ofertado":    { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" },
-  "Raio-X Feito":       { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
-  "Call Marcada":       { bg: "bg-amber-50",  text: "text-amber-700",  border: "border-amber-200" },
-  "Diagnóstico Pago":   { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
-  "Proposta":           { bg: "bg-rose-50",   text: "text-rose-700",   border: "border-rose-200" },
-  "Negociação":         { bg: "bg-pink-50",   text: "text-pink-700",   border: "border-pink-200" },
-  "Fechado":            { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  "Perdido":            { bg: "bg-zinc-50",   text: "text-zinc-500",   border: "border-zinc-200" },
-  "Nutrição":           { bg: "bg-teal-50",   text: "text-teal-700",   border: "border-teal-200" },
+  "Base":               { bg: "bg-stone-100/60 dark:bg-stone-500/15",     text: "text-stone-700 dark:text-stone-300",     border: "border-stone-200/70 dark:border-stone-500/25" },
+  "Prospecção":         { bg: "bg-slate-100/60 dark:bg-slate-500/15",     text: "text-slate-700 dark:text-slate-300",     border: "border-slate-200/70 dark:border-slate-500/25" },
+  "Qualificado":        { bg: "bg-sky-100/60 dark:bg-sky-500/15",         text: "text-sky-700 dark:text-sky-300",         border: "border-sky-200/70 dark:border-sky-500/25" },
+  "Raio-X Ofertado":    { bg: "bg-indigo-100/60 dark:bg-indigo-500/15",   text: "text-indigo-700 dark:text-indigo-300",   border: "border-indigo-200/70 dark:border-indigo-500/25" },
+  "Raio-X Feito":       { bg: "bg-violet-100/60 dark:bg-violet-500/15",   text: "text-violet-700 dark:text-violet-300",   border: "border-violet-200/70 dark:border-violet-500/25" },
+  "Call Marcada":       { bg: "bg-amber-100/60 dark:bg-amber-500/15",     text: "text-amber-700 dark:text-amber-300",     border: "border-amber-200/70 dark:border-amber-500/25" },
+  "Diagnóstico Pago":   { bg: "bg-orange-100/60 dark:bg-orange-500/15",   text: "text-orange-700 dark:text-orange-300",   border: "border-orange-200/70 dark:border-orange-500/25" },
+  "Proposta":           { bg: "bg-rose-100/60 dark:bg-rose-500/15",       text: "text-rose-700 dark:text-rose-300",       border: "border-rose-200/70 dark:border-rose-500/25" },
+  "Negociação":         { bg: "bg-pink-100/60 dark:bg-pink-500/15",       text: "text-pink-700 dark:text-pink-300",       border: "border-pink-200/70 dark:border-pink-500/25" },
+  "Fechado":            { bg: "bg-emerald-100/60 dark:bg-emerald-500/15", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-200/70 dark:border-emerald-500/25" },
+  "Perdido":            { bg: "bg-zinc-100/60 dark:bg-zinc-500/15",       text: "text-zinc-600 dark:text-zinc-400",       border: "border-zinc-200/70 dark:border-zinc-500/25" },
+  "Nutrição":           { bg: "bg-teal-100/60 dark:bg-teal-500/15",       text: "text-teal-700 dark:text-teal-300",       border: "border-teal-200/70 dark:border-teal-500/25" },
 };
 
 export const URGENCIA_LABELS = {
-  vencida:     { label: "Vencida",      color: "text-urgent-500 bg-red-50 border-red-200" },
-  hoje:        { label: "Hoje",         color: "text-warning-500 bg-amber-50 border-amber-200" },
-  amanha:      { label: "Amanhã",       color: "text-blue-700 bg-blue-50 border-blue-200" },
-  esta_semana: { label: "Esta semana",  color: "text-slate-700 bg-slate-50 border-slate-200" },
-  futuro:      { label: "Futuro",       color: "text-slate-500 bg-slate-50 border-slate-200" },
-  sem_acao:    { label: "Sem ação",     color: "text-zinc-500 bg-zinc-50 border-zinc-200" },
+  vencida:     { label: "Vencida",      color: "text-destructive bg-destructive/10 border-destructive/25" },
+  hoje:        { label: "Hoje",         color: "text-warning-500 bg-warning-500/10 border-warning-500/25" },
+  amanha:      { label: "Amanhã",       color: "text-primary bg-primary/10 border-primary/25" },
+  esta_semana: { label: "Esta semana",  color: "text-foreground bg-secondary border-border" },
+  futuro:      { label: "Futuro",       color: "text-muted-foreground bg-muted border-border" },
+  sem_acao:    { label: "Sem ação",     color: "text-muted-foreground bg-muted/60 border-border" },
 } as const;

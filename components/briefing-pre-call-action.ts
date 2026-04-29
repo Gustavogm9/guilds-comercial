@@ -26,5 +26,6 @@ export async function gerarBriefingPreCall(input: {
     ok: result.ok,
     texto: result.texto,
     erro: result.erro,
+    invocationId: result.invocationId,
   };
 }

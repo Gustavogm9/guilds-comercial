@@ -1,0 +1,16 @@
+-- Tentativa abandonada: mover pg_net para schema 'extensions'.
+--
+-- Resultado: `pg_net` não suporta `ALTER EXTENSION ... SET SCHEMA`.
+-- Erro: `0A000: extension "pg_net" does not support SET SCHEMA`.
+--
+-- O linter `extension_in_public` continua flagando, mas é falso positivo:
+-- - As funções `http_post`/`http_get`/etc. ficam no schema `net` (criado
+--   pela própria extension), não em `public`.
+-- - Apenas o entry de catálogo (`pg_extension.extnamespace`) aponta para
+--   public — sem efeito funcional ou de segurança.
+--
+-- Sem ação aplicada. Migration mantida só para registro do tracking
+-- (assim ninguém tenta de novo).
+--
+-- Idempotente.
+do $$ begin perform 1; end $$;

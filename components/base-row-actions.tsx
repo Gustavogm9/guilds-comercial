@@ -21,13 +21,17 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
               <Check className="w-3.5 h-3.5"/> Qualificar <ChevronDown className="w-3 h-3"/>
             </button>
             {open === "qual" && (
-              <div className="absolute right-0 z-20 mt-1 w-72 card p-3 shadow-lg space-y-2">
-                <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Qualificar lead</div>
-                <textarea value={dor} onChange={(e) => setDor(e.target.value)}
+              <div className="absolute right-0 z-20 mt-1 w-72 card p-3 space-y-2 shadow-stripe-md">
+                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Qualificar lead</div>
+                <textarea
+                  value={dor}
+                  onChange={(e) => setDor(e.target.value)}
                   placeholder="Dor principal (curto)"
-                  className="input-base text-xs min-h-[60px]"/>
+                  className="input-base text-xs min-h-[60px]"
+                />
                 <div className="flex gap-1.5">
-                  <button disabled={pending}
+                  <button
+                    disabled={pending}
                     onClick={() => start(async () => {
                       await qualificarBase({
                         lead_id: lead.id, fit_icp: true,
@@ -36,27 +40,35 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
                       });
                       setOpen(null);
                     })}
-                    className="btn-primary text-xs flex-1">
+                    className="btn-primary text-xs flex-1"
+                  >
                     Tem fit
                   </button>
-                  <button disabled={pending}
+                  <button
+                    disabled={pending}
                     onClick={() => { setOpen(null); setArquivando(true); }}
-                    className="btn-ghost text-xs text-urgent-500">
+                    className="btn-ghost text-xs text-destructive hover:text-destructive"
+                  >
                     Sem fit
                   </button>
                 </div>
               </div>
             )}
           </div>
-          <button onClick={() => setArquivando(true)}
-            className="btn-ghost text-xs text-slate-400 hover:text-urgent-500"
-            title="Arquivar">
-            <X className="w-3.5 h-3.5"/>
+          <button
+            onClick={() => setArquivando(true)}
+            className="btn-ghost text-xs text-muted-foreground hover:text-destructive"
+            title="Arquivar"
+          >
+            <X className="w-3.5 h-3.5" />
           </button>
-          <button disabled={pending} onClick={() => start(async () => await enriquecerLead(lead.id))}
-            className="btn-ghost text-xs text-guild-600 hover:text-guild-700"
-            title="Enriquecer com IA">
-            <Sparkles className="w-3.5 h-3.5"/>
+          <button
+            disabled={pending}
+            onClick={() => start(async () => await enriquecerLead(lead.id))}
+            className="btn-ghost text-xs text-primary hover:text-accent"
+            title="Enriquecer com IA"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
           </button>
         </div>
         <MotivoSaidaModal
@@ -76,10 +88,12 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
           className="btn-primary text-xs">
           <ArrowRight className="w-3.5 h-3.5"/> Levar pro pipeline
         </button>
-        <button onClick={() => setArquivando(true)}
-          className="btn-ghost text-xs text-slate-400 hover:text-urgent-500"
-          title="Arquivar">
-          <X className="w-3.5 h-3.5"/>
+        <button
+          onClick={() => setArquivando(true)}
+          className="btn-ghost text-xs text-muted-foreground hover:text-destructive"
+          title="Arquivar"
+        >
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
       <MotivoSaidaModal

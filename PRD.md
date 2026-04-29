@@ -58,7 +58,7 @@ Um CRM leve, opinativo e brasileiro, onde **cada etapa do fluxo de vendas tem um
 
 ### Estado atual
 
-Protótipo funcional (Next.js + Supabase) cobrindo todo o fluxo de vendas:
+Produto funcional (Next.js + Supabase) cobrindo todo o fluxo de vendas. Estado em **2026-04-27**:
 
 | Módulo                   | Status   |
 |--------------------------|----------|
@@ -67,15 +67,20 @@ Protótipo funcional (Next.js + Supabase) cobrindo todo o fluxo de vendas:
 | Score de fechamento composto | ✅ Funcional |
 | Funil analytics | ✅ Funcional |
 | Motivos de perda obrigatórios | ✅ Funcional |
-| Camada de IA (15 features, multi-provider, prompts versionados) | ✅ Infra pronta |
+| Camada de IA (15 features, multi-provider, prompts versionados) | ✅ Funcional (15/15 plugadas) |
 | Admin de IA | ✅ Funcional |
-| Multi-tenant | ✅ Básico (precisa evoluir para self-service) |
-| Onboarding self-service | ❌ Não existe |
-| Billing | ❌ Não existe |
-| API pública | ❌ Não existe |
-| SSO | ❌ Não existe |
+| Multi-tenant | ✅ Funcional (cookie + RLS + switcher + nova org) |
+| Onboarding self-service | ✅ Funcional (wizard `/onboarding` + convites por email) |
+| Billing | ✅ Funcional (Stripe + 3 planos + trial 14d) |
+| API pública | ✅ Funcional (REST `/api/v1/leads` + webhooks + OpenAPI) |
+| Observabilidade | ✅ Funcional (Sentry + logs estruturados) |
+| LGPD compliance | ✅ Básico funcional (DPA + export + delete; falta auditoria externa) |
+| Configurações pós-onboarding | ⚠️ Refactor em curso (perfil/org/billing/devs em abas; dark mode parcial) |
+| Hardening RLS multi-tenant | ⚠️ Migration de fix aplicada em 27/abr (membros_organizacao) |
+| Cobertura de testes automatizados | ❌ Não existe |
+| Archival de `ai_invocations` | ❌ Não existe (cresce sem limite) |
+| SSO (Google/Microsoft) | ❌ Não existe |
 | Marketplace de prompts | ❌ Não existe |
-| LGPD compliance | ⚠️ Básico (precisa auditar) |
 
 ### O que pedimos aprovar
 
@@ -800,18 +805,20 @@ UI Server/Client → Server Actions → Domain logic → Supabase (Postgres + Au
 
 ### Schema
 
-5 migrações incrementais e idempotentes:
-- **v1** (`schema.sql`) — Core multi-tenant
-- **v2** (`migration_v2_completude.sql`) — Expansão de estágios CRM, Raio-X completo
-- **v3** (`migration_v3_funil.sql`) — Views analíticas do funil
-- **v4** (`migration_v4_score.sql`) — Score composto + motivos de perda + percepção
-- **v5** (`migration_v5_ai.sql`) — Camada de IA (providers, features, prompts, logs)
+Migrações numeradas em `supabase/migrations/` (todas idempotentes, executadas em ordem alfabética). O `supabase/schema.sql` é a referência consolidada — não é executado em produção.
+
+- **v1** (`20260423000000_schema.sql`) — Core multi-tenant + funções `orgs_do_usuario()` e `is_gestor_in_org()`
+- **v2** (`20260423000001_v2.sql`) — Expansão de estágios CRM, Raio-X completo, views de KPI
+- **v3** (`20260423000002_v3.sql`) — Views analíticas do funil
+- **v4** (`20260423000003_v4.sql`) — Score composto + motivos de perda + percepção
+- **v5** (`20260423000004_v5.sql`) — Camada de IA (providers, features, prompts, logs)
+- Cadencia templates / API & webhooks / pg_cron de IA / billing activation / fix RLS membros — migrations subsequentes em `supabase/migrations/` com prefixo `2026042{4,5,7}*`.
 
 ### Decisões-chave
 
 1. **SQL-first** — views fazem o trabalho pesado; UI só renderiza
 2. **Server Components por default** — minimizar bundle client
-3. **RLS via `current_org_id()`** — multi-tenant seguro e rápido
+3. **RLS via `orgs_do_usuario()` + `is_gestor_in_org()`** — multi-tenant seguro e rápido (independente do cookie de UI)
 4. **Optimistic UI** em Kanban e Score — responsivo sem esperar roundtrip
 5. **IA com prompts no banco** — versionamento e edição sem deploy
 6. **Provider pluggável por feature** — sem lock-in

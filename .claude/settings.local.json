@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rm *)",
+      "Bash(npm run *)",
+      "mcp__supabase__get_project_url",
+      "mcp__supabase__list_migrations",
+      "mcp__supabase__get_advisors",
+      "mcp__supabase__execute_sql",
+      "Bash(curl -s -H \"Authorization: Bearer sbp_713b68447cfa658dc08294c690c871ed04f46ea3\" https://api.supabase.com/v1/projects)",
+      "Bash(python -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(f'{len\\(data\\)} projeto\\(s\\):'\\); [print\\(f'  - {p[\\\\\"name\\\\\"]:30s}  ref={p[\\\\\"id\\\\\"]:20s}  region={p.get\\(\\\\\"region\\\\\",\\\\\"?\\\\\"\\)}  status={p.get\\(\\\\\"status\\\\\",\\\\\"?\\\\\"\\)}  created={p.get\\(\\\\\"created_at\\\\\",\\\\\"\\\\\"\\)[:10]}'\\) for p in data]\")",
+      "Bash(export SBT=\"sbp_713b68447cfa658dc08294c690c871ed04f46ea3\")",
+      "Bash(curl -s -H 'Authorization: Bearer sbp_713b68447cfa658dc08294c690c871ed04f46ea3' https://api.supabase.com/v1/projects/mdmbuekuemcjumxcmkls/advisors/security)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('  rows: ', d if isinstance\\(d,\\(list,dict\\)\\) else 'erro'\\)\")",
+      "Bash(export REF=\"mdmbuekuemcjumxcmkls\")",
+      "Bash(curl -s -i -X PATCH -H 'Authorization: Bearer sbp_713b68447cfa658dc08294c690c871ed04f46ea3' -H 'Content-Type: application/json' https://api.supabase.com/v1/projects/__TRACKED_VAR__/config/auth -d '{\"password_hibp_enabled\": true}')",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('  password_hibp_enabled:', d.get\\('password_hibp_enabled'\\)\\)\")",
+      "Bash(curl -s -H 'Authorization: Bearer sbp_713b68447cfa658dc08294c690c871ed04f46ea3' https://api.supabase.com/v1/projects/__TRACKED_VAR__/advisors/security)",
+      "Bash(python -m json.tool)"
+    ]
+  }
+}

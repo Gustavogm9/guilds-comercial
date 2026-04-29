@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { ClipboardList, ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react";
 import { gerarBriefingPreCall } from "./briefing-pre-call-action";
+import AiOutputActions from "@/components/ai/ai-output-actions";
 
 /**
  * Card expandível que gera um Briefing IA antes de uma call agendada.
@@ -18,6 +19,7 @@ export default function BriefingPreCall({ leadId, empresa, nome, segmento, dorPr
 }) {
   const [aberto, setAberto] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
+  const [invocationId, setInvocationId] = useState<number | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -39,6 +41,7 @@ export default function BriefingPreCall({ leadId, empresa, nome, segmento, dorPr
       });
       if (res.ok) {
         setResultado(res.texto);
+        setInvocationId(res.invocationId ?? null);
       } else {
         setErro(res.erro ?? "Erro ao gerar briefing.");
       }
@@ -50,7 +53,7 @@ export default function BriefingPreCall({ leadId, empresa, nome, segmento, dorPr
       <button
         onClick={handleClick}
         disabled={pending}
-        className="inline-flex items-center gap-1.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 transition"
+        className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:text-accent transition-colors"
       >
         {pending ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -62,16 +65,19 @@ export default function BriefingPreCall({ leadId, empresa, nome, segmento, dorPr
       </button>
 
       {aberto && resultado && (
-        <div className="mt-2 p-3 rounded-lg bg-indigo-50/60 border border-indigo-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed animate-in slide-in-from-top-1">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-indigo-500 font-semibold mb-2">
+        <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground whitespace-pre-wrap leading-relaxed animate-in slide-in-from-top-1">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] text-primary font-semibold mb-2">
             <Sparkles className="w-3 h-3" /> Briefing pré-call
           </div>
           {resultado}
+          <div className="mt-2 pt-2 border-t border-primary/15">
+            <AiOutputActions invocationId={invocationId} texto={resultado} />
+          </div>
         </div>
       )}
 
       {aberto && erro && (
-        <div className="mt-2 p-2 rounded bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mt-2 p-2 rounded bg-destructive/10 border border-destructive/25 text-xs text-destructive">
           {erro}
         </div>
       )}

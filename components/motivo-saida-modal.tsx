@@ -1,11 +1,12 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, AlertTriangle, Sparkles } from "lucide-react";
 import { MOTIVOS_PERDA, type MotivoPerda, type CrmStage } from "@/lib/types";
 import { moverEtapa } from "@/app/(app)/hoje/actions";
 import { arquivarLead } from "@/app/(app)/base/actions";
 import { sugerirMotivoPerda } from "@/lib/ai/actions";
+import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 
 type Modo =
   | { tipo: "mover"; lead_id: number; destino: CrmStage }
@@ -36,6 +37,9 @@ export default function MotivoSaidaModal({
   const [sugestao, setSugestao] = useState<{ motivo: MotivoPerda; confianca: number } | null>(null);
   const [textoLivre, setTextoLivre] = useState("");
   const router = useRouter();
+  const [locale, setLocale] = useState<Locale>("pt-BR");
+  useEffect(() => setLocale(getClientLocale()), []);
+  const t = getT(locale);
 
   async function sugerir() {
     if (!textoLivre.trim()) return;
@@ -62,24 +66,28 @@ export default function MotivoSaidaModal({
   if (!modo) return null;
 
   const rotuloDestino =
-    modo.tipo === "arquivar" ? "Arquivar" : modo.destino === "Perdido" ? "Perder" : "Pausar em Nutrição";
+    modo.tipo === "arquivar"
+      ? t("modais.ms_acao_arquivar")
+      : modo.destino === "Perdido"
+      ? t("modais.ms_acao_perder")
+      : t("modais.ms_acao_pausar_nutricao");
 
   const copy =
     modo.tipo === "arquivar"
-      ? "Este lead sai da base e vai para Arquivados. Para melhorar o funil, marque o motivo:"
+      ? t("modais.ms_copy_arquivar")
       : modo.destino === "Perdido"
-      ? "Este lead sai do pipeline como perdido. O motivo vai para o ranking de 'Motivos de perda' no Funil:"
-      : "Este lead vai para Nutrição. Registre por que — para reengajar na hora certa:";
+      ? t("modais.ms_copy_perdido")
+      : t("modais.ms_copy_nutricao");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
     if (!motivo) {
-      setErro("Selecione um motivo.");
+      setErro(t("modais.ms_erro_motivo"));
       return;
     }
     if (motivo === "Outro" && !detalhe.trim()) {
-      setErro("Descreva o motivo.");
+      setErro(t("modais.ms_erro_detalhe"));
       return;
     }
 
@@ -95,7 +103,7 @@ export default function MotivoSaidaModal({
         setDetalhe("");
         router.refresh();
       } catch (err) {
-        setErro(err instanceof Error ? err.message : "Erro ao salvar.");
+        setErro(err instanceof Error ? err.message : t("modais.ms_erro_salvar"));
       }
     });
   }
@@ -106,55 +114,55 @@ export default function MotivoSaidaModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl max-w-md w-full shadow-2xl"
+        className="bg-card text-foreground border border-border rounded-2xl max-w-md w-full shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-rose-50 grid place-items-center">
-              <AlertTriangle className="w-4 h-4 text-rose-500" />
+            <div className="w-8 h-8 rounded-lg bg-destructive/10 grid place-items-center">
+              <AlertTriangle className="w-4 h-4 text-destructive" />
             </div>
             <div className="font-semibold text-base">{rotuloDestino}</div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700"
-            aria-label="Fechar"
+            className="text-muted-foreground hover:text-foreground"
+            aria-label={t("modais.fechar")}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <p className="text-sm text-slate-600 leading-snug">{copy}</p>
+          <p className="text-sm text-muted-foreground leading-snug">{copy}</p>
 
           {/* Atalho com IA */}
-          <div className="p-3 rounded-lg bg-violet-50/60 border border-violet-200">
-            <div className="text-[10px] uppercase tracking-wider text-violet-700 font-semibold mb-1.5 flex items-center gap-1">
-              <Sparkles className="w-3 h-3"/> Não sabe qual escolher? Descreve e a IA sugere
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/25">
+            <div className="text-[10px] uppercase tracking-[0.12em] text-primary font-semibold mb-1.5 flex items-center gap-1">
+              <Sparkles className="w-3 h-3"/> {t("modais.ms_ia_titulo")}
             </div>
             <div className="flex gap-1.5">
               <input
                 type="text" value={textoLivre}
                 onChange={(e) => setTextoLivre(e.target.value)}
-                placeholder="ex: cliente sumiu após proposta"
+                placeholder={t("modais.ms_ia_placeholder")}
                 className="input-base text-xs flex-1"
               />
               <button type="button" onClick={sugerir} disabled={sugerindo || !textoLivre.trim()}
                 className="btn-secondary text-xs shrink-0">
-                {sugerindo ? "…" : "Sugerir"}
+                {sugerindo ? "…" : t("modais.ms_sugerir")}
               </button>
             </div>
             {sugestao && (
-              <div className="text-[11px] text-violet-700 mt-1.5">
-                Sugerido: <b>{sugestao.motivo}</b> ({Math.round(sugestao.confianca * 100)}% confiança)
+              <div className="text-[11px] text-primary mt-1.5 tabular-nums">
+                {t("modais.ms_sugerido")}: <b>{sugestao.motivo}</b> ({Math.round(sugestao.confianca * 100)}% {t("modais.ms_confianca")})
               </div>
             )}
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider block mb-2">
-              Motivo <span className="text-rose-500">*</span>
+            <label className="text-[10px] font-semibold text-foreground uppercase tracking-[0.12em] block mb-2">
+              {t("modais.ms_motivo_label")} <span className="text-destructive">*</span>
             </label>
             <div className="grid grid-cols-2 gap-1.5">
               {MOTIVOS_PERDA.map((m) => (
@@ -162,8 +170,8 @@ export default function MotivoSaidaModal({
                   key={m}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm transition ${
                     motivo === m
-                      ? "border-rose-500 bg-rose-50 text-rose-800 font-medium"
-                      : "border-slate-200 hover:border-slate-300"
+                      ? "border-destructive/50 bg-destructive/10 text-destructive font-medium"
+                      : "border-border hover:border-foreground/20"
                   }`}
                 >
                   <input
@@ -182,14 +190,14 @@ export default function MotivoSaidaModal({
 
           {motivo === "Outro" && (
             <div>
-              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider block mb-1.5">
-                Descreva <span className="text-rose-500">*</span>
+              <label className="text-[10px] font-semibold text-foreground uppercase tracking-[0.12em] block mb-1.5">
+                {t("modais.ms_descreva_label")} <span className="text-destructive">*</span>
               </label>
               <input
                 type="text"
                 value={detalhe}
                 onChange={(e) => setDetalhe(e.target.value)}
-                placeholder="Ex: cliente sumiu depois de enviar proposta revisada"
+                placeholder={t("modais.ms_descreva_placeholder")}
                 className="input-base w-full text-sm"
                 autoFocus
                 maxLength={140}
@@ -198,26 +206,26 @@ export default function MotivoSaidaModal({
           )}
 
           {erro && (
-            <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/25 rounded-lg px-3 py-2">
               {erro}
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
             <button
               type="button"
               onClick={onClose}
               className="btn-ghost text-sm"
               disabled={pending}
             >
-              Cancelar
+              {t("comum.cancelar")}
             </button>
             <button
               type="submit"
               disabled={pending || !motivo}
-              className="btn-primary text-sm bg-rose-600 hover:bg-rose-700 border-rose-600"
+              className="btn-primary text-sm !bg-destructive hover:!brightness-110"
             >
-              {pending ? "Salvando…" : `Confirmar ${rotuloDestino}`}
+              {pending ? t("modais.ms_salvando") : `${t("modais.ms_confirmar")} ${rotuloDestino}`}
             </button>
           </div>
         </form>

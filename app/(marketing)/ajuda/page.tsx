@@ -30,44 +30,44 @@ export default function AjudaPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
       <div className="text-center mb-16">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight sm:text-4xl">
+        <h1 className="text-3xl font-light text-foreground tracking-tight sm:text-4xl">
           Como podemos ajudar?
         </h1>
-        <p className="mt-4 text-lg text-slate-600">
+        <p className="mt-4 text-lg text-muted-foreground font-light">
           Encontre respostas rápidas para as dúvidas mais comuns sobre o Guilds Comercial.
         </p>
       </div>
 
-      <div className="bg-white p-8 sm:p-12 rounded-3xl shadow-sm border border-slate-200">
+      <div className="bg-card p-8 sm:p-12 rounded-3xl shadow-stripe-sm border border-border">
         <div className="space-y-6">
           {faqs.map((faq, idx) => (
             <details
               key={idx}
-              className="group border border-slate-200 bg-slate-50 rounded-2xl open:bg-white open:ring-1 open:ring-guild-200 open:shadow-sm transition-all"
+              className="group border border-border bg-secondary/40 dark:bg-white/[0.02] rounded-2xl open:bg-card open:ring-1 open:ring-primary/25 open:shadow-stripe-xs transition-all"
             >
-              <summary className="flex items-center justify-between cursor-pointer p-6 font-semibold text-slate-900 marker:content-none select-none">
+              <summary className="flex items-center justify-between cursor-pointer p-6 font-semibold text-foreground marker:content-none select-none">
                 {faq.pergunta}
                 <span className="ml-4 flex-shrink-0 transition-transform duration-300 group-open:rotate-180">
-                  <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </span>
               </summary>
-              <div className="px-6 pb-6 text-slate-600 leading-relaxed">
+              <div className="px-6 pb-6 text-muted-foreground leading-relaxed">
                 <p>{faq.resposta}</p>
               </div>
             </details>
           ))}
         </div>
 
-        <div className="mt-12 p-6 bg-guild-50 rounded-2xl border border-guild-100 text-center">
-          <h3 className="text-lg font-semibold text-guild-900 mb-2">Ainda precisa de ajuda?</h3>
-          <p className="text-guild-700 mb-6">
+        <div className="mt-12 p-6 bg-primary/5 rounded-2xl border border-primary/20 text-center">
+          <h3 className="text-lg font-semibold text-foreground mb-2">Ainda precisa de ajuda?</h3>
+          <p className="text-muted-foreground mb-6">
             Nosso time de suporte está disponível para atender clientes dos planos Pro e Business.
           </p>
           <a
             href="mailto:suporte@guilds.com.br"
-            className="inline-flex items-center justify-center rounded-xl bg-guild-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-guild-700 transition-all"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-stripe-sm hover:brightness-110 transition-all"
           >
             Falar com o Suporte
           </a>

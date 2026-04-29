@@ -7,6 +7,7 @@ import PipelineToolbar from "@/components/pipeline-toolbar";
 import type { LeadEnriched } from "@/lib/types";
 import { ETAPAS_PIPELINE_VISIVEL } from "@/lib/lists";
 import { Plus } from "lucide-react";
+import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function PipelinePage({ searchParams }: {
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
+  const t = getT(await getServerLocale());
 
   const orgId = await getCurrentOrgId();
   if (!orgId) redirect("/hoje");
@@ -58,10 +60,10 @@ export default async function PipelinePage({ searchParams }: {
     <div className="py-4">
       <header className="px-4 md:px-8 mb-4 flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
-          <p className="text-sm text-slate-500">Arraste os cards entre colunas para mover de etapa.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.pipeline_titulo")}</h1>
+          <p className="text-sm text-muted-foreground">{t("paginas.pipeline_sub")}</p>
         </div>
-        <Link href="/base" className="btn-primary text-xs"><Plus className="w-3.5 h-3.5"/> Novo lead</Link>
+        <Link href="/base" className="btn-primary text-xs"><Plus className="w-3.5 h-3.5"/> {t("modais.novo_lead")}</Link>
       </header>
 
       {/* FR-CRM-05/07/08 — Toolbar com busca, filtros e export */}

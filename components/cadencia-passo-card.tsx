@@ -36,10 +36,10 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
   const [copiado, setCopiado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  const tone = status === "enviado" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-    : status === "respondido" ? "bg-blue-50 text-blue-700 border-blue-200"
-    : status === "pular" ? "bg-zinc-50 text-zinc-500 border-zinc-200"
-    : "bg-slate-50 text-slate-700 border-slate-200";
+  const tone = status === "enviado" ? "bg-success-500/10 text-success-500 border-success-500/25"
+    : status === "respondido" ? "bg-primary/10 text-primary border-primary/25"
+    : status === "pular" ? "bg-muted text-muted-foreground border-border opacity-70"
+    : "bg-secondary/60 dark:bg-white/[0.03] text-foreground border-border";
 
   async function gerarComIA() {
     setGerando(true);
@@ -107,9 +107,7 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
           type="button"
           onClick={gerarComIA}
           disabled={gerando}
-          className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium
-            bg-indigo-600 text-white px-2.5 py-1.5 rounded-md
-            hover:bg-indigo-700 disabled:opacity-50 transition-colors self-start"
+          className="btn-primary text-[11px] !py-1.5 !px-2.5 self-start"
         >
           {gerando
             ? <><Loader2 className="w-3 h-3 animate-spin" /> Gerando...</>
@@ -120,7 +118,7 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
 
       {/* Erro */}
       {erro && (
-        <div className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded p-1.5 mt-1">
+        <div className="text-[11px] text-destructive bg-destructive/10 border border-destructive/25 rounded p-1.5 mt-1">
           {erro}
         </div>
       )}
@@ -132,15 +130,13 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
             value={mensagem}
             onChange={(e) => setMensagem(e.target.value)}
             rows={4}
-            className="w-full text-xs border border-slate-300 rounded-md p-2
-              bg-white text-slate-800 resize-y focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            className="input-base text-xs resize-y"
           />
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={copiar}
-              className="inline-flex items-center gap-1 text-[11px] font-medium
-                bg-slate-700 text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors"
+              className="btn-secondary text-[11px] !py-1 !px-2"
             >
               {copiado ? <><Check className="w-3 h-3" /> Copiado!</> : <><Copy className="w-3 h-3" /> Copiar</>}
             </button>
@@ -149,7 +145,7 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
                 type="button"
                 onClick={abrirWhatsApp}
                 className="inline-flex items-center gap-1 text-[11px] font-medium
-                  bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700 transition-colors"
+                  bg-success-500 text-white px-2 py-1 rounded hover:brightness-110 transition-all"
               >
                 <ExternalLink className="w-3 h-3" /> WhatsApp
               </button>

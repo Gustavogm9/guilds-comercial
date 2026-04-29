@@ -61,7 +61,7 @@ function PipelineToolbarInner(props: Props) {
     <div className="flex flex-wrap items-center gap-2">
       {/* Busca (FR-CRM-07) */}
       <form onSubmit={buscar} className="relative flex items-center">
-        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+        <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 pointer-events-none" />
         <input
           type="text"
           value={busca}
@@ -70,8 +70,11 @@ function PipelineToolbarInner(props: Props) {
           className="input-base !py-1.5 !text-xs pl-8 w-56"
         />
         {busca && (
-          <button type="button" onClick={limparBusca}
-            className="absolute right-2 text-slate-400 hover:text-slate-600">
+          <button
+            type="button"
+            onClick={limparBusca}
+            className="absolute right-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
             <X className="w-3 h-3" />
           </button>
         )}
@@ -117,7 +120,7 @@ function PipelineToolbarInner(props: Props) {
 
       {/* Indicador de filtros ativos */}
       {temFiltros && (
-        <div className="flex items-center gap-1 text-[11px] text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-200">
+        <div className="flex items-center gap-1 text-[11px] text-primary bg-primary/10 px-2 py-1 rounded-md border border-primary/25 font-medium tabular-nums">
           <Filter className="w-3 h-3" />
           {leads.length} leads filtrados
         </div>

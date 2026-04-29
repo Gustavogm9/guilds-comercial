@@ -6,13 +6,13 @@ export const metadata = {
 export default function PrivacidadePage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
-      <div className="bg-white p-8 sm:p-12 rounded-3xl shadow-sm border border-slate-200">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-8">
+      <div className="bg-card p-8 sm:p-12 rounded-3xl shadow-stripe-sm border border-border">
+        <h1 className="text-3xl font-light text-foreground tracking-tight mb-8">
           Política de Privacidade
         </h1>
-        
-        <div className="prose prose-slate prose-headings:text-slate-900 prose-a:text-guild-600">
-          <p className="text-sm text-slate-500 mb-8">Última atualização: 24 de Abril de 2026</p>
+
+        <div className="prose dark:prose-invert prose-headings:text-foreground prose-a:text-primary max-w-none">
+          <p className="text-sm text-muted-foreground mb-8 tabular-nums">Última atualização: 24 de Abril de 2026</p>
 
           <p>
             A sua privacidade é nossa prioridade. Esta Política de Privacidade descreve como a Guilds Comercial ("nós", "nosso" ou "Plataforma") coleta, usa, protege e compartilha suas informações pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).
@@ -57,7 +57,7 @@ export default function PrivacidadePage() {
             <li>Revogar seu consentimento ou solicitar o encerramento da conta e o apagamento da sua base de dados associada.</li>
           </ul>
 
-          <hr className="my-10 border-slate-200" />
+          <hr className="my-10 border-border" />
           
           <p className="text-sm font-semibold">Contato do DPO (Encarregado de Dados):</p>
           <p className="text-sm">Para exercer seus direitos ou tirar dúvidas sobre esta política, envie um e-mail para dpo@guilds.com.br.</p>

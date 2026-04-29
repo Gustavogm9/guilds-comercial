@@ -12,7 +12,7 @@ export default async function MarketingLayout({
   const isLoggedIn = !!session;
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-slate-50 selection:bg-guild-200 selection:text-guild-900">
+    <div className="min-h-screen flex flex-col font-sans bg-background selection:bg-primary/20 selection:text-primary">
       <Navbar isLoggedIn={isLoggedIn} />
       
       <main className="flex-1">

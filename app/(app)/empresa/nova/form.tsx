@@ -26,7 +26,7 @@ export default function NovaEmpresaForm() {
       <div>
         <div className="label mb-1">Nome da empresa</div>
         <div className="relative">
-          <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
+          <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground/70"/>
           <input
             type="text"
             value={nome}
@@ -40,7 +40,7 @@ export default function NovaEmpresaForm() {
       </div>
 
       {erro && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-urgent-500">{erro}</div>
+        <div className="bg-destructive/10 border border-destructive/25 rounded-lg p-3 text-xs text-destructive">{erro}</div>
       )}
 
       <div className="flex items-center gap-2">

@@ -4,6 +4,7 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import RaioXRowActions from "@/components/raiox-row-actions";
 import { Activity, DollarSign, Award } from "lucide-react";
+import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function RaioXPage({ searchParams }: { searchParams: { tab?
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
+  const t = getT(await getServerLocale());
 
   const orgId = await getCurrentOrgId();
   if (!orgId) redirect("/hoje");
@@ -70,8 +72,8 @@ export default async function RaioXPage({ searchParams }: { searchParams: { tab?
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Raio-X</h1>
-        <p className="text-sm text-slate-500">Diagnósticos comerciais ofertados, pagos e concluídos.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.raio_x_titulo")}</h1>
+        <p className="text-sm text-muted-foreground">{t("paginas.raio_x_sub")}</p>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-4">
@@ -81,7 +83,7 @@ export default async function RaioXPage({ searchParams }: { searchParams: { tab?
         <KPI title="Arrecadado" v={arrecadado} fmt="brl" icon={<DollarSign className="w-4 h-4"/>} tone="neutral"/>
       </div>
 
-      <div className="flex items-center gap-1 border-b border-slate-200 mb-4">
+      <div className="flex items-center gap-1 border-b border-border mb-4">
         {[
           { k: "ativos",     l: "Ativos" },
           { k: "ofertados",  l: "Aguardando pagamento" },
@@ -90,7 +92,7 @@ export default async function RaioXPage({ searchParams }: { searchParams: { tab?
         ].map(t => (
           <Link key={t.k} href={`/raio-x?tab=${t.k}`}
             className={`px-3 py-2 text-xs font-medium border-b-2 transition ${
-              tab === t.k ? "border-guild-600 text-guild-700" : "border-transparent text-slate-500 hover:text-slate-800"
+              tab === t.k ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}>{t.l}</Link>
         ))}
       </div>
@@ -109,49 +111,49 @@ export default async function RaioXPage({ searchParams }: { searchParams: { tab?
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+            <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
               <tr>
-                <th className="text-left px-3 py-2 font-medium">Lead</th>
-                <th className="text-left px-3 py-2 font-medium">Ofertado</th>
-                <th className="text-right px-3 py-2 font-medium">Preço</th>
-                <th className="text-center px-3 py-2 font-medium">Pago?</th>
-                <th className="text-center px-3 py-2 font-medium">Score</th>
-                <th className="text-left px-3 py-2 font-medium">Nível</th>
-                <th className="text-right px-3 py-2 font-medium">Perda anual</th>
-                <th className="text-right px-3 py-2 font-medium">Ações</th>
+                <th className="text-left px-3 py-2 font-semibold">Lead</th>
+                <th className="text-left px-3 py-2 font-semibold">Ofertado</th>
+                <th className="text-right px-3 py-2 font-semibold">Preço</th>
+                <th className="text-center px-3 py-2 font-semibold">Pago?</th>
+                <th className="text-center px-3 py-2 font-semibold">Score</th>
+                <th className="text-left px-3 py-2 font-semibold">Nível</th>
+                <th className="text-right px-3 py-2 font-semibold">Perda anual</th>
+                <th className="text-right px-3 py-2 font-semibold">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {list.length === 0 && (
-                <tr><td colSpan={8} className="text-center py-12 text-slate-400">Nenhum Raio-X nesta caixa.</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-muted-foreground/70">Nenhum Raio-X nesta caixa.</td></tr>
               )}
               {list.map(r => (
-                <tr key={r.id} className="hover:bg-slate-50">
+                <tr key={r.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.03]">
                   <td className="px-3 py-2">
-                    <Link href={`/pipeline/${r.lead_id}`} className="font-medium hover:text-guild-700">
+                    <Link href={`/pipeline/${r.lead_id}`} className="font-medium hover:text-primary">
                       {r.leads?.empresa || r.leads?.nome || "(?)"}
                     </Link>
-                    <div className="text-[10px] text-slate-500">{r.leads?.segmento ?? "—"}</div>
+                    <div className="text-[10px] text-muted-foreground">{r.leads?.segmento ?? "—"}</div>
                   </td>
-                  <td className="px-3 py-2 text-xs text-slate-600">{fmt(r.data_oferta)}</td>
-                  <td className="px-3 py-2 text-xs text-right">
+                  <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{fmt(r.data_oferta)}</td>
+                  <td className="px-3 py-2 text-xs text-right tabular-nums">
                     {r.gratuito
-                      ? <span className="text-emerald-700">Gratuito</span>
+                      ? <span className="text-success-500">Gratuito</span>
                       : (r.preco_final ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </td>
                   <td className="px-3 py-2 text-center">
                     {r.pago
-                      ? <span className="text-emerald-700">✓ {r.data_pagamento ? fmt(r.data_pagamento) : ""}</span>
-                      : <span className="text-slate-400">—</span>}
+                      ? <span className="text-success-500 tabular-nums">✓ {r.data_pagamento ? fmt(r.data_pagamento) : ""}</span>
+                      : <span className="text-muted-foreground/70">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-center font-mono text-xs">{r.score ?? "—"}</td>
+                  <td className="px-3 py-2 text-center font-mono text-xs tabular-nums">{r.score ?? "—"}</td>
                   <td className="px-3 py-2">
-                    {r.nivel === "Alto" && <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Alto</span>}
-                    {r.nivel === "Médio" && <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">Médio</span>}
-                    {r.nivel === "Baixo" && <span className="text-xs text-slate-600 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded">Baixo</span>}
-                    {r.nivel === "Pendente" && <span className="text-xs text-slate-400">—</span>}
+                    {r.nivel === "Alto" && <span className="text-xs text-success-500 bg-success-500/15 border border-success-500/25 px-1.5 py-0.5 rounded">Alto</span>}
+                    {r.nivel === "Médio" && <span className="text-xs text-warning-500 bg-warning-500/15 border border-warning-500/25 px-1.5 py-0.5 rounded">Médio</span>}
+                    {r.nivel === "Baixo" && <span className="text-xs text-muted-foreground bg-secondary/60 dark:bg-white/[0.03] border border-border px-1.5 py-0.5 rounded">Baixo</span>}
+                    {r.nivel === "Pendente" && <span className="text-xs text-muted-foreground/70">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs text-right">
+                  <td className="px-3 py-2 text-xs text-right tabular-nums">
                     {r.perda_anual_estimada
                       ? r.perda_anual_estimada.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
                       : "—"}
@@ -179,13 +181,16 @@ export default async function RaioXPage({ searchParams }: { searchParams: { tab?
 }
 
 function KPI({ title, v, fmt, icon, tone }: { title: string; v: number; fmt?: "brl"; icon: React.ReactNode; tone: "neutral" | "success" }) {
-  const tones = { neutral: "bg-slate-100 text-slate-600", success: "bg-emerald-50 text-success-500" };
+  const tones = {
+    neutral: "bg-secondary dark:bg-white/[0.05] text-muted-foreground",
+    success: "bg-success-500/10 text-success-500",
+  };
   return (
     <div className="card p-4 flex items-center gap-3">
       <div className={`w-9 h-9 rounded-lg grid place-items-center ${tones[tone]}`}>{icon}</div>
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider">{title}</div>
-        <div className="text-2xl font-semibold leading-tight">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">{title}</div>
+        <div className="text-2xl font-semibold leading-tight tabular-nums">
           {fmt === "brl" ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }) : v}
         </div>
       </div>

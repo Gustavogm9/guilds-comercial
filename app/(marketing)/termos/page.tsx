@@ -6,13 +6,13 @@ export const metadata = {
 export default function TermosPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
-      <div className="bg-white p-8 sm:p-12 rounded-3xl shadow-sm border border-slate-200">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-8">
+      <div className="bg-card p-8 sm:p-12 rounded-3xl shadow-stripe-sm border border-border">
+        <h1 className="text-3xl font-light text-foreground tracking-tight mb-8">
           Termos de Uso
         </h1>
-        
-        <div className="prose prose-slate prose-headings:text-slate-900 prose-a:text-guild-600">
-          <p className="text-sm text-slate-500 mb-8">Última atualização: 24 de Abril de 2026</p>
+
+        <div className="prose dark:prose-invert prose-headings:text-foreground prose-a:text-primary max-w-none">
+          <p className="text-sm text-muted-foreground mb-8 tabular-nums">Última atualização: 24 de Abril de 2026</p>
 
           <h2>1. Aceitação dos Termos</h2>
           <p>
@@ -63,7 +63,7 @@ export default function TermosPage() {
             Podemos revisar estes Termos a qualquer momento. Notificaremos os administradores da sua organização por e-mail sobre alterações materiais com pelo menos 30 dias de antecedência.
           </p>
 
-          <hr className="my-10 border-slate-200" />
+          <hr className="my-10 border-border" />
           
           <p className="text-sm font-semibold">Contato Jurídico:</p>
           <p className="text-sm">Para questões sobre estes Termos de Uso, contate suporte@guilds.com.br.</p>

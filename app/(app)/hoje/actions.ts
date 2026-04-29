@@ -133,6 +133,13 @@ export async function moverEtapa(
     update.probabilidade = 1;
   }
 
+  // Pega responsavel + empresa do lead pra enviar push depois
+  const { data: leadAtual } = await supabase
+    .from("leads")
+    .select("responsavel_id, empresa, nome")
+    .eq("id", lead_id)
+    .maybeSingle();
+
   await supabase.from("leads").update(update).eq("id", lead_id);
 
   await supabase.from("lead_evento").insert({
@@ -144,6 +151,21 @@ export async function moverEtapa(
       ...(exigeMotivo ? { motivo, motivo_detalhe: motivo === "Outro" ? motivoDetalhe : null } : {}),
     },
   });
+
+  // Push notification: só em mudanças finais (Fechado / Perdido)
+  if ((novaEtapa === "Fechado" || novaEtapa === "Perdido") && leadAtual?.responsavel_id) {
+    const empresaLabel = leadAtual.empresa || leadAtual.nome || `Lead #${lead_id}`;
+    const { sendPushToUser } = await import("@/lib/push");
+    sendPushToUser(leadAtual.responsavel_id, {
+      evento: "lead_fechado_proposta",
+      title: novaEtapa === "Fechado" ? `🎉 ${empresaLabel} fechou!` : `${empresaLabel} marcado como perdido`,
+      body: novaEtapa === "Fechado"
+        ? "Parabéns! Atualize o valor real e o cliente é seu."
+        : `Motivo: ${motivo ?? "—"}. Veja o detalhe.`,
+      url: `/pipeline/${lead_id}`,
+      tag: `lead-${lead_id}-status`,
+    }).catch((err) => console.warn("[push] moverEtapa", err));
+  }
 
   revalidatePath("/pipeline");
   revalidatePath("/hoje");

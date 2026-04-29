@@ -1,7 +1,8 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 
 function LoginForm() {
   const supabase = createClient();
@@ -11,6 +12,9 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [locale, setLocale] = useState<Locale>("pt-BR");
+  useEffect(() => setLocale(getClientLocale()), []);
+  const t = getT(locale);
 
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
@@ -20,19 +24,17 @@ function LoginForm() {
     setLoading(false);
     if (error) {
       setErro(error.message === "Invalid login credentials"
-        ? "Email ou senha incorretos."
+        ? t("auth.login_credenciais_invalidas")
         : error.message);
       return;
     }
 
-    // Se o usuário precisa trocar a senha, redireciona para /trocar-senha
     if (data.user?.user_metadata?.force_password_change === true) {
       router.push("/trocar-senha");
       router.refresh();
       return;
     }
 
-    // Redireciona para ?next= se existir (ex: aceitação de convite), senão para /hoje
     const next = searchParams.get("next");
     const destino = next && next.startsWith("/") ? next : "/hoje";
     router.push(destino);
@@ -42,24 +44,24 @@ function LoginForm() {
   return (
     <div className="w-full max-w-sm card p-8">
       <div className="flex items-center gap-2 mb-6">
-        <div className="w-9 h-9 rounded-lg bg-guild-600 grid place-items-center text-white font-bold">G</div>
+        <div className="w-9 h-9 rounded-lg bg-primary grid place-items-center text-primary-foreground font-bold">G</div>
         <div>
           <div className="font-semibold leading-tight">Guilds Comercial</div>
-          <div className="text-xs text-slate-500">Cockpit do time</div>
+          <div className="text-xs text-muted-foreground">{t("auth.login_titulo")}</div>
         </div>
       </div>
 
       <form onSubmit={entrar} className="space-y-4">
         <div>
-          <label className="label mb-1">Email</label>
+          <label className="label mb-1">{t("auth.login_email")}</label>
           <input
             type="email" required autoFocus
             value={email} onChange={(e) => setEmail(e.target.value)}
-            className="input-base" placeholder="voce@guilds.com.br"
+            className="input-base" placeholder={t("auth.login_email_placeholder")}
           />
         </div>
         <div>
-          <label className="label mb-1">Senha</label>
+          <label className="label mb-1">{t("auth.login_senha")}</label>
           <input
             type="password" required
             value={password} onChange={(e) => setPassword(e.target.value)}
@@ -67,15 +69,15 @@ function LoginForm() {
           />
         </div>
 
-        {erro && <div className="text-sm text-urgent-500 bg-red-50 border border-red-200 rounded-lg p-2">{erro}</div>}
+        {erro && <div className="text-sm text-urgent-500 bg-urgent-500/10 border border-urgent-500/30 rounded-lg p-2">{erro}</div>}
 
         <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
-          {loading ? "Entrando..." : "Entrar"}
+          {loading ? t("auth.login_entrando") : t("auth.login_entrar")}
         </button>
       </form>
 
-      <p className="mt-6 text-xs text-center text-slate-500">
-        Sem cadastro público. Usuários são criados pelo gestor.
+      <p className="mt-6 text-xs text-center text-muted-foreground">
+        {t("auth.login_sem_cadastro")}
       </p>
     </div>
   );
@@ -83,9 +85,9 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen grid place-items-center bg-gradient-to-br from-guild-50 via-white to-guild-100 px-4">
+    <div className="min-h-screen grid place-items-center bg-gradient-to-br from-primary/10 via-background to-primary/5 px-4">
       <Suspense fallback={
-        <div className="w-full max-w-sm card p-8 text-center text-slate-400">Carregando…</div>
+        <div className="w-full max-w-sm card p-8 text-center text-muted-foreground">Loading…</div>
       }>
         <LoginForm />
       </Suspense>

@@ -15,43 +15,51 @@ Este guia leva o sistema do zero até "rodando em produção" em ~30 minutos.
 
 ---
 
-## 2. Rodar os schemas (em ordem)
+## 2. Rodar as migrations (em ordem)
 
-No painel do projeto → **SQL Editor** → "New query". Execute as 5 migrations **nesta ordem**:
+Toda a história do schema vive em **`supabase/migrations/`** com nomes prefixados pela data (`AAAAMMDDhhmmss_descricao.sql`). Essa é a fonte de verdade — execute na ordem do nome do arquivo. O `supabase/schema.sql` na raiz é só uma **referência consolidada** do estado atual; ele *não* deve ser executado em vez das migrations.
 
-### 2.1. `supabase/schema.sql`
-Cria ~15 tabelas + views base + RLS multi-tenant. **Dropa tudo no começo** — re-rodar é seguro.
+### Forma recomendada: `supabase db push` (CLI oficial)
 
-### 2.2. `supabase/migration_v2_completude.sql` (idempotente)
-- `crm_stage` expandido com 12 etapas
-- `raio_x.status_oferta` + `tipo_voucher` + trigger de classificação
-- Função `lead_probabilidade_por_etapa()` + trigger
-- Views ampliadas: `v_leads_enriched`, `v_kpis_globais`, `v_kpis_por_canal`
+```bash
+npm i -g supabase
+supabase login                                  # pede o Personal Access Token
+supabase link --project-ref mdmbuekuemcjumxcmkls
+supabase db push                                # aplica migrations pendentes em ordem
+```
 
-### 2.3. `supabase/migration_v3_funil.sql` (idempotente)
-Analytics do funil — alimenta a tela `/funil`:
-- `v_funil_conversao` — snapshot do funil (qty + valor por etapa/responsável)
-- `v_tempo_por_etapa` — tempo médio em cada etapa via LAG sobre `lead_evento`
-- `v_valor_por_etapa` — bruto + weighted + ganho/perdido segregados
-- `v_cohort_entrada` — coortes semanais dos últimos 180 dias
-- `v_motivos_perda` — ranking dos motivos de perda
+O CLI lê `supabase/migrations/` em ordem alfabética e aplica só o que ainda não está em `supabase_migrations.schema_migrations`. Idempotente nativo. `supabase db diff` mostra preview antes; `supabase migration list` mostra o que está aplicado.
 
-### 2.4. `supabase/migration_v4_score.sql` (idempotente)
-Score de fechamento composto + motivos de perda padronizados:
-- Colunas novas em `leads`: `motivo_perda` (enum), `motivo_perda_detalhe`, `percepcao_vendedor`
-- Coluna em `ligacoes`: `tom_interacao` (positivo/neutro/negativo)
-- Função `lead_score_fechamento(lead_id)` → 0-100 composto por 8 fatores
-- Views: `v_lead_score`, `v_forecast_mes`, `v_top_oportunidades`
+### Alternativa manual: SQL Editor
 
-### 2.5. `supabase/migration_v5_ai.sql` (idempotente)
-Camada de IA com prompts versionados:
-- `ai_providers` — Anthropic/OpenAI/Google (seed global)
-- `ai_features` — catálogo das 15 features (toggle + budget por feature)
-- `ai_prompts` — biblioteca versionada (seed v1 em PT-BR das 15)
-- `ai_invocations` — log completo (tokens, custo, latência)
-- View `v_ai_uso_30d`
+No painel do projeto → **SQL Editor** → "New query". Cole e execute cada arquivo da pasta `migrations/` na ordem alfabética:
 
-> **Todas as migrations são idempotentes** (IF NOT EXISTS, CREATE OR REPLACE).
+| Arquivo | O que entrega |
+|---|---|
+| `20260423000000_schema.sql` | Schema base v1 — ~15 tabelas + views base + RLS multi-tenant. Dropa tudo no começo, re-rodar é seguro. |
+| `20260423000001_v2.sql` | `crm_stage` com 12 etapas, `raio_x.status_oferta`/`tipo_voucher`, trigger de classificação, `lead_probabilidade_por_etapa()`, views `v_leads_enriched`, `v_kpis_globais`, `v_kpis_por_canal`. |
+| `20260423000002_v3.sql` | Funil analytics: `v_funil_conversao`, `v_tempo_por_etapa`, `v_valor_por_etapa`, `v_cohort_entrada`, `v_motivos_perda`. |
+| `20260423000003_v4.sql` | Score 0-100 composto: colunas `motivo_perda`/`percepcao_vendedor`/`tom_interacao`, função `lead_score_fechamento()`, views `v_lead_score`, `v_forecast_mes`, `v_top_oportunidades`. |
+| `20260423000004_v5.sql` | Camada de IA: `ai_providers`, `ai_features`, `ai_prompts`, `ai_invocations`, view `v_ai_uso_30d` + seeds das 15 features e prompts em PT-BR. |
+| `20260424000000_cadencia_templates.sql` | Templates de cadência por organização. |
+| `20260424000001_api_and_webhooks.sql` | API pública: `api_keys`, `webhooks`, log de entregas. |
+| `20260424000002_pg_cron_ai.sql` | pg_cron disparando jobs server-to-server da camada de IA. |
+| `20260425000000_billing_activation.sql` | Stripe billing: `plano`, `billing_status`, `trial_ends_at`, `stripe_customer_id`, `stripe_subscription_id` em `organizacoes`. |
+| `20260427000000_fix_rls_membros.sql` | Hardening RLS: remove privilege escalation em `membros_organizacao` (insert agora exige `is_gestor_in_org`). |
+| `20260427100000_views_security_invoker.sql` | 14 views agregadas com `security_invoker = on` — fecha vazamento de dados entre orgs (RLS das tabelas-base passa a ser respeitada via view). |
+| `20260427100001_function_hardening.sql` | `set search_path = public` em 9 funções; `revoke execute from anon` em `is_gestor_in_org` e `orgs_do_usuario`. |
+| `20260427100002_rls_perf_and_fk_indexes.sql` | 7 policies reescritas com `(select auth.uid())` (auth_rls_initplan); 14 índices em FKs sem cobertura (responsavel_id, organizacao_id em api_keys/webhooks, etc.). |
+| `20260427100003_api_rate_limit_persistent.sql` | `api_rate_counters` + função atômica `consume_rate_token()`; cleanup a cada 15 min via pg_cron. |
+| `20260427100004_webhook_retry_hardening.sql` | `webhook_events.error_message`, índice parcial pending+due, cron `webhook_retry` (todo minuto). |
+| `20260427100005_ai_invocations_archival.sql` | Tabela archive + função `archive_old_ai_invocations(90)`, cron semanal. |
+| `20260427100006_move_pg_net.sql` | No-op documentado: pg_net não suporta SET SCHEMA. |
+| `20260427100007_perfil_org_dados_fiscais.sql` | profiles (telefone, avatar_url, timezone) e organizacoes (razao_social, cnpj com check, IE, regime_tributario, telefone, site, endereco jsonb, logo_url, timezone) + índice CNPJ. |
+| `20260427100008_web_push_subscriptions.sql` | `web_push_subscriptions` + `notification_preferences` (opt-in granular, janela horário, fuso) + RLS por user + cleanup cron semanal de >180d. |
+| `20260427100009_pg_cron_push_cadencia.sql` | Schedule horário de `/api/cron/push-cadencia` via pg_net. |
+| `20260427100010_ai_overage_billing.sql` | `ai_features.preco_overage_centavos` (seed por feature, R$0,10 a R$1,00); `ai_usage_mensal` (tracking por org/mês/feature); função `registrar_ai_usage()`; view `v_ai_usage_atual`. |
+| `20260427100011_pg_cron_report_overage.sql` | Schedule mensal (dia 1 03:00 UTC) de `/api/cron/report-ai-overage` que reporta usage ao Stripe metered. |
+
+> **Todas as migrations são idempotentes** (`IF NOT EXISTS`, `CREATE OR REPLACE`).
 > Re-rodar em produção não apaga dados.
 
 ### Como funciona o multi-tenant
@@ -305,6 +313,27 @@ No banco, duas funções `security definer stable` suportam as políticas RLS:
 
 - `orgs_do_usuario()` — retorna set de `organizacao_id` em que o `auth.uid()` é ativo.
 - `is_gestor_in_org(_org uuid)` — booleano para políticas de escrita em tabelas de governança.
+
+---
+
+## Email mock para dev local
+
+Para testar fluxos que enviam email (convites, welcome, password reset) sem realmente disparar pra inboxes reais, suba o **Mailpit**:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+# UI: http://localhost:8025
+```
+
+O Mailpit aceita conexões SMTP em `localhost:1025` sem auth. Conexão:
+
+- **Stack Supabase local** (`supabase start`): edite `supabase/config.toml` adicionando `[auth.email]` com `host = "localhost"` e `port = 1025`.
+- **Stack Supabase remoto** (Pro+): SMTP custom é configurado no Dashboard → Project Settings → Auth → SMTP. Em produção use Resend/SendGrid; o Mailpit é só pra dev.
+- **Emails diretos do app** (lib/email.ts via Resend): aponte `SMTP_HOST=localhost SMTP_PORT=1025` no `.env.local`.
+
+Limitação conhecida: testes E2E de **cadastro com email de confirmação real** requerem stack local + Mailpit conectado. Pra CI estável, recomendamos:
+- Criar users de teste via Auth admin API com `email_confirm: true` (pula o email)
+- Testar fluxo de convite via aceite programático do token (ver `tests/db/rls-isolation.test.ts`)
 
 ---
 

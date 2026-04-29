@@ -50,8 +50,8 @@ select
   count(distinct l.id) as leads_total,
   count(distinct l.id) filter (where l.crm_stage not in ('Base', 'Prospecção')) as leads_movidos,
   count(distinct ai.id) filter (where ai.status = 'sucesso') as ia_sucesso_30d,
-  count(distinct ak.id) filter (where ak.ativo) as api_keys_ativas,
-  count(distinct w.id) filter (where w.ativo) as webhooks_ativos
+  count(distinct ak.id) as api_keys_ativas,
+  count(distinct w.id) filter (where w.active) as webhooks_ativos
 from public.organizacoes o
 left join public.membros_organizacao m on m.organizacao_id = o.id
 left join public.convites c on c.organizacao_id = o.id

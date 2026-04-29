@@ -54,17 +54,17 @@ const plans = [
 
 export default function PricingSection() {
   return (
-    <section id="precos" className="py-24 bg-slate-50 relative overflow-hidden">
+    <section id="precos" className="py-24 bg-secondary/40 dark:bg-white/[0.02] relative overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] opacity-10 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-guild-500 to-emerald-500 blur-[120px] rounded-full mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 blur-[120px] rounded-full mix-blend-multiply" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+          <h2 className="text-3xl font-light text-foreground sm:text-4xl tracking-tight">
             Preços transparentes, sem surpresas
           </h2>
-          <p className="mt-4 text-lg text-slate-600">
+          <p className="mt-4 text-lg text-muted-foreground font-light">
             Comece grátis, faça o upgrade quando seu time precisar de mais escala.
           </p>
         </div>
@@ -77,35 +77,35 @@ export default function PricingSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`relative flex flex-col rounded-3xl p-8 shadow-sm border ${
-                plan.highlight 
-                  ? "bg-guild-900 text-white border-guild-800 shadow-xl shadow-guild-900/10 scale-105 z-10" 
-                  : "bg-white text-slate-900 border-slate-200"
+              className={`relative flex flex-col rounded-3xl p-8 border ${
+                plan.highlight
+                  ? "bg-foreground text-background border-foreground shadow-stripe-md scale-105 z-10"
+                  : "bg-card text-foreground border-border shadow-stripe-sm"
               }`}
             >
               {plan.highlight && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-indigo-400 to-guild-400 text-white text-xs font-bold px-3 py-1 uppercase tracking-widest rounded-full">
+                  <span className="bg-gradient-to-r from-primary to-purple-500 text-white text-xs font-bold px-3 py-1 uppercase tracking-[0.12em] rounded-full">
                     Mais Popular
                   </span>
                 </div>
               )}
-              
+
               <div className="mb-6">
-                <h3 className={`text-xl font-semibold ${plan.highlight ? "text-white" : "text-slate-900"}`}>{plan.name}</h3>
-                <p className={`mt-2 text-sm ${plan.highlight ? "text-guild-200" : "text-slate-500"}`}>{plan.description}</p>
+                <h3 className={`text-xl font-semibold ${plan.highlight ? "text-background" : "text-foreground"}`}>{plan.name}</h3>
+                <p className={`mt-2 text-sm ${plan.highlight ? "text-background/70" : "text-muted-foreground"}`}>{plan.description}</p>
               </div>
 
               <div className="mb-6 flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold tracking-tight">{plan.price}</span>
-                <span className={`text-sm font-medium ${plan.highlight ? "text-guild-200" : "text-slate-500"}`}>{plan.period}</span>
+                <span className="text-4xl font-light tracking-tight tabular-nums">{plan.price}</span>
+                <span className={`text-sm font-medium ${plan.highlight ? "text-background/70" : "text-muted-foreground"}`}>{plan.period}</span>
               </div>
 
               <ul className="mb-8 space-y-4 flex-1">
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex gap-3 text-sm">
-                    <Check className={`w-5 h-5 shrink-0 ${plan.highlight ? "text-guild-400" : "text-guild-600"}`} />
-                    <span className={plan.highlight ? "text-slate-100" : "text-slate-700"}>{feature}</span>
+                    <Check className={`w-5 h-5 shrink-0 ${plan.highlight ? "text-primary" : "text-primary"}`} />
+                    <span className={plan.highlight ? "text-background/90" : "text-foreground/80"}>{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -114,8 +114,8 @@ export default function PricingSection() {
                 href="/cadastro"
                 className={`w-full py-3 px-4 rounded-xl text-center text-sm font-bold transition-all active:scale-95 ${
                   plan.highlight
-                    ? "bg-white text-guild-900 hover:bg-slate-50"
-                    : "bg-guild-50 text-guild-700 hover:bg-guild-100"
+                    ? "bg-background text-foreground hover:opacity-90"
+                    : "bg-primary/10 text-primary hover:bg-primary/15"
                 }`}
               >
                 {plan.cta}

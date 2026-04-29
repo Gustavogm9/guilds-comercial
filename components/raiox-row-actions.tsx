@@ -100,8 +100,8 @@ export default function RaioXRowActions({
         <button
           onClick={() => setShowIA(showIA === "oferta" ? null : "oferta")}
           className="inline-flex items-center gap-1 text-[11px] font-medium
-            bg-indigo-600 text-white px-2.5 py-1.5 rounded-md
-            hover:bg-indigo-700 transition-colors"
+            bg-primary text-primary-foreground px-2.5 py-1.5 rounded-md
+            hover:brightness-110 transition-colors"
         >
           <Sparkles className="w-3 h-3"/> Oferta IA
         </button>
@@ -111,8 +111,8 @@ export default function RaioXRowActions({
           <button
             onClick={() => setShowIA(showIA === "doc" ? null : "doc")}
             className="inline-flex items-center gap-1 text-[11px] font-medium
-              bg-violet-600 text-white px-2.5 py-1.5 rounded-md
-              hover:bg-violet-700 transition-colors"
+              bg-accent text-accent-foreground px-2.5 py-1.5 rounded-md
+              hover:brightness-110 transition-colors"
           >
             <FileText className="w-3 h-3"/> Documento IA
           </button>
@@ -121,22 +121,22 @@ export default function RaioXRowActions({
 
       {/* Painel IA: Gerar Oferta */}
       {showIA === "oferta" && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
-          <div className="text-xs font-semibold text-indigo-700">✨ Gerar oferta do Raio-X via IA</div>
+        <div className="bg-primary/5 border border-primary/25 rounded-lg p-3 space-y-2">
+          <div className="text-xs font-semibold text-primary">✨ Gerar oferta do Raio-X via IA</div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-600">Canal:</span>
+            <span className="text-[11px] text-muted-foreground">Canal:</span>
             {(["WhatsApp", "Email", "LinkedIn"] as const).map(canal => (
               <button key={canal} disabled={gerandoOferta}
                 onClick={() => gerarOferta(canal)}
-                className="text-[11px] px-2 py-1 rounded bg-white border border-indigo-200
-                  hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                className="text-[11px] px-2 py-1 rounded bg-card border border-primary/25
+                  hover:bg-primary/10 disabled:opacity-50 transition-colors"
               >
                 {gerandoOferta ? <Loader2 className="w-3 h-3 animate-spin inline" /> : canal}
               </button>
             ))}
           </div>
           {erroIA && (
-            <div className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded p-1.5">{erroIA}</div>
+            <div className="text-[11px] text-destructive bg-destructive/10 border border-destructive/25 rounded p-1.5">{erroIA}</div>
           )}
           {textoOferta && (
             <div className="space-y-2">
@@ -144,11 +144,11 @@ export default function RaioXRowActions({
                 value={textoOferta}
                 onChange={(e) => setTextoOferta(e.target.value)}
                 rows={5}
-                className="w-full text-xs border border-indigo-200 rounded-md p-2 bg-white text-slate-800 resize-y"
+                className="w-full text-xs border border-primary/25 rounded-md p-2 bg-card text-foreground resize-y"
               />
               <div className="flex items-center gap-2">
                 <button onClick={() => copiar(textoOferta)}
-                  className="inline-flex items-center gap-1 text-[11px] bg-slate-700 text-white px-2 py-1 rounded hover:bg-slate-800">
+                  className="inline-flex items-center gap-1 text-[11px] bg-foreground text-background px-2 py-1 rounded hover:opacity-90">
                   {copiado ? <><Check className="w-3 h-3"/> Copiado!</> : <><Copy className="w-3 h-3"/> Copiar</>}
                 </button>
                 {whatsapp && (
@@ -157,7 +157,7 @@ export default function RaioXRowActions({
                       const num = whatsapp.replace(/\D/g, "");
                       window.open(`https://wa.me/${num.startsWith("55") ? num : `55${num}`}?text=${encodeURIComponent(textoOferta)}`, "_blank");
                     }}
-                    className="inline-flex items-center gap-1 text-[11px] bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700"
+                    className="inline-flex items-center gap-1 text-[11px] bg-success-500 text-white px-2 py-1 rounded hover:brightness-110"
                   >
                     <ExternalLink className="w-3 h-3"/> WhatsApp
                   </button>
@@ -170,24 +170,24 @@ export default function RaioXRowActions({
 
       {/* Painel IA: Gerar Documento */}
       {showIA === "doc" && (
-        <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 space-y-2">
-          <div className="text-xs font-semibold text-violet-700">📄 Gerar documento do Raio-X a partir da call</div>
+        <div className="bg-accent/5 border border-accent/25 rounded-lg p-3 space-y-2">
+          <div className="text-xs font-semibold text-accent">📄 Gerar documento do Raio-X a partir da call</div>
           <textarea
             value={transcricao}
             onChange={(e) => setTranscricao(e.target.value)}
             placeholder="Cole aqui a transcrição ou resumo da call de Raio-X..."
             rows={4}
-            className="w-full text-xs border border-violet-200 rounded-md p-2 bg-white text-slate-800 resize-y"
+            className="w-full text-xs border border-accent/25 rounded-md p-2 bg-card text-foreground resize-y"
           />
           <button onClick={gerarDoc} disabled={gerandoDoc || !transcricao.trim()}
             className="inline-flex items-center gap-1 text-[11px] font-medium
-              bg-violet-600 text-white px-2.5 py-1.5 rounded-md
-              hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              bg-accent text-accent-foreground px-2.5 py-1.5 rounded-md
+              hover:brightness-110 disabled:opacity-50 transition-colors"
           >
             {gerandoDoc ? <><Loader2 className="w-3 h-3 animate-spin"/> Gerando...</> : <><Sparkles className="w-3 h-3"/> Gerar documento</>}
           </button>
           {erroIA && (
-            <div className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded p-1.5">{erroIA}</div>
+            <div className="text-[11px] text-destructive bg-destructive/10 border border-destructive/25 rounded p-1.5">{erroIA}</div>
           )}
           {textoDoc && (
             <div className="space-y-2">
@@ -195,10 +195,10 @@ export default function RaioXRowActions({
                 value={textoDoc}
                 onChange={(e) => setTextoDoc(e.target.value)}
                 rows={8}
-                className="w-full text-xs border border-violet-200 rounded-md p-2 bg-white text-slate-800 resize-y font-mono"
+                className="w-full text-xs border border-accent/25 rounded-md p-2 bg-card text-foreground resize-y font-mono"
               />
               <button onClick={() => copiar(textoDoc)}
-                className="inline-flex items-center gap-1 text-[11px] bg-slate-700 text-white px-2 py-1 rounded hover:bg-slate-800">
+                className="inline-flex items-center gap-1 text-[11px] bg-foreground text-background px-2 py-1 rounded hover:opacity-90">
                 {copiado ? <><Check className="w-3 h-3"/> Copiado!</> : <><Copy className="w-3 h-3"/> Copiar</>}
               </button>
             </div>
@@ -221,7 +221,7 @@ export default function RaioXRowActions({
               });
               setOpen(null);
             })}}
-            className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-3">
+            className="bg-card border border-border rounded-2xl max-w-lg w-full p-5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="font-semibold">Resultado do Raio-X</div>
               <button type="button" onClick={() => setOpen(null)} className="btn-ghost"><X className="w-4 h-4"/></button>

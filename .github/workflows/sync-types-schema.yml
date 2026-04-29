@@ -1,0 +1,62 @@
+name: Sync types & schema snapshot
+
+# Regenera lib/database.types.ts e supabase/schema.sql a partir do banco
+# remoto, e abre um PR se houver diff. Captura migrations aplicadas
+# manualmente que não passaram pelo repo.
+on:
+  workflow_dispatch:
+  schedule:
+    # toda segunda 03:00 UTC
+    - cron: "0 3 * * 1"
+
+jobs:
+  sync:
+    name: Regenerate types + schema dump
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Supabase CLI
+        run: npm install -g supabase
+
+      - name: Regenerate database.types.ts
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+        run: |
+          supabase gen types typescript \
+            --project-id "${{ secrets.SUPABASE_PROJECT_REF }}" \
+            --schema public \
+            > lib/database.types.ts
+
+      - name: Snapshot schema.sql (consolidated reference)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          # Linka temporariamente para usar `supabase db dump`
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
+            --password "$PGPASSWORD" || true
+          supabase db dump --schema public > supabase/schema.sql || true
+
+      - name: Open PR if diff
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: sync database types + schema snapshot"
+          title: "chore: sync types & schema (auto)"
+          body: |
+            Atualiza `lib/database.types.ts` e `supabase/schema.sql` a partir do banco
+            remoto. Se este PR tem diff, alguém aplicou DDL no banco que não
+            passou por `supabase/migrations/`. Investigar antes de mergear.
+          branch: chore/sync-types-schema
+          delete-branch: true
+          add-paths: |
+            lib/database.types.ts
+            supabase/schema.sql

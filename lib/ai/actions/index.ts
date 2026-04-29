@@ -89,7 +89,13 @@ export async function gerarDocumentoRaioX(input: {
       valor_potencial: input.valor_potencial ?? 0,
     },
   });
-  if (r.ok) revalidatePath(`/pipeline/${input.leadId}`);
+  // Documento do Raio-X afeta detalhe do lead, lista de raio-x e o cockpit
+  // (urgência muda quando "Diagnóstico Pago" é classificado).
+  if (r.ok) {
+    revalidatePath(`/pipeline/${input.leadId}`);
+    revalidatePath("/raio-x");
+    revalidatePath("/hoje");
+  }
   return r;
 }
 

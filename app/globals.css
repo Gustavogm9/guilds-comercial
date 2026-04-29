@@ -2,40 +2,299 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
+/* ================================================================
+   TOKENS DE COR
+   Light = Stripe-feel (deep navy, blue-tinted shadows, soft borders)
+   Dark  = Linear-feel (near-black canvas, translucent borders, luminance stepping)
+   Ver docs/DESIGN.md pra rationale.
+   ================================================================ */
+
+@layer base {
+  :root {
+    /* === Surfaces === */
+    --background: 180 5% 97%;        /* #f7f8f8 — Linear light */
+    --foreground: 212 79% 11%;       /* #061b31 — Stripe deep navy */
+
+    --card: 0 0% 100%;
+    --card-foreground: 212 79% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 212 79% 11%;
+
+    /* === Brand === */
+    --primary: 232 56% 60%;          /* #5e6ad2 — Linear brand indigo */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 213 38% 93%;        /* #e5edf5 — Stripe border soft */
+    --secondary-foreground: 215 35% 24%;  /* #273951 — Stripe label */
+
+    --muted: 213 38% 96%;
+    --muted-foreground: 217 18% 47%; /* #64748d — Stripe slate */
+
+    --accent: 241 100% 72%;          /* #7170ff — Linear violet */
+    --accent-foreground: 0 0% 100%;
+
+    /* === Status === */
+    --destructive: 345 84% 53%;      /* #ea2261 — Stripe ruby */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;          /* #10b981 — Linear emerald */
+    --warning: 38 92% 50%;           /* #f59e0b — amber */
+
+    /* === Lines === */
+    --border: 213 38% 93%;           /* #e5edf5 — Stripe */
+    --input: 213 38% 93%;
+    --ring: 232 56% 60%;
+
+    --radius: 0.5rem;                /* 8px — card default */
+
+    /* === Aliases legados (compat — apontam pros novos) === */
+    --guild-50:  232 56% 96%;
+    --guild-100: 232 56% 90%;
+    --guild-500: 241 100% 72%;       /* = accent (violet) */
+    --guild-600: 232 56% 60%;        /* = primary (indigo) */
+    --guild-700: 232 56% 45%;
+    --guild-900: 235 50% 22%;        /* #1c1e54 — Stripe brand dark */
+
+    /* === Stripe blue-tinted shadows (light only) === */
+    --shadow-stripe-xs: rgba(50,50,93,0.08) 0px 1px 3px;
+    --shadow-stripe-sm: rgba(50,50,93,0.11) 0px 4px 6px -2px, rgba(0,0,0,0.06) 0px 2px 3px -1px;
+    --shadow-stripe-md: rgba(50,50,93,0.25) 0px 30px 45px -30px, rgba(0,0,0,0.1) 0px 18px 36px -18px;
+    --shadow-stripe-lg: rgba(3,3,39,0.25) 0px 14px 21px -14px, rgba(0,0,0,0.1) 0px 8px 17px -8px;
+  }
+
+  .dark {
+    /* === Surfaces (Linear) === */
+    --background: 220 5% 4%;         /* #08090a — Linear marketing black */
+    --foreground: 180 5% 97%;        /* #f7f8f8 */
+
+    --card: 220 5% 7%;               /* #0f1011 — Linear panel */
+    --card-foreground: 180 5% 97%;
+
+    --popover: 220 5% 10%;           /* #191a1b — Linear level 3 surface */
+    --popover-foreground: 180 5% 97%;
+
+    /* === Brand (dark = mais punch) === */
+    --primary: 241 100% 72%;         /* #7170ff — Linear violet */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 5% 10%;         /* #191a1b */
+    --secondary-foreground: 216 14% 85%;  /* #d0d6e0 — Linear silver */
+
+    --muted: 220 5% 10%;
+    --muted-foreground: 216 6% 57%;  /* #8a8f98 — Linear tertiary */
+
+    --accent: 232 56% 60%;           /* #5e6ad2 — Linear indigo */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 345 84% 53%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --warning: 38 92% 50%;
+
+    /* Em dark, border é semi-transparente branco — usa via classe direto.
+       Aqui mantemos um valor solid pra fallback de componentes que esperam HSL. */
+    --border: 220 5% 15%;            /* fallback escuro */
+    --input: 220 5% 10%;
+    --ring: 241 100% 72%;
+
+    /* Aliases dark */
+    --guild-50:  235 50% 12%;
+    --guild-100: 235 50% 18%;
+    --guild-500: 232 56% 60%;
+    --guild-600: 241 100% 72%;
+    --guild-700: 241 100% 80%;
+    --guild-900: 235 50% 22%;
+  }
 }
 
-html, body { height: 100%; }
-body {
-  @apply bg-slate-50 text-slate-900 antialiased;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Inter", Arial, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased relative;
+    /* Inter Variable carregado via next/font; CSS var --font-sans é injetada no <html> */
+    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Inter", Arial, sans-serif;
+    /* Linear DNA: alternates geométricos do Inter (cv01 = single-story 'a', ss03 = stylistic alt) */
+    font-feature-settings: "cv01", "ss03", "ss01";
+    font-variant-numeric: lining-nums;
+  }
+  code, pre, kbd, samp {
+    font-family: var(--font-mono), ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
 }
 
-/* Scrollbar discreto */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded; }
-::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }
+/* === Tipografia: tracking proporcional ao tamanho ===
+   Linear/Stripe DNA — display sizes sempre rodam tight. Aplicamos via classes
+   pra que h1/h2/h3 do Tailwind (text-5xl, text-4xl, etc) ganhem auto.
+*/
+@layer base {
+  .text-7xl, .text-8xl { letter-spacing: -1.584px; }
+  .text-6xl            { letter-spacing: -1.4px; }
+  .text-5xl            { letter-spacing: -1.056px; }
+  .text-4xl            { letter-spacing: -0.704px; }
+  .text-3xl            { letter-spacing: -0.5px; }
+  .text-2xl            { letter-spacing: -0.288px; }
+  .text-xl             { letter-spacing: -0.24px; }
+  .text-lg             { letter-spacing: -0.165px; }
+  .text-sm             { letter-spacing: -0.13px; }
+  .text-xs             { letter-spacing: -0.1px; }
+}
 
-/* Inputs unificados */
-.input-base {
-  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm
-         focus:outline-none focus:ring-2 focus:ring-guild-500 focus:border-transparent;
+/* === Scrollbar discreto (mantido) === */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { @apply bg-muted-foreground/25 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/40; }
+
+/* === Background gradient (sutil, on-brand) ===
+   Light: barely visible blue-tinted blobs (Stripe atmosphere)
+   Dark:  Linear-style — quase nenhum (canvas é o protagonista)
+*/
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 12% 20%, hsl(232 56% 60% / 0.04), transparent 35%),
+    radial-gradient(circle at 88% 80%, hsl(241 100% 72% / 0.03), transparent 35%);
+  z-index: -1;
+  pointer-events: none;
 }
-.btn-primary {
-  @apply inline-flex items-center gap-2 rounded-lg bg-guild-600 px-4 py-2 text-sm font-medium
-         text-white shadow-sm hover:bg-guild-700 active:scale-[.98] transition disabled:opacity-50;
+.dark body::before {
+  background:
+    radial-gradient(circle at 12% 20%, hsl(241 100% 72% / 0.05), transparent 40%),
+    radial-gradient(circle at 88% 80%, hsl(232 56% 60% / 0.04), transparent 40%);
 }
-.btn-secondary {
-  @apply inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm
-         font-medium text-slate-700 shadow-sm hover:bg-slate-50 active:scale-[.98] transition;
-}
-.btn-ghost {
-  @apply inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 transition;
-}
-.card {
-  @apply rounded-xl border border-slate-200 bg-white shadow-sm;
-}
-.label {
-  @apply block text-xs font-medium uppercase tracking-wider text-slate-500;
+
+/* ================================================================
+   COMPONENTES UTILITÁRIOS
+   ================================================================ */
+
+@layer components {
+
+  /* === Glass surfaces (mantidos pra compat — mas ajustados) === */
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/60;
+    box-shadow: var(--shadow-stripe-xs);
+  }
+  .dark .glass {
+    @apply bg-white/[0.03] border-white/[0.08];
+    box-shadow: none;
+  }
+
+  .glass-panel {
+    @apply bg-background/70 backdrop-blur-2xl border border-border/40;
+  }
+  .dark .glass-panel {
+    @apply bg-white/[0.02] border-white/[0.05];
+  }
+
+  /* === Inputs === */
+  .input-base {
+    @apply w-full rounded-md border border-input bg-card px-3 py-2 text-sm
+           ring-offset-background transition-all
+           placeholder:text-muted-foreground
+           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:border-transparent
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    font-feature-settings: "cv01", "ss03", "ss01";
+  }
+  .dark .input-base {
+    @apply bg-white/[0.02] border-white/[0.08] text-foreground;
+  }
+  .dark .input-base:focus {
+    @apply border-transparent;
+  }
+
+  /* === Buttons ===
+     Primary = Linear brand button (light) / violet on dark.
+     Secondary = neutral ghost com border.
+     Ghost = transparent.
+  */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md
+           bg-primary px-4 py-2 text-sm font-medium text-primary-foreground
+           transition-all
+           hover:brightness-110 active:scale-[.98]
+           disabled:opacity-50 disabled:pointer-events-none;
+    /* Inset highlight pro relevo Linear-style */
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.12), 0 1px 2px hsl(220 5% 4% / 0.1);
+    font-feature-settings: "cv01", "ss03", "ss01";
+    letter-spacing: -0.13px;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md
+           border border-border bg-card px-4 py-2 text-sm font-medium text-foreground
+           transition-all hover:bg-secondary active:scale-[.98];
+    font-feature-settings: "cv01", "ss03", "ss01";
+    letter-spacing: -0.13px;
+  }
+  .dark .btn-secondary {
+    @apply bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.06];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1 rounded-md
+           px-2 py-1 text-sm text-muted-foreground
+           transition-all hover:bg-secondary hover:text-foreground;
+    font-feature-settings: "cv01", "ss03", "ss01";
+  }
+  .dark .btn-ghost:hover {
+    @apply bg-white/[0.05];
+  }
+
+  /* === Cards === */
+  .card {
+    @apply rounded-lg border border-border bg-card;
+    box-shadow: var(--shadow-stripe-sm);
+  }
+  .dark .card {
+    @apply bg-white/[0.02] border-white/[0.08];
+    box-shadow: none;  /* Em dark, luminance stepping — sem shadow */
+  }
+
+  /* === Labels === */
+  .label {
+    @apply block text-[10px] font-bold uppercase tracking-widest text-muted-foreground;
+    font-feature-settings: "cv01", "ss03", "ss01";
+  }
+
+  /* === Pills === */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full border border-border
+           px-2.5 py-0.5 text-xs font-medium text-muted-foreground;
+    font-feature-settings: "cv01", "ss03", "ss01";
+  }
+  .dark .pill {
+    @apply border-white/[0.08] text-foreground;
+  }
+
+  .pill-success {
+    @apply inline-flex items-center gap-1 rounded-full border
+           px-2.5 py-0.5 text-xs font-medium;
+    background: hsl(var(--success) / 0.15);
+    border-color: hsl(var(--success) / 0.3);
+    color: hsl(var(--success));
+  }
+
+  .pill-warn {
+    @apply inline-flex items-center gap-1 rounded-full border
+           px-2.5 py-0.5 text-xs font-medium;
+    background: hsl(var(--warning) / 0.15);
+    border-color: hsl(var(--warning) / 0.3);
+    color: hsl(var(--warning));
+  }
+
+  .pill-urgent {
+    @apply inline-flex items-center gap-1 rounded-full border
+           px-2.5 py-0.5 text-xs font-medium;
+    background: hsl(var(--destructive) / 0.15);
+    border-color: hsl(var(--destructive) / 0.3);
+    color: hsl(var(--destructive));
+  }
 }

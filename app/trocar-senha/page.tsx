@@ -59,21 +59,21 @@ export default function TrocarSenhaPage() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-gradient-to-br from-guild-50 via-white to-guild-100 px-4">
+    <div className="min-h-screen grid place-items-center bg-gradient-to-br from-primary/10 via-background to-primary/5 px-4">
       <div className="w-full max-w-sm card p-8">
         <div className="flex items-center gap-2 mb-2">
-          <div className="w-9 h-9 rounded-lg bg-guild-600 grid place-items-center text-white font-bold">G</div>
+          <div className="w-9 h-9 rounded-lg bg-primary grid place-items-center text-primary-foreground font-bold">G</div>
           <div>
             <div className="font-semibold leading-tight">Guilds Comercial</div>
-            <div className="text-xs text-slate-500">Troca de senha</div>
+            <div className="text-xs text-muted-foreground">Troca de senha</div>
           </div>
         </div>
 
-        <div className="mb-6 p-3 rounded-lg bg-amber-50 border border-amber-200">
-          <p className="text-sm text-amber-800 font-medium">
+        <div className="mb-6 p-3 rounded-lg bg-warning-500/10 border border-warning-500/25">
+          <p className="text-sm text-warning-500 font-medium">
             🔒 Troca obrigatória de senha
           </p>
-          <p className="text-xs text-amber-700 mt-1">
+          <p className="text-xs text-foreground/70 mt-1">
             Por segurança, você precisa definir uma nova senha antes de continuar.
           </p>
         </div>
@@ -81,8 +81,8 @@ export default function TrocarSenhaPage() {
         {sucesso ? (
           <div className="text-center py-4">
             <div className="text-3xl mb-2">✅</div>
-            <p className="text-sm font-medium text-green-700">Senha alterada com sucesso!</p>
-            <p className="text-xs text-slate-500 mt-1">Redirecionando para o dashboard…</p>
+            <p className="text-sm font-medium text-success-500">Senha alterada com sucesso!</p>
+            <p className="text-xs text-muted-foreground mt-1">Redirecionando para o dashboard…</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -113,7 +113,7 @@ export default function TrocarSenhaPage() {
             </div>
 
             {erro && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+              <div className="text-sm text-destructive bg-destructive/10 border border-destructive/25 rounded-lg p-2">
                 {erro}
               </div>
             )}

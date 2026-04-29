@@ -44,9 +44,9 @@ export default function QuickActions({ lead }: { lead: LeadEnriched }) {
                   });
                   setOpen(null); setObs("");
                 })}
-                className="block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-slate-50">
+                className="block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-secondary dark:hover:bg-white/[0.04] transition-colors">
                 {r.v}
-                <span className="text-[10px] text-slate-500 ml-2">→ {r.prox} (+{r.dias}d)</span>
+                <span className="text-[10px] text-muted-foreground ml-2">→ {r.prox} (+{r.dias}d)</span>
               </button>
             ))}
             <input value={obs} onChange={(e)=>setObs(e.target.value)}
@@ -77,7 +77,7 @@ export default function QuickActions({ lead }: { lead: LeadEnriched }) {
             {[1, 3, 7].map(d => (
               <button key={d} disabled={pending}
                 onClick={() => start(async () => { await adiarAcao(lead.id, d); setOpen(null); })}
-                className="block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-slate-50">
+                className="block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-secondary dark:hover:bg-white/[0.04] transition-colors">
                 +{d} {d === 1 ? "dia" : "dias"}
               </button>
             ))}
@@ -92,7 +92,7 @@ export default function QuickActions({ lead }: { lead: LeadEnriched }) {
             proxima_acao: "Entrar em nutrição", data_proxima_acao: dataAhead(30),
           });
         })}
-        className="btn-ghost text-xs text-slate-500 hover:text-urgent-500">
+        className="btn-ghost text-xs text-muted-foreground hover:text-destructive">
         <X className="w-3.5 h-3.5"/> Sem fit
       </button>
     </div>

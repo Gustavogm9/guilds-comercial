@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { ORG_ACTIVE_COOKIE } from "@/lib/supabase/org";
 
 /**
@@ -46,8 +47,13 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     return NextResponse.redirect(new URL("/login?erro=email_nao_confere", req.url));
   }
 
+  const supabaseAdmin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   // Cria ou reativa membro na org
-  await supabase.from("membros_organizacao").upsert({
+  await supabaseAdmin.from("membros_organizacao").upsert({
     organizacao_id: convite.organizacao_id,
     profile_id: user.id,
     role: convite.role,
@@ -55,17 +61,17 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   }, { onConflict: "organizacao_id,profile_id" });
 
   // Marca convite aceito
-  await supabase.from("convites")
+  await supabaseAdmin.from("convites")
     .update({ aceito_em: new Date().toISOString() })
     .eq("id", convite.id);
 
   // Define home_organizacao_id se ainda não tem
-  const { data: profile } = await supabase.from("profiles")
+  const { data: profile } = await supabaseAdmin.from("profiles")
     .select("home_organizacao_id")
     .eq("id", user.id)
     .maybeSingle();
   if (profile && !profile.home_organizacao_id) {
-    await supabase.from("profiles")
+    await supabaseAdmin.from("profiles")
       .update({ home_organizacao_id: convite.organizacao_id })
       .eq("id", user.id);
   }

@@ -9,6 +9,7 @@ import {
   Users, AlertTriangle, Target, Percent, Sparkles, Gauge
 } from "lucide-react";
 import ForecastAIInsight from "@/components/forecast-ai-insight";
+import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -25,17 +26,17 @@ const ORDEM_ETAPAS: CrmStage[] = [
   "Fechado",
 ];
 
-// cores por posição no funil
+// cores por posição no funil — paleta categórica (distintas por hue, suaves em dark)
 const CORES_ETAPA: Record<string, string> = {
-  "Prospecção":       "bg-slate-400",
-  "Qualificado":      "bg-sky-400",
-  "Raio-X Ofertado":  "bg-cyan-400",
-  "Raio-X Feito":     "bg-teal-500",
-  "Call Marcada":     "bg-indigo-500",
-  "Diagnóstico Pago": "bg-violet-500",
-  "Proposta":         "bg-fuchsia-500",
-  "Negociação":       "bg-amber-500",
-  "Fechado":          "bg-emerald-500",
+  "Prospecção":       "bg-slate-400/80 dark:bg-slate-500/70",
+  "Qualificado":      "bg-sky-500/80 dark:bg-sky-400/70",
+  "Raio-X Ofertado":  "bg-cyan-500/80 dark:bg-cyan-400/70",
+  "Raio-X Feito":     "bg-teal-500/85 dark:bg-teal-400/70",
+  "Call Marcada":     "bg-indigo-500/85 dark:bg-indigo-400/70",
+  "Diagnóstico Pago": "bg-violet-500/85 dark:bg-violet-400/70",
+  "Proposta":         "bg-fuchsia-500/85 dark:bg-fuchsia-400/70",
+  "Negociação":       "bg-warning-500/85 dark:bg-warning-500/75",
+  "Fechado":          "bg-success-500 dark:bg-success-500/85",
 };
 
 type FunilRow = { crm_stage: CrmStage; qtd: number; valor_aberto: number; valor_weighted: number; responsavel_id: string | null };
@@ -49,6 +50,7 @@ export default async function FunilPage({ searchParams }: {
 }) {
   const me = await getCurrentProfile();
   if (!me) return null;
+  const t = getT(await getServerLocale());
 
   const orgId = await getCurrentOrgId();
   if (!orgId) redirect("/hoje");
@@ -118,14 +120,14 @@ export default async function FunilPage({ searchParams }: {
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <header className="flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Funil</h1>
-          <p className="text-sm text-slate-500">
-            Conversão, tempo, valor e motivos de perda. Uma visão por onde os leads passam — e por onde somem.
+          <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.funil_titulo")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("paginas.funil_sub")}
           </p>
         </div>
         {isGestor && (
           <form className="flex items-center gap-2">
-            <label className="text-xs text-slate-500">Ver:</label>
+            <label className="text-xs text-muted-foreground">Ver:</label>
             <select name="resp" defaultValue={respFiltro}
               className="input-base !text-xs w-44">
               <option value="all">Todo o time</option>
@@ -157,20 +159,20 @@ export default async function FunilPage({ searchParams }: {
       </section>
 
       {/* Forecast do mês */}
-      <section className="card p-5 mb-6 bg-gradient-to-br from-violet-50/50 to-indigo-50/30 border-indigo-100">
+      <section className="card p-5 mb-6 bg-primary/5 border-primary/25">
         <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
           <div>
             <h2 className="text-base font-semibold flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
+              <Sparkles className="w-4 h-4 text-primary" />
               Forecast dos próximos 30 dias
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Baseado em score de fechamento composto: etapa + ICP + decisor + voucher + velocidade + percepção + interações.
             </p>
           </div>
-          <div className="text-xs text-slate-500 text-right">
-            <div className="font-semibold text-indigo-700 text-sm">{forecastAgg.leads_ativos} leads ativos</div>
-            <div>{forecastAgg.leads_altos} com score ≥ 70</div>
+          <div className="text-xs text-muted-foreground text-right">
+            <div className="font-semibold text-primary text-sm tabular-nums">{forecastAgg.leads_ativos} leads ativos</div>
+            <div className="tabular-nums">{forecastAgg.leads_altos} com score ≥ 70</div>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -210,7 +212,7 @@ export default async function FunilPage({ searchParams }: {
         <div className="flex items-baseline justify-between mb-4">
           <div>
             <h2 className="text-base font-semibold">Funil de conversão</h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Quantos leads passam por cada etapa e qual % caem entre uma e outra.
             </p>
           </div>
@@ -219,10 +221,10 @@ export default async function FunilPage({ searchParams }: {
               data={funilPorEtapa.map(f => ({ etapa: f.crm_stage, quantidade: f.qtd, valor_aberto: f.valor_aberto, valor_weighted: f.valor_weighted }))}
               filename="funil_conversao"
             />
-            <div className="text-xs text-slate-500">
-              Topo: <span className="font-semibold text-slate-900">{topoFunil}</span>
+            <div className="text-xs text-muted-foreground">
+              <span className="text-[10px] uppercase tracking-[0.12em] font-semibold">Topo:</span> <span className="font-semibold text-foreground tabular-nums">{topoFunil}</span>
               {" · "}
-              Fundo: <span className="font-semibold text-emerald-600">{ganhos}</span>
+              <span className="text-[10px] uppercase tracking-[0.12em] font-semibold">Fundo:</span> <span className="font-semibold text-success-500 tabular-nums">{ganhos}</span>
             </div>
           </div>
         </div>
@@ -235,7 +237,7 @@ export default async function FunilPage({ searchParams }: {
           <div className="flex items-baseline justify-between mb-4">
             <div>
               <h2 className="text-base font-semibold">Tempo médio em cada etapa</h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Gargalos em vermelho (acima da mediana de todas as etapas).
               </p>
             </div>
@@ -251,7 +253,7 @@ export default async function FunilPage({ searchParams }: {
           <div className="flex items-baseline justify-between mb-4">
             <div>
               <h2 className="text-base font-semibold">Valor por etapa</h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Oportunidades abertas, ponderadas pela probabilidade da etapa.
               </p>
             </div>
@@ -270,7 +272,7 @@ export default async function FunilPage({ searchParams }: {
           <div className="flex items-baseline justify-between mb-4">
             <div>
               <h2 className="text-base font-semibold">Cohort de entrada (últimas semanas)</h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Quantos entraram e o que aconteceu com eles — ganho, perda, ainda aberto.
               </p>
             </div>
@@ -286,7 +288,7 @@ export default async function FunilPage({ searchParams }: {
           <div className="flex items-baseline justify-between mb-4">
             <div>
               <h2 className="text-base font-semibold">Motivos de perda</h2>
-              <p className="text-xs text-slate-500">Por que o lead sumiu.</p>
+              <p className="text-xs text-muted-foreground">Por que o lead sumiu.</p>
             </div>
             <FunilSectionExport
               data={perdasAgregadas.map(p => ({ motivo: p.motivo, quantidade: p.qtd, valor_perdido: p.valor_perdido }))}
@@ -297,7 +299,7 @@ export default async function FunilPage({ searchParams }: {
         </div>
       </section>
 
-      <p className="text-xs text-slate-400 mt-6 text-center">
+      <p className="text-xs text-muted-foreground/70 mt-6 text-center">
         Tempo em cada etapa é calculado a partir do histórico <code>lead_evento</code>.
         Quanto mais dados, mais precisa a média.
       </p>
@@ -415,28 +417,28 @@ function FunilBarras({ etapas, dados }: {
         const convPrev = prev && prev > 0 ? (qtd / prev) * 100 : null;
         const convTotal = first > 0 ? (qtd / first) * 100 : 0;
         const width = (qtd / maxQtd) * 100;
-        const cor = CORES_ETAPA[e] ?? "bg-slate-400";
+        const cor = CORES_ETAPA[e] ?? "bg-slate-400/80 dark:bg-slate-500/70";
         return (
           <div key={e} className="flex items-center gap-3">
-            <div className="w-36 text-xs text-slate-600 text-right shrink-0">{e}</div>
-            <div className="flex-1 relative h-8 bg-slate-50 rounded">
+            <div className="w-36 text-xs text-muted-foreground text-right shrink-0">{e}</div>
+            <div className="flex-1 relative h-8 bg-secondary/60 dark:bg-white/[0.03] rounded">
               <div
                 className={`h-full rounded ${cor} transition-all flex items-center justify-end pr-2`}
                 style={{ width: `${Math.max(6, width)}%` }}
               >
-                <span className="text-xs font-semibold text-white">{qtd}</span>
+                <span className="text-xs font-semibold text-white tabular-nums">{qtd}</span>
               </div>
             </div>
-            <div className="w-28 text-xs text-right shrink-0">
+            <div className="w-28 text-xs text-right shrink-0 tabular-nums">
               {convPrev !== null ? (
-                <span className={convPrev < 40 ? "text-rose-600" : convPrev < 70 ? "text-amber-600" : "text-emerald-600"}>
+                <span className={convPrev < 40 ? "text-destructive" : convPrev < 70 ? "text-warning-500" : "text-success-500"}>
                   {convPrev.toFixed(0)}% ← etapa
                 </span>
               ) : (
-                <span className="text-slate-400">100% topo</span>
+                <span className="text-muted-foreground/70">100% topo</span>
               )}
             </div>
-            <div className="w-14 text-xs text-right text-slate-500 shrink-0">
+            <div className="w-14 text-xs text-right text-muted-foreground shrink-0 tabular-nums">
               {convTotal.toFixed(0)}% tot.
             </div>
           </div>
@@ -461,8 +463,8 @@ function TempoLista({ etapas, dados }: {
 
   if (medias.length === 0) {
     return (
-      <div className="text-center py-8 text-sm text-slate-400">
-        <Clock className="w-6 h-6 mx-auto mb-2 text-slate-300"/>
+      <div className="text-center py-8 text-sm text-muted-foreground/70">
+        <Clock className="w-6 h-6 mx-auto mb-2 text-muted-foreground/50"/>
         Sem histórico de transições ainda.<br/>
         <span className="text-xs">À medida que leads mudam de etapa, o tempo aparece aqui.</span>
       </div>
@@ -479,27 +481,27 @@ function TempoLista({ etapas, dados }: {
         const width = (dias / max) * 100;
         return (
           <div key={e} className="flex items-center gap-3">
-            <div className="w-36 text-xs text-slate-600 text-right shrink-0">{e}</div>
-            <div className="flex-1 relative h-6 bg-slate-50 rounded">
+            <div className="w-36 text-xs text-muted-foreground text-right shrink-0">{e}</div>
+            <div className="flex-1 relative h-6 bg-secondary/60 dark:bg-white/[0.03] rounded">
               <div
-                className={`h-full rounded transition-all ${isGargalo ? "bg-rose-400" : "bg-slate-400"}`}
+                className={`h-full rounded transition-all ${isGargalo ? "bg-destructive" : "bg-muted-foreground/50"}`}
                 style={{ width: `${Math.max(4, width)}%` }}
               />
             </div>
-            <div className="w-24 text-xs text-right shrink-0">
-              <span className={`font-semibold ${isGargalo ? "text-rose-600" : "text-slate-800"}`}>
+            <div className="w-24 text-xs text-right shrink-0 tabular-nums">
+              <span className={`font-semibold ${isGargalo ? "text-destructive" : "text-foreground/90"}`}>
                 {dias.toFixed(1)}d
               </span>
-              <span className="text-slate-400 text-[10px] ml-1">({amostras})</span>
+              <span className="text-muted-foreground/70 text-[10px] ml-1">({amostras})</span>
             </div>
             {isGargalo && (
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
             )}
           </div>
         );
       })}
-      <div className="text-[11px] text-slate-400 pt-2 border-t border-slate-100 mt-3">
-        Mediana das etapas: <b>{mediana.toFixed(1)}d</b>. Gargalos marcados em vermelho.
+      <div className="text-[11px] text-muted-foreground/70 pt-2 border-t border-border mt-3 tabular-nums">
+        Mediana das etapas: <b className="text-foreground/80">{mediana.toFixed(1)}d</b>. Gargalos marcados em vermelho.
       </div>
     </div>
   );
@@ -522,32 +524,32 @@ function ValorLista({ etapas, dados }: {
         const width = (aberto / max) * 100;
         return (
           <div key={e} className="flex items-center gap-3">
-            <div className="w-36 text-xs text-slate-600 text-right shrink-0">{e}</div>
-            <div className="flex-1 relative h-6 bg-slate-50 rounded">
+            <div className="w-36 text-xs text-muted-foreground text-right shrink-0">{e}</div>
+            <div className="flex-1 relative h-6 bg-secondary/60 dark:bg-white/[0.03] rounded">
               <div
-                className="h-full rounded bg-indigo-400 transition-all"
+                className="h-full rounded bg-primary/40 transition-all"
                 style={{ width: `${Math.max(4, width)}%` }}
               />
               <div
-                className="absolute top-0 left-0 h-full rounded bg-indigo-600 opacity-80"
+                className="absolute top-0 left-0 h-full rounded bg-primary opacity-90"
                 style={{ width: `${Math.max(1, (weighted / max) * 100)}%` }}
               />
             </div>
             <div className="w-40 text-xs text-right shrink-0">
-              <div className="font-semibold text-slate-800">{moedaCurta(aberto)}</div>
-              <div className="text-[10px] text-slate-500">
+              <div className="font-semibold text-foreground/90 tabular-nums">{moedaCurta(aberto)}</div>
+              <div className="text-[10px] text-muted-foreground tabular-nums">
                 {leads} leads · {prob.toFixed(0)}% prob
               </div>
             </div>
           </div>
         );
       })}
-      <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-2 border-t border-slate-100 mt-3">
+      <div className="flex items-center gap-4 text-[11px] text-muted-foreground/70 pt-2 border-t border-border mt-3">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-2 bg-indigo-400 rounded-sm"/> Valor bruto
+          <span className="w-3 h-2 bg-primary/40 rounded-sm"/> Valor bruto
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-2 bg-indigo-600 rounded-sm"/> Weighted (× prob)
+          <span className="w-3 h-2 bg-primary rounded-sm"/> Weighted (× prob)
         </span>
       </div>
     </div>
@@ -557,8 +559,8 @@ function ValorLista({ etapas, dados }: {
 function CohortLista({ semanas }: { semanas: CohortRow[] }) {
   if (semanas.length === 0) {
     return (
-      <div className="text-center py-8 text-sm text-slate-400">
-        <Users className="w-6 h-6 mx-auto mb-2 text-slate-300"/>
+      <div className="text-center py-8 text-sm text-muted-foreground/70">
+        <Users className="w-6 h-6 mx-auto mb-2 text-muted-foreground/50"/>
         Sem leads suficientes nas últimas 26 semanas.
       </div>
     );
@@ -573,51 +575,51 @@ function CohortLista({ semanas }: { semanas: CohortRow[] }) {
         const convCohort = s.entraram > 0 ? (s.ganhos / s.entraram) * 100 : 0;
         return (
           <div key={s.semana} className="flex items-center gap-3 text-xs">
-            <div className="w-20 text-slate-500 shrink-0">{fmtSemana(s.semana)}</div>
-            <div className="flex-1 relative h-6 bg-slate-50 rounded overflow-hidden flex">
+            <div className="w-20 text-muted-foreground shrink-0">{fmtSemana(s.semana)}</div>
+            <div className="flex-1 relative h-6 bg-secondary/60 dark:bg-white/[0.03] rounded overflow-hidden flex">
               {/* Stacked bar: ganho / perdido / nutrição / aberto */}
               {s.ganhos > 0 && (
-                <div className="h-full bg-emerald-500 flex items-center justify-center text-white text-[10px]"
+                <div className="h-full bg-success-500 flex items-center justify-center text-white text-[10px] tabular-nums"
                      style={{ width: `${(s.ganhos / maxEntrou) * 100}%` }}
                      title={`${s.ganhos} ganhos`}>
                   {s.ganhos > 1 ? s.ganhos : ""}
                 </div>
               )}
               {s.perdidos > 0 && (
-                <div className="h-full bg-rose-400 flex items-center justify-center text-white text-[10px]"
+                <div className="h-full bg-destructive flex items-center justify-center text-white text-[10px] tabular-nums"
                      style={{ width: `${(s.perdidos / maxEntrou) * 100}%` }}
                      title={`${s.perdidos} perdidos`}>
                   {s.perdidos > 1 ? s.perdidos : ""}
                 </div>
               )}
               {s.nutricao > 0 && (
-                <div className="h-full bg-amber-300 flex items-center justify-center text-white text-[10px]"
+                <div className="h-full bg-warning-500/70 flex items-center justify-center text-white text-[10px]"
                      style={{ width: `${(s.nutricao / maxEntrou) * 100}%` }}
                      title={`${s.nutricao} nutrição`} />
               )}
               {s.em_aberto > 0 && (
-                <div className="h-full bg-sky-400 flex items-center justify-center text-white text-[10px]"
+                <div className="h-full bg-sky-500/70 dark:bg-sky-400/60 flex items-center justify-center text-white text-[10px] tabular-nums"
                      style={{ width: `${(s.em_aberto / maxEntrou) * 100}%` }}
                      title={`${s.em_aberto} em aberto`}>
                   {s.em_aberto > 1 ? s.em_aberto : ""}
                 </div>
               )}
             </div>
-            <div className="w-20 text-right shrink-0">
-              <span className="font-medium text-slate-700">{s.entraram}</span>
-              <span className="text-slate-400 ml-1">leads</span>
+            <div className="w-20 text-right shrink-0 tabular-nums">
+              <span className="font-medium text-foreground/80">{s.entraram}</span>
+              <span className="text-muted-foreground/70 ml-1">leads</span>
             </div>
-            <div className="w-16 text-right text-slate-500 shrink-0">
+            <div className="w-16 text-right text-muted-foreground shrink-0 tabular-nums">
               {totalFechados > 0 ? `${convCohort.toFixed(0)}%` : "—"}
             </div>
           </div>
         );
       })}
-      <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-2 border-t border-slate-100 mt-2 flex-wrap">
-        <span className="flex items-center gap-1"><span className="w-3 h-2 bg-emerald-500 rounded-sm"/> Ganho</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-2 bg-rose-400 rounded-sm"/> Perdido</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-2 bg-amber-300 rounded-sm"/> Nutrição</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-2 bg-sky-400 rounded-sm"/> Em aberto</span>
+      <div className="flex items-center gap-3 text-[11px] text-muted-foreground/70 pt-2 border-t border-border mt-2 flex-wrap">
+        <span className="flex items-center gap-1"><span className="w-3 h-2 bg-success-500 rounded-sm"/> Ganho</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-2 bg-destructive rounded-sm"/> Perdido</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-2 bg-warning-500/70 rounded-sm"/> Nutrição</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-2 bg-sky-500/70 dark:bg-sky-400/60 rounded-sm"/> Em aberto</span>
       </div>
     </div>
   );
@@ -626,8 +628,8 @@ function CohortLista({ semanas }: { semanas: CohortRow[] }) {
 function PerdasLista({ perdas, total }: { perdas: Array<{ motivo: string; qtd: number; valor_perdido: number }>; total: number }) {
   if (perdas.length === 0) {
     return (
-      <div className="text-center py-8 text-sm text-slate-400">
-        <TrendingDown className="w-6 h-6 mx-auto mb-2 text-slate-300"/>
+      <div className="text-center py-8 text-sm text-muted-foreground/70">
+        <TrendingDown className="w-6 h-6 mx-auto mb-2 text-muted-foreground/50"/>
         Sem leads perdidos ainda — 🙂
       </div>
     );
@@ -642,19 +644,19 @@ function PerdasLista({ perdas, total }: { perdas: Array<{ motivo: string; qtd: n
         return (
           <div key={p.motivo} className="space-y-1">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-xs font-medium text-slate-700 truncate">{p.motivo}</span>
-              <span className="text-xs text-slate-500 shrink-0">
-                <b className="text-slate-800">{p.qtd}</b> · {pct.toFixed(0)}%
+              <span className="text-xs font-medium text-foreground/80 truncate">{p.motivo}</span>
+              <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                <b className="text-foreground/90">{p.qtd}</b> · {pct.toFixed(0)}%
               </span>
             </div>
-            <div className="h-1.5 bg-slate-50 rounded-full overflow-hidden">
-              <div className="h-full bg-rose-400 rounded-full" style={{ width: `${(p.qtd / max) * 100}%` }}/>
+            <div className="h-1.5 bg-secondary/60 dark:bg-white/[0.03] rounded-full overflow-hidden">
+              <div className="h-full bg-destructive rounded-full" style={{ width: `${(p.qtd / max) * 100}%` }}/>
             </div>
           </div>
         );
       })}
-      <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-100 mt-3">
-        Total perdido: <b className="text-rose-600">{moedaCurta(valorTotal)}</b> em {total} leads
+      <div className="text-[11px] text-muted-foreground pt-2 border-t border-border mt-3">
+        <span className="text-[10px] uppercase tracking-[0.12em] font-semibold">Total perdido:</span> <b className="text-destructive tabular-nums">{moedaCurta(valorTotal)}</b> <span className="tabular-nums">em {total} leads</span>
       </div>
     </div>
   );
@@ -668,17 +670,17 @@ function Card({ title, v, sub, icon, tone = "neutral" }: {
   tone?: "neutral" | "success" | "warning";
 }) {
   const tones = {
-    neutral: "text-slate-900",
-    success: "text-emerald-700",
-    warning: "text-amber-700",
+    neutral: "text-foreground",
+    success: "text-success-500",
+    warning: "text-warning-500",
   };
   return (
     <div className="card p-4">
-      <div className="flex items-center gap-2 text-xs text-slate-500 uppercase tracking-wider">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground">
         {icon} {title}
       </div>
-      <div className={`text-2xl font-semibold leading-tight mt-1.5 ${tones[tone]}`}>{v}</div>
-      {sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}
+      <div className={`text-2xl font-semibold leading-tight mt-1.5 tabular-nums ${tones[tone]}`}>{v}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-1 tabular-nums">{sub}</div>}
     </div>
   );
 }
@@ -689,17 +691,17 @@ function ForecastBox({ tone, label, sub, v, featured = false }: {
   label: string; sub: string; v: string; featured?: boolean;
 }) {
   const tones = {
-    best:   { bg: "bg-emerald-50",  border: "border-emerald-200",  text: "text-emerald-700",  icon: <TrendingUp className="w-4 h-4"/> },
-    likely: { bg: "bg-indigo-50",   border: "border-indigo-300",   text: "text-indigo-700",   icon: <Target className="w-4 h-4"/> },
-    worst:  { bg: "bg-slate-50",    border: "border-slate-200",    text: "text-slate-700",    icon: <Gauge className="w-4 h-4"/> },
+    best:   { bg: "bg-success-500/10",   border: "border-success-500/25",  text: "text-success-500",     icon: <TrendingUp className="w-4 h-4"/> },
+    likely: { bg: "bg-primary/10",       border: "border-primary/25",      text: "text-primary",         icon: <Target className="w-4 h-4"/> },
+    worst:  { bg: "bg-secondary/60 dark:bg-white/[0.03]", border: "border-border", text: "text-foreground/80", icon: <Gauge className="w-4 h-4"/> },
   }[tone];
   return (
-    <div className={`rounded-xl border p-4 ${tones.bg} ${tones.border} ${featured ? "ring-2 ring-indigo-400 ring-offset-2" : ""}`}>
-      <div className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${tones.text}`}>
+    <div className={`rounded-xl border p-4 ${tones.bg} ${tones.border} ${featured ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : ""}`}>
+      <div className={`flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] font-semibold ${tones.text}`}>
         {tones.icon} {label}
       </div>
-      <div className={`text-2xl font-bold mt-1.5 ${tones.text}`}>{v}</div>
-      <div className="text-[11px] text-slate-500 mt-1.5 leading-tight">{sub}</div>
+      <div className={`text-2xl font-semibold mt-1.5 tabular-nums ${tones.text}`}>{v}</div>
+      <div className="text-[11px] text-muted-foreground mt-1.5 leading-tight">{sub}</div>
     </div>
   );
 }

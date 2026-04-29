@@ -150,6 +150,8 @@ export interface AiPrompt {
   feature_codigo: AiFeatureCodigo;
   versao: number;
   ativo: boolean;
+  /** Locale do prompt (pt-BR, en-US...). Default 'pt-BR'. Dispatcher escolhe matching org.idioma_padrao. */
+  idioma: string;
   system_prompt: string | null;
   user_template: string;
   variaveis_esperadas: string[];
@@ -191,6 +193,26 @@ export interface AiUso30d {
 
 // ---------- multi-tenant ----------
 
+export type RegimeTributario =
+  | "simples_nacional"
+  | "lucro_presumido"
+  | "lucro_real"
+  | "mei"
+  | "isento";
+
+export interface EnderecoOrg {
+  cep?: string;          // BR-specific (CEP); fora do BR usar `postal_code`
+  postal_code?: string;  // genérico (ZIP, etc)
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;           // BR; fora usar `regiao`
+  regiao?: string;       // estado/província/região
+  pais?: string;         // ISO 3166-1 alpha-2 (default da org)
+}
+
 export interface Organizacao {
   id: string;
   nome: string;
@@ -203,6 +225,24 @@ export interface Organizacao {
   trial_ends_at?: string;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
+  // Dados fiscais (todos opcionais — preenchidos pós-onboarding)
+  razao_social?: string | null;
+  cnpj?: string | null;
+  /** Tax ID genérico (CNPJ/EIN/RUT/NIF/VAT/etc.) — usado pra empresas fora do BR */
+  tax_id?: string | null;
+  inscricao_estadual?: string | null;
+  regime_tributario?: RegimeTributario | null;
+  telefone?: string | null;
+  site?: string | null;
+  endereco?: EnderecoOrg | null;
+  logo_url?: string | null;
+  timezone?: string | null;
+  /** ISO 3166-1 alpha-2 (default 'BR') */
+  pais?: string;
+  /** locale (default 'pt-BR') — define idioma da UI/IA/emails */
+  idioma_padrao?: string;
+  /** ISO 4217 (default 'BRL') */
+  moeda_padrao?: string;
   created_at: string;
 }
 
@@ -274,6 +314,10 @@ export interface Profile {
   role: Role;
   home_organizacao_id: string | null;
   ativo: boolean;
+  // Configurações de perfil
+  telefone?: string | null;
+  avatar_url?: string | null;
+  timezone?: string | null;
   created_at: string;
 }
 

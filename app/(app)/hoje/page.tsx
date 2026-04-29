@@ -8,11 +8,14 @@ import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
 import ReativarNutricaoBtn from "@/components/reativar-nutricao-btn";
+import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function HojePage({ searchParams }: { searchParams: { todos?: string } }) {
   const supabase = createClient();
+  const locale = await getServerLocale();
+  const t = getT(locale);
   const me = await getCurrentProfile();
   if (!me) return null;
 
@@ -21,8 +24,8 @@ export default async function HojePage({ searchParams }: { searchParams: { todos
     return (
       <div className="p-8 max-w-3xl mx-auto">
         <div className="card p-8 text-center">
-          <h1 className="text-xl font-semibold mb-2">Sem organização ativa</h1>
-          <p className="text-sm text-slate-500">Peça ao gestor para te convidar para uma organização.</p>
+          <h1 className="text-xl font-semibold mb-2">{t("hoje.sem_organizacao")}</h1>
+          <p className="text-sm text-muted-foreground">{t("hoje.sem_organizacao_msg")}</p>
         </div>
       </div>
     );
@@ -71,49 +74,51 @@ export default async function HojePage({ searchParams }: { searchParams: { todos
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <div className="flex items-baseline justify-between mb-2">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Bom dia, {me.display_name.split(" ")[0]}</h1>
-          <p className="text-sm text-slate-500">{new Date().toLocaleDateString("pt-BR", { dateStyle: "full" })}</p>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t("hoje.bom_dia")} {me.display_name.split(" ")[0]}
+          </h1>
+          <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString(locale, { dateStyle: "full" })}</p>
         </div>
         {isGestor && (
           <Link href={verTodos ? "/hoje" : "/hoje?todos=1"} className="btn-ghost text-xs">
-            {verTodos ? "Ver só meus" : "Ver de todo o time"}
+            {verTodos ? t("hoje.ver_so_meus") : t("hoje.ver_todos_time")}
           </Link>
         )}
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-6">
-        <KPI title="Pendentes" value={kpis.pendentes} tone="urgent" icon={<AlertTriangle className="w-4 h-4"/>} />
-        <KPI title="Vencidas" value={kpis.vencidas} tone={kpis.vencidas > 0 ? "urgent" : "neutral"} icon={<Clock className="w-4 h-4"/>} />
-        <KPI title="Hoje" value={kpis.hoje} tone="warning" icon={<Sparkles className="w-4 h-4"/>} />
-        <KPI title="Propostas em aberto" value={kpis.propostas} tone="neutral" icon={<MessageSquare className="w-4 h-4"/>} />
+        <KPI title={t("hoje.kpi_pendentes")} value={kpis.pendentes} tone="urgent" icon={<AlertTriangle className="w-4 h-4"/>} />
+        <KPI title={t("hoje.kpi_vencidas")} value={kpis.vencidas} tone={kpis.vencidas > 0 ? "urgent" : "neutral"} icon={<Clock className="w-4 h-4"/>} />
+        <KPI title={t("hoje.kpi_hoje")} value={kpis.hoje} tone="warning" icon={<Sparkles className="w-4 h-4"/>} />
+        <KPI title={t("hoje.kpi_propostas_abertas")} value={kpis.propostas} tone="neutral" icon={<MessageSquare className="w-4 h-4"/>} />
       </div>
 
-      <Section title="Vencidas — atacar primeiro" tone="urgent" leads={vencidas} />
-      <Section title="Hoje" tone="warning" leads={hoje} />
+      <Section title={t("hoje.section_vencidas")} tone="urgent" leads={vencidas} />
+      <Section title={t("hoje.section_hoje")} tone="warning" leads={hoje} />
 
       {/* Top oportunidades */}
       {top.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-sm uppercase tracking-wider font-semibold mb-2 text-indigo-600 flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5" /> Top oportunidades
-            <span className="text-slate-400 font-normal">(por potencial de fechamento)</span>
+          <h2 className="text-[11px] uppercase tracking-[0.12em] font-semibold mb-2 text-primary flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5" /> {t("hoje.section_top")}
+            <span className="text-muted-foreground font-normal normal-case tracking-normal">{t("hoje.section_top_sub")}</span>
           </h2>
           <ul className="space-y-1.5">
-            {top.map(l => <TopRow key={l.id} l={l} />)}
+            {top.map(l => <TopRow key={l.id} l={l} t={t} locale={locale} />)}
           </ul>
         </section>
       )}
 
-      <Section title="Amanhã" leads={amanha} />
-      <Section title="Esta semana" leads={semana} />
+      <Section title={t("hoje.section_amanha")} leads={amanha} />
+      <Section title={t("hoje.section_semana")} leads={semana} />
       {semAcao.length > 0 && (
-        <Section title="Sem próxima ação definida — definir agora" leads={semAcao} />
+        <Section title={t("hoje.section_sem_acao")} leads={semAcao} />
       )}
 
       {all.length === 0 && (
-        <div className="card p-12 text-center text-slate-500">
-          Nada na sua agenda agora. <Link href="/pipeline" className="text-guild-700 underline">Abrir pipeline</Link>.
+        <div className="card p-12 text-center text-muted-foreground">
+          {t("hoje.vazio_msg")} <Link href="/pipeline" className="text-primary underline">{t("hoje.abrir_pipeline")}</Link>.
         </div>
       )}
     </div>
@@ -123,18 +128,19 @@ export default async function HojePage({ searchParams }: { searchParams: { todos
 function KPI({ title, value, tone = "neutral", icon }: {
   title: string; value: number; tone?: "urgent"|"warning"|"success"|"neutral"; icon?: React.ReactNode;
 }) {
+  // Tones via tokens HSL — funcionam light + dark sem novas classes
   const tones: Record<string, string> = {
-    urgent:  "bg-red-50 text-urgent-500",
-    warning: "bg-amber-50 text-warning-500",
-    success: "bg-emerald-50 text-success-500",
-    neutral: "bg-slate-100 text-slate-600",
+    urgent:  "bg-destructive/10 text-destructive",
+    warning: "bg-warning-500/10 text-warning-500",
+    success: "bg-success-500/10 text-success-500",
+    neutral: "bg-secondary text-foreground/80",
   };
   return (
     <div className="card p-4 flex items-center gap-3">
       <div className={`w-9 h-9 rounded-lg grid place-items-center ${tones[tone]}`}>{icon}</div>
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider">{title}</div>
-        <div className="text-2xl font-semibold leading-tight">{value}</div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">{title}</div>
+        <div className="text-2xl font-semibold leading-tight text-foreground tabular-nums">{value}</div>
       </div>
     </div>
   );
@@ -142,10 +148,14 @@ function KPI({ title, value, tone = "neutral", icon }: {
 
 function Section({ title, leads, tone = "neutral" }: { title: string; leads: LeadEnriched[]; tone?: string }) {
   if (leads.length === 0) return null;
+  const titleColor =
+    tone === "urgent"  ? "text-destructive" :
+    tone === "warning" ? "text-warning-500" :
+    "text-muted-foreground";
   return (
     <section className="mb-6">
-      <h2 className={`text-sm uppercase tracking-wider font-semibold mb-2 ${tone === "urgent" ? "text-urgent-500" : tone === "warning" ? "text-warning-500" : "text-slate-500"}`}>
-        {title} <span className="text-slate-400 font-normal">({leads.length})</span>
+      <h2 className={`text-[11px] uppercase tracking-[0.12em] font-semibold mb-2 ${titleColor}`}>
+        {title} <span className="text-muted-foreground/60 font-normal normal-case tracking-normal">({leads.length})</span>
       </h2>
       <ul className="space-y-2">
         {leads.map(l => <LeadRow key={l.id} l={l} />)}
@@ -158,28 +168,31 @@ function LeadRow({ l }: { l: LeadEnriched }) {
   const u = URGENCIA_LABELS[l.urgencia];
   const stageColor = l.crm_stage ? STAGE_COLORS[l.crm_stage] : null;
   return (
-    <li className="card p-3 md:p-4 hover:shadow-md transition">
+    <li className="card p-3 md:p-4 transition-all hover:border-primary/30 hover:bg-secondary/40 dark:hover:bg-white/[0.03]">
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/pipeline/${l.id}`}
-              className="font-medium hover:text-guild-700 truncate">
+            <Link
+              href={`/pipeline/${l.id}`}
+              className="font-medium text-foreground hover:text-primary truncate transition-colors"
+              style={{ letterSpacing: "-0.13px" }}
+            >
               {l.empresa || l.nome || "(sem nome)"}
             </Link>
             {l.crm_stage && stageColor && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wider ${stageColor.bg} ${stageColor.text} ${stageColor.border}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-[0.1em] font-semibold ${stageColor.bg} ${stageColor.text} ${stageColor.border}`}>
                 {l.crm_stage}
               </span>
             )}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${u.color}`}>{u.label}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${u.color}`}>{u.label}</span>
           </div>
-          <div className="text-xs text-slate-500 mt-0.5">
+          <div className="text-xs text-muted-foreground mt-1">
             {l.nome ? `${l.nome} · ` : ""}
             {l.cargo ? `${l.cargo} · ` : ""}
             {l.segmento ?? "—"}
-            {l.proxima_acao && <span className="ml-2 text-slate-700">→ {l.proxima_acao}</span>}
-            {l.data_proxima_acao && <span className="ml-2">({fmt(l.data_proxima_acao)})</span>}
-            {l.dias_sem_tocar > 0 && <span className="ml-2">· {l.dias_sem_tocar}d sem tocar</span>}
+            {l.proxima_acao && <span className="ml-2 text-foreground/80">→ {l.proxima_acao}</span>}
+            {l.data_proxima_acao && <span className="ml-2 tabular-nums">({fmt(l.data_proxima_acao)})</span>}
+            {l.dias_sem_tocar > 0 && <span className="ml-2 tabular-nums">· {l.dias_sem_tocar}d sem tocar</span>}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -197,47 +210,51 @@ function LeadRow({ l }: { l: LeadEnriched }) {
   );
 }
 
-function TopRow({ l }: { l: TopOportunidade }) {
+function TopRow({ l, t, locale }: { l: TopOportunidade; t: (k: string) => string; locale: string }) {
   const scoreCor =
-    l.score >= 70 ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-    : l.score >= 45 ? "bg-amber-100 text-amber-700 border-amber-200"
-    : "bg-rose-100 text-rose-700 border-rose-200";
+    l.score >= 70 ? "bg-success-500/15 text-success-500 border-success-500/30"
+    : l.score >= 45 ? "bg-warning-500/15 text-warning-500 border-warning-500/30"
+    : "bg-destructive/15 text-destructive border-destructive/30";
   const stageColor = l.crm_stage ? STAGE_COLORS[l.crm_stage] : null;
   return (
-    <li className="card p-3 hover:shadow-md transition bg-indigo-50/30 border-indigo-100">
+    <li className="card p-3 transition-all hover:border-primary/40 bg-primary/[0.03] dark:bg-primary/[0.06]">
       <div className="flex items-center gap-3 flex-wrap">
-        <div className={`w-11 h-11 rounded-lg border grid place-items-center font-bold ${scoreCor} shrink-0`}>
+        <div className={`w-11 h-11 rounded-lg border grid place-items-center font-bold tabular-nums ${scoreCor} shrink-0`}>
           {l.score}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/pipeline/${l.id}`} className="font-medium hover:text-guild-700 truncate">
+            <Link
+              href={`/pipeline/${l.id}`}
+              className="font-medium text-foreground hover:text-primary truncate transition-colors"
+              style={{ letterSpacing: "-0.13px" }}
+            >
               {l.empresa || l.nome || "(sem nome)"}
             </Link>
             {l.crm_stage && stageColor && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wider ${stageColor.bg} ${stageColor.text} ${stageColor.border}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-[0.1em] font-semibold ${stageColor.bg} ${stageColor.text} ${stageColor.border}`}>
                 {l.crm_stage}
               </span>
             )}
             {l.percepcao_vendedor && (
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-muted-foreground">
                 <TrendingUp className="w-3 h-3 inline mr-0.5" />
                 {l.percepcao_vendedor}
               </span>
             )}
           </div>
-          <div className="text-xs text-slate-500 mt-0.5">
-            {l.proxima_acao ? <span>→ {l.proxima_acao}</span> : <span className="text-slate-400">sem próxima ação</span>}
-            {l.data_proxima_acao && <span className="ml-2">({fmt(l.data_proxima_acao)})</span>}
+          <div className="text-xs text-muted-foreground mt-1">
+            {l.proxima_acao ? <span>→ {l.proxima_acao}</span> : <span className="italic">{t("hoje.sem_proxima_acao")}</span>}
+            {l.data_proxima_acao && <span className="ml-2 tabular-nums">({fmt(l.data_proxima_acao)})</span>}
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-xs text-slate-500">Esperado</div>
-          <div className="text-sm font-semibold text-indigo-700">
-            {Number(l.valor_esperado || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+          <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">{t("hoje.estimado")}</div>
+          <div className="text-sm font-semibold text-primary tabular-nums">
+            {Number(l.valor_esperado || 0).toLocaleString(locale, { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
           </div>
-          <div className="text-[10px] text-slate-400">
-            de {Number(l.valor_potencial || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+          <div className="text-[10px] text-muted-foreground/70 tabular-nums">
+            {t("hoje.de_total")} {Number(l.valor_potencial || 0).toLocaleString(locale, { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
           </div>
         </div>
         <Link href={`/pipeline/${l.id}`} className="btn-ghost shrink-0"><ChevronRight className="w-4 h-4"/></Link>

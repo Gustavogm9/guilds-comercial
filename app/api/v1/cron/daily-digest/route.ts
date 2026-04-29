@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { invokeAISystem } from '@/lib/ai/dispatcher';
+import { sendPushToMany } from '@/lib/push';
+
+export const runtime = 'nodejs';
 
 /**
  * Rota acionada via pg_cron do Supabase (diariamente às 8h UTC).
@@ -75,6 +78,23 @@ export async function POST(req: Request) {
               payload: { texto: result.texto, custoUsd: result.custoUsd },
             });
             resumoOk = true;
+
+            // Push do resumo: respeita opt-in granular + janela de horário por user
+            const { data: membros } = await supabaseAdmin
+              .from('membros_organizacao')
+              .select('profile_id')
+              .eq('organizacao_id', org.id)
+              .eq('ativo', true);
+            const profileIds = (membros ?? []).map(m => m.profile_id).filter(Boolean) as string[];
+            if (profileIds.length > 0) {
+              sendPushToMany(profileIds, {
+                evento: 'resumo_diario',
+                title: 'Seu resumo de hoje chegou',
+                body: `${leadsAtivos.length} leads ativos no pipeline. Veja o que priorizar.`,
+                url: '/hoje',
+                tag: `resumo-${org.id}-${hoje.toISOString().slice(0, 10)}`,
+              }).catch(err => console.warn('[push] resumo_diario:', err));
+            }
           }
         }
 

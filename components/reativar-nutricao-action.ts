@@ -24,5 +24,6 @@ export async function reativarNutricaoAction(input: {
     ok: result.ok,
     texto: result.texto,
     erro: result.erro,
+    invocationId: result.invocationId,
   };
 }

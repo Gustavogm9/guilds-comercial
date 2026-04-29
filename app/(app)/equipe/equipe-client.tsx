@@ -1,6 +1,7 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { MembroEnriched, Role } from "@/lib/types";
+import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import {
   alterarRoleMembro, desativarMembro, reativarMembro,
   criarConvite, revogarConvite,
@@ -62,15 +63,18 @@ export default function EquipeClient({
   config: OrgConfig;
 }) {
   const [tab, setTab] = useState<Tab>("membros");
+  const [locale, setLocale] = useState<Locale>("pt-BR");
+  useEffect(() => setLocale(getClientLocale()), []);
+  const t = getT(locale);
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Equipe</h1>
-        <p className="text-sm text-slate-500">Gestão de membros, metas, territórios e carteiras.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.equipe_titulo")}</h1>
+        <p className="text-sm text-muted-foreground">{t("paginas.equipe_sub")}</p>
       </header>
 
-      <div className="flex gap-1 border-b border-slate-200 mb-4 overflow-x-auto">
+      <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto">
         <TabBtn v="membros"     cur={tab} set={setTab} icon={<UserCog     className="w-3.5 h-3.5"/>} label={`Membros (${membros.filter(m => m.ativo).length})`}/>
         <TabBtn v="convites"    cur={tab} set={setTab} icon={<Mail        className="w-3.5 h-3.5"/>} label={`Convites (${convites.length})`}/>
         <TabBtn v="metas"       cur={tab} set={setTab} icon={<Target      className="w-3.5 h-3.5"/>} label="Metas individuais"/>
@@ -95,7 +99,7 @@ function TabBtn({ v, cur, set, icon, label }: { v: Tab; cur: Tab; set: (t: Tab) 
     <button
       onClick={() => set(v)}
       className={`px-3 py-2 text-xs font-medium border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${
-        active ? "border-guild-600 text-guild-700" : "border-transparent text-slate-500 hover:text-slate-800"
+        active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
       }`}
     >
       {icon} {label}
@@ -113,23 +117,23 @@ function MembrosTab({ meId, membros }: { meId: string; membros: MembroEnriched[]
   return (
     <div className="card overflow-hidden">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+        <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
           <tr>
-            <th className="text-left px-3 py-2 font-medium">Nome</th>
-            <th className="text-left px-3 py-2 font-medium">Email</th>
-            <th className="text-left px-3 py-2 font-medium">Papel</th>
-            <th className="text-center px-3 py-2 font-medium">Status</th>
-            <th className="text-right px-3 py-2 font-medium">Ações</th>
+            <th className="text-left px-3 py-2 font-semibold">Nome</th>
+            <th className="text-left px-3 py-2 font-semibold">Email</th>
+            <th className="text-left px-3 py-2 font-semibold">Papel</th>
+            <th className="text-center px-3 py-2 font-semibold">Status</th>
+            <th className="text-right px-3 py-2 font-semibold">Ações</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-border">
           {membros.map(m => (
-            <tr key={m.id} className="hover:bg-slate-50">
+            <tr key={m.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
               <td className="px-3 py-2 font-medium">
                 {m.display_name}
-                {m.profile_id === meId && <span className="ml-2 text-[10px] text-guild-700">(você)</span>}
+                {m.profile_id === meId && <span className="ml-2 text-[10px] text-primary">(você)</span>}
               </td>
-              <td className="px-3 py-2 text-xs text-slate-600">{m.email}</td>
+              <td className="px-3 py-2 text-xs text-muted-foreground">{m.email}</td>
               <td className="px-3 py-2">
                 <select
                   defaultValue={m.role}
@@ -144,8 +148,8 @@ function MembrosTab({ meId, membros }: { meId: string; membros: MembroEnriched[]
               </td>
               <td className="px-3 py-2 text-center">
                 {m.ativo
-                  ? <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded uppercase">Ativo</span>
-                  : <span className="text-[10px] bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded uppercase">Inativo</span>}
+                  ? <span className="text-[10px] bg-success/15 text-success-500 border border-success/30 px-1.5 py-0.5 rounded uppercase tracking-[0.12em]">Ativo</span>
+                  : <span className="text-[10px] bg-secondary text-muted-foreground border border-border px-1.5 py-0.5 rounded uppercase tracking-[0.12em] dark:bg-white/[0.05]">Inativo</span>}
               </td>
               <td className="px-3 py-2 text-right">
                 {m.profile_id !== meId && (
@@ -153,7 +157,7 @@ function MembrosTab({ meId, membros }: { meId: string; membros: MembroEnriched[]
                     <button
                       onClick={() => startTransition(() => { desativarMembro(m.profile_id); })}
                       disabled={pending}
-                      className="btn-ghost text-xs text-urgent-500"
+                      className="btn-ghost text-xs text-destructive"
                     >
                       <UserMinus className="w-3.5 h-3.5"/> Desativar
                     </button>
@@ -161,7 +165,7 @@ function MembrosTab({ meId, membros }: { meId: string; membros: MembroEnriched[]
                     <button
                       onClick={() => startTransition(() => { reativarMembro(m.profile_id); })}
                       disabled={pending}
-                      className="btn-ghost text-xs text-emerald-700"
+                      className="btn-ghost text-xs text-success-500"
                     >
                       <UserPlus className="w-3.5 h-3.5"/> Reativar
                     </button>
@@ -236,14 +240,14 @@ function ConvitesTab({ convites }: { convites: ConviteRow[] }) {
           </button>
         </div>
         {ultimoLink && (
-          <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-start gap-2">
-            <Check className="w-4 h-4 text-emerald-700 mt-0.5"/>
+          <div className="mt-3 bg-success/10 border border-success/25 rounded-lg p-3 flex items-start gap-2">
+            <Check className="w-4 h-4 text-success-500 mt-0.5"/>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-emerald-900 mb-1">
+              <div className="text-xs font-medium text-foreground mb-1">
                 {ultimoEmailEnviado ? "Convite criado e enviado por email." : "Convite criado. Email nao configurado ou nao enviado."}
               </div>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-white border border-emerald-200 rounded px-2 py-1 truncate">{ultimoLink}</code>
+                <code className="flex-1 text-xs bg-card border border-success/25 rounded px-2 py-1 truncate">{ultimoLink}</code>
                 <button
                   onClick={() => { navigator.clipboard.writeText(ultimoLink); }}
                   className="btn-ghost text-xs"
@@ -258,29 +262,29 @@ function ConvitesTab({ convites }: { convites: ConviteRow[] }) {
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+          <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
             <tr>
-              <th className="text-left px-3 py-2 font-medium">Email</th>
-              <th className="text-left px-3 py-2 font-medium">Papel</th>
-              <th className="text-left px-3 py-2 font-medium">Expira</th>
-              <th className="text-left px-3 py-2 font-medium">Link</th>
-              <th className="text-right px-3 py-2 font-medium">Ações</th>
+              <th className="text-left px-3 py-2 font-semibold">Email</th>
+              <th className="text-left px-3 py-2 font-semibold">Papel</th>
+              <th className="text-left px-3 py-2 font-semibold">Expira</th>
+              <th className="text-left px-3 py-2 font-semibold">Link</th>
+              <th className="text-right px-3 py-2 font-semibold">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {convites.length === 0 && (
-              <tr><td colSpan={5} className="text-center py-8 text-slate-400 text-xs">Nenhum convite pendente.</td></tr>
+              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground/70 text-xs">Nenhum convite pendente.</td></tr>
             )}
             {convites.map(c => {
               const expirado = new Date(c.expira_em) < new Date();
               return (
-                <tr key={c.id} className="hover:bg-slate-50">
+                <tr key={c.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                   <td className="px-3 py-2">{c.email}</td>
-                  <td className="px-3 py-2 text-xs uppercase tracking-wider">{c.role}</td>
+                  <td className="px-3 py-2 text-xs uppercase tracking-[0.12em]">{c.role}</td>
                   <td className="px-3 py-2 text-xs">
                     {expirado
-                      ? <span className="text-urgent-500 inline-flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Expirado</span>
-                      : <span className="text-slate-600">{new Date(c.expira_em).toLocaleDateString("pt-BR")}</span>}
+                      ? <span className="text-destructive inline-flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Expirado</span>
+                      : <span className="text-muted-foreground tabular-nums">{new Date(c.expira_em).toLocaleDateString("pt-BR")}</span>}
                   </td>
                   <td className="px-3 py-2">
                     <button
@@ -294,7 +298,7 @@ function ConvitesTab({ convites }: { convites: ConviteRow[] }) {
                     <button
                       onClick={() => startTransition(() => { revogarConvite(c.id); })}
                       disabled={pending}
-                      className="btn-ghost text-xs text-urgent-500"
+                      className="btn-ghost text-xs text-destructive"
                     >
                       <X className="w-3.5 h-3.5"/> Revogar
                     </button>
@@ -322,7 +326,7 @@ function MetasTab({ membros, metas }: { membros: MembroEnriched[]; metas: MetaRo
   return (
     <div className="space-y-3">
       {ativos.length === 0 && (
-        <div className="card p-8 text-center text-sm text-slate-400">
+        <div className="card p-8 text-center text-sm text-muted-foreground/70">
           Sem vendedores ativos. Convide pessoas na aba "Convites".
         </div>
       )}
@@ -333,7 +337,7 @@ function MetasTab({ membros, metas }: { membros: MembroEnriched[]; metas: MetaRo
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium text-sm">{m.display_name}</div>
-                <div className="text-[10px] uppercase text-slate-500 tracking-wider">{m.role}</div>
+                <div className="text-[10px] uppercase text-muted-foreground tracking-[0.12em] font-semibold">{m.role}</div>
               </div>
               <button
                 onClick={() => setOpen(open === m.profile_id ? null : m.profile_id)}
@@ -355,34 +359,34 @@ function MetasTab({ membros, metas }: { membros: MembroEnriched[]; metas: MetaRo
             {minhasMetas.length > 0 ? (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead className="text-[10px] uppercase tracking-wider text-slate-500">
-                    <tr className="border-b border-slate-100">
-                      <th className="text-left py-2 font-medium">Período</th>
-                      <th className="text-right py-2 font-medium">Leads</th>
-                      <th className="text-right py-2 font-medium">Raio-X</th>
-                      <th className="text-right py-2 font-medium">Calls</th>
-                      <th className="text-right py-2 font-medium">Props</th>
-                      <th className="text-right py-2 font-medium">Fech</th>
-                      <th className="text-right py-2 font-medium"></th>
+                  <thead className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2">Período</th>
+                      <th className="text-right py-2">Leads</th>
+                      <th className="text-right py-2">Raio-X</th>
+                      <th className="text-right py-2">Calls</th>
+                      <th className="text-right py-2">Props</th>
+                      <th className="text-right py-2">Fech</th>
+                      <th className="text-right py-2"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {minhasMetas.map(me => (
-                      <tr key={me.id} className="border-b border-slate-50 last:border-0">
-                        <td className="py-2">
-                          <span className="text-[10px] uppercase tracking-wider text-slate-400 mr-1">{me.periodo_tipo}</span>
+                      <tr key={me.id} className="border-b border-border/60 last:border-0">
+                        <td className="py-2 tabular-nums">
+                          <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/70 mr-1">{me.periodo_tipo}</span>
                           {new Date(me.periodo_inicio).toLocaleDateString("pt-BR")} – {new Date(me.periodo_fim).toLocaleDateString("pt-BR")}
                         </td>
-                        <td className="py-2 text-right">{me.meta_leads}</td>
-                        <td className="py-2 text-right">{me.meta_raiox}</td>
-                        <td className="py-2 text-right">{me.meta_calls}</td>
-                        <td className="py-2 text-right">{me.meta_props}</td>
-                        <td className="py-2 text-right">{me.meta_fech}</td>
+                        <td className="py-2 text-right tabular-nums">{me.meta_leads}</td>
+                        <td className="py-2 text-right tabular-nums">{me.meta_raiox}</td>
+                        <td className="py-2 text-right tabular-nums">{me.meta_calls}</td>
+                        <td className="py-2 text-right tabular-nums">{me.meta_props}</td>
+                        <td className="py-2 text-right tabular-nums">{me.meta_fech}</td>
                         <td className="py-2 text-right">
                           <button
                             onClick={() => startTransition(() => { removerMetaIndividual(me.id); })}
                             disabled={pending}
-                            className="btn-ghost text-[10px] text-urgent-500"
+                            className="btn-ghost text-[10px] text-destructive"
                           >
                             <X className="w-3 h-3"/>
                           </button>
@@ -393,7 +397,7 @@ function MetasTab({ membros, metas }: { membros: MembroEnriched[]; metas: MetaRo
                 </table>
               </div>
             ) : (
-              <div className="mt-3 text-xs text-slate-400">Sem metas definidas.</div>
+              <div className="mt-3 text-xs text-muted-foreground/70">Sem metas definidas.</div>
             )}
           </div>
         );
@@ -429,7 +433,7 @@ function MetaForm({ profile_id, onClose, pending, startTransition }: {
   }
 
   return (
-    <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200 grid md:grid-cols-3 gap-3 text-xs">
+    <div className="mt-3 p-3 bg-secondary/60 dark:bg-white/[0.03] rounded-lg border border-border grid md:grid-cols-3 gap-3 text-xs">
       <div>
         <div className="label mb-1">Tipo</div>
         <select
@@ -493,12 +497,12 @@ function TerritoriosTab({
 
   return (
     <div className="space-y-3">
-      <div className="card p-3 bg-blue-50 border-blue-200 text-xs text-slate-700">
+      <div className="card p-3 bg-primary/5 border-primary/25 text-xs text-foreground/80">
         Atribua segmentos (verticais) a cada vendedor. Quando a distribuição automática estiver ligada, leads são roteados de acordo com o segmento.
       </div>
 
       {ativos.length === 0 && (
-        <div className="card p-8 text-center text-sm text-slate-400">Sem vendedores ativos.</div>
+        <div className="card p-8 text-center text-sm text-muted-foreground/70">Sem vendedores ativos.</div>
       )}
 
       {ativos.map(m => {
@@ -508,7 +512,7 @@ function TerritoriosTab({
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="font-medium text-sm">{m.display_name}</div>
-                <div className="text-[10px] uppercase text-slate-500 tracking-wider">{m.role}</div>
+                <div className="text-[10px] uppercase text-muted-foreground tracking-[0.12em] font-semibold">{m.role}</div>
               </div>
               <AddSegmento
                 profile_id={m.profile_id}
@@ -518,14 +522,14 @@ function TerritoriosTab({
               />
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {meus.length === 0 && <span className="text-xs text-slate-400">Sem segmentos atribuídos.</span>}
+              {meus.length === 0 && <span className="text-xs text-muted-foreground/70">Sem segmentos atribuídos.</span>}
               {meus.map(s => (
-                <span key={s.id} className="inline-flex items-center gap-1 bg-guild-50 text-guild-700 text-xs px-2 py-0.5 rounded border border-guild-200">
+                <span key={s.id} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded border border-primary/25">
                   {s.segmento}
                   <button
                     onClick={() => startTransition(() => { removerSegmentoVendedor(s.id); })}
                     disabled={pending}
-                    className="hover:text-urgent-500"
+                    className="hover:text-destructive"
                   >
                     <X className="w-3 h-3"/>
                   </button>
@@ -604,8 +608,8 @@ function CarteirasTab({ membros }: { membros: MembroEnriched[] }) {
   return (
     <div className="card p-4">
       <div className="flex items-start gap-2 mb-4">
-        <ArrowRightLeft className="w-4 h-4 text-slate-500 mt-1"/>
-        <div className="text-xs text-slate-600">
+        <ArrowRightLeft className="w-4 h-4 text-muted-foreground mt-1"/>
+        <div className="text-xs text-muted-foreground">
           Transfira leads em massa de um vendedor para outro. Útil quando alguém sai do time ou reorganizou a carteira.
         </div>
       </div>
@@ -655,7 +659,7 @@ function CarteirasTab({ membros }: { membros: MembroEnriched[] }) {
           <ArrowRightLeft className="w-3.5 h-3.5"/> Transferir
         </button>
         {result !== null && (
-          <span className="text-xs text-emerald-700">
+          <span className="text-xs text-success-500 tabular-nums">
             <Check className="w-3.5 h-3.5 inline"/> {result} lead(s) transferido(s).
           </span>
         )}
@@ -685,7 +689,7 @@ function ConfigTab({ config }: { config: OrgConfig }) {
         />
         <div>
           <div className="font-medium text-sm">Ativar distribuição automática</div>
-          <div className="text-xs text-slate-500">Ao criar um novo lead, atribuir automaticamente um responsável usando a estratégia abaixo.</div>
+          <div className="text-xs text-muted-foreground">Ao criar um novo lead, atribuir automaticamente um responsável usando a estratégia abaixo.</div>
         </div>
       </label>
 

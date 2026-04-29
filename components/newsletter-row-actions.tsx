@@ -34,7 +34,7 @@ export default function NewsletterRowActions({
       )}
       <button disabled={pending}
         onClick={() => start(async () => { await alterarStatusNews(id, "Remover"); })}
-        className="btn-ghost text-xs text-slate-400 hover:text-urgent-500">
+        className="btn-ghost text-xs text-muted-foreground/70 hover:text-destructive">
         <Trash2 className="w-3.5 h-3.5"/>
       </button>
     </div>

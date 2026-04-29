@@ -52,17 +52,39 @@ export async function sendTransactionalEmail(input: {
   return { sent: true, skipped: false };
 }
 
+type Locale = "pt-BR" | "en-US";
+function safeLocale(l?: string): Locale {
+  return l === "en-US" ? "en-US" : "pt-BR";
+}
+
 export async function sendInviteEmail(input: {
   email: string;
   orgName: string;
   inviterName: string;
   inviteUrl: string;
   role: string;
+  /** Default 'pt-BR'. Idioma da org convidante. */
+  locale?: string;
 }) {
+  const locale = safeLocale(input.locale);
   const orgName = escapeHtml(input.orgName);
   const inviterName = escapeHtml(input.inviterName);
   const inviteUrl = escapeHtml(input.inviteUrl);
   const role = escapeHtml(input.role);
+
+  if (locale === "en-US") {
+    return sendTransactionalEmail({
+      to: [{ email: input.email }],
+      subject: `${input.inviterName} invited you to Guilds Comercial`,
+      htmlContent: `
+        <p>Hi,</p>
+        <p><strong>${inviterName}</strong> invited you to join <strong>${orgName}</strong>'s sales operation as <strong>${role}</strong>.</p>
+        <p><a href="${inviteUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-weight:600">Accept invite</a></p>
+        <p>If the button doesn't work, copy this link to your browser:<br><a href="${inviteUrl}">${inviteUrl}</a></p>
+        <p>Guilds team</p>
+      `,
+    });
+  }
 
   return sendTransactionalEmail({
     to: [{ email: input.email }],
@@ -77,10 +99,25 @@ export async function sendInviteEmail(input: {
   });
 }
 
-export async function sendWelcomeEmail(input: { email: string; name: string; orgName: string }) {
+export async function sendWelcomeEmail(input: { email: string; name: string; orgName: string; locale?: string }) {
+  const locale = safeLocale(input.locale);
   const name = escapeHtml(input.name);
   const orgName = escapeHtml(input.orgName);
   const appUrl = escapeHtml(getAppUrl());
+
+  if (locale === "en-US") {
+    return sendTransactionalEmail({
+      to: [{ email: input.email, name: input.name }],
+      subject: "Welcome to Guilds Comercial",
+      htmlContent: `
+        <p>Hi ${name},</p>
+        <p>Your <strong>${orgName}</strong> account has been created successfully.</p>
+        <p>Next steps: add your leads, invite your team, and test the AI-powered funnel automation.</p>
+        <p><a href="${appUrl}/hoje">Open Guilds Comercial</a></p>
+        <p>Guilds team</p>
+      `,
+    });
+  }
 
   return sendTransactionalEmail({
     to: [{ email: input.email, name: input.name }],

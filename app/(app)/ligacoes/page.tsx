@@ -4,6 +4,7 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import { PhoneCall, PhoneOff, Phone, CheckCircle2 } from "lucide-react";
 import LigacoesHeaderActions from "@/components/ligacoes/header-actions";
+import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function LigacoesPage({ searchParams }: { searchParams: { d
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
+  const t = getT(await getServerLocale());
 
   const orgId = await getCurrentOrgId();
   if (!orgId) redirect("/hoje");
@@ -61,8 +63,8 @@ export default async function LigacoesPage({ searchParams }: { searchParams: { d
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <header className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Ligações</h1>
-          <p className="text-sm text-slate-500">Histórico de tentativas. Olho na taxa de atendimento.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.ligacoes_titulo")}</h1>
+          <p className="text-sm text-muted-foreground">{t("paginas.ligacoes_sub")}</p>
         </div>
         <LigacoesHeaderActions orgId={orgId} />
       </header>
@@ -94,34 +96,34 @@ export default async function LigacoesPage({ searchParams }: { searchParams: { d
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+            <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
               <tr>
-                <th className="text-left px-3 py-2 font-medium">Data</th>
-                <th className="text-left px-3 py-2 font-medium">Lead</th>
-                <th className="text-left px-3 py-2 font-medium">Resultado</th>
-                <th className="text-left px-3 py-2 font-medium">Observações</th>
+                <th className="text-left px-3 py-2 font-semibold">Data</th>
+                <th className="text-left px-3 py-2 font-semibold">Lead</th>
+                <th className="text-left px-3 py-2 font-semibold">Resultado</th>
+                <th className="text-left px-3 py-2 font-semibold">Observações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {list.length === 0 && (
-                <tr><td colSpan={4} className="text-center py-12 text-slate-400">
+                <tr><td colSpan={4} className="text-center py-12 text-muted-foreground/70">
                   Nenhuma ligação no período selecionado.
                 </td></tr>
               )}
               {list.map(l => (
-                <tr key={l.id} className="hover:bg-slate-50">
-                  <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{fmtDateTime(l.data_hora)}</td>
+                <tr key={l.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.03]">
+                  <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap tabular-nums">{fmtDateTime(l.data_hora)}</td>
                   <td className="px-3 py-2">
-                    <Link href={`/pipeline/${l.lead_id}`} className="font-medium hover:text-guild-700">
+                    <Link href={`/pipeline/${l.lead_id}`} className="font-medium hover:text-primary">
                       {l.leads?.empresa || l.leads?.nome || "(?)"}
                     </Link>
                   </td>
                   <td className="px-3 py-2 text-xs">
                     {l.atendeu === false
-                      ? <span className="inline-flex items-center gap-1 text-slate-500"><PhoneOff className="w-3 h-3"/> {l.resultado || "Sem resposta"}</span>
-                      : <span className="inline-flex items-center gap-1 text-emerald-700"><Phone className="w-3 h-3"/> {l.resultado || "—"}</span>}
+                      ? <span className="inline-flex items-center gap-1 text-muted-foreground"><PhoneOff className="w-3 h-3"/> {l.resultado || "Sem resposta"}</span>
+                      : <span className="inline-flex items-center gap-1 text-success-500"><Phone className="w-3 h-3"/> {l.resultado || "—"}</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs text-slate-600 max-w-[300px] truncate">{l.observacoes || "—"}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground max-w-[300px] truncate">{l.observacoes || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -133,13 +135,16 @@ export default async function LigacoesPage({ searchParams }: { searchParams: { d
 }
 
 function KPI({ title, v, icon, tone }: { title: string; v: string | number; icon: React.ReactNode; tone: "neutral" | "success" }) {
-  const tones = { neutral: "bg-slate-100 text-slate-600", success: "bg-emerald-50 text-success-500" };
+  const tones = {
+    neutral: "bg-secondary dark:bg-white/[0.05] text-muted-foreground",
+    success: "bg-success-500/10 text-success-500",
+  };
   return (
     <div className="card p-4 flex items-center gap-3">
       <div className={`w-9 h-9 rounded-lg grid place-items-center ${tones[tone]}`}>{icon}</div>
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider">{title}</div>
-        <div className="text-2xl font-semibold leading-tight">{v}</div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">{title}</div>
+        <div className="text-2xl font-semibold leading-tight tabular-nums">{v}</div>
       </div>
     </div>
   );

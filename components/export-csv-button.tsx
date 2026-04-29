@@ -46,7 +46,7 @@ export default function ExportCsvButton({ data, filename, label = "CSV", classNa
       type="button"
       onClick={exportar}
       disabled={!data || data.length === 0}
-      className={`inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700
+      className={`inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground
         disabled:opacity-30 disabled:cursor-not-allowed transition-colors ${className}`}
       title={`Exportar ${filename}.csv`}
     >

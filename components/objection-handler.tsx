@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Shield, Loader2, Send, Sparkles } from "lucide-react";
 import { objectionHandlerAction } from "./objection-handler-action";
+import AiOutputActions from "@/components/ai/ai-output-actions";
 
 /**
  * Widget interativo para lidar com objeções do cliente.
@@ -15,6 +16,7 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
 }) {
   const [objecao, setObjecao] = useState("");
   const [resultado, setResultado] = useState<string | null>(null);
+  const [invocationId, setInvocationId] = useState<number | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -31,6 +33,7 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
       });
       if (res.ok) {
         setResultado(res.texto);
+        setInvocationId(res.invocationId ?? null);
       } else {
         setErro(res.erro ?? "Erro ao processar objeção.");
       }
@@ -38,11 +41,11 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
   }
 
   return (
-    <div className="card p-4 border-amber-100 bg-amber-50/20">
+    <div className="card p-4 border-warning-500/25 bg-warning-500/5">
       <div className="flex items-center gap-2 mb-3">
-        <Shield className="w-4 h-4 text-amber-600" />
-        <h3 className="text-sm font-semibold text-amber-800">Contorno de objeções</h3>
-        <span className="text-[10px] text-amber-500 bg-amber-100 px-1.5 py-0.5 rounded">IA</span>
+        <Shield className="w-4 h-4 text-warning-500" />
+        <h3 className="text-sm font-semibold text-foreground" style={{ letterSpacing: "-0.13px" }}>Contorno de objeções</h3>
+        <span className="text-[10px] text-warning-500 bg-warning-500/15 border border-warning-500/25 px-1.5 py-0.5 rounded font-semibold uppercase tracking-[0.1em]">IA</span>
       </div>
 
       <form onSubmit={handleSubmit} className="flex gap-2">
@@ -60,16 +63,19 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
       </form>
 
       {resultado && (
-        <div className="mt-3 p-3 rounded-lg bg-white border border-amber-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-amber-600 font-semibold mb-2">
+        <div className="mt-3 p-3 rounded-lg bg-card border border-warning-500/25 text-xs text-foreground whitespace-pre-wrap leading-relaxed">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] text-warning-500 font-semibold mb-2">
             <Sparkles className="w-3 h-3" /> Sugestão de contorno
           </div>
           {resultado}
+          <div className="mt-2 pt-2 border-t border-warning-500/15">
+            <AiOutputActions invocationId={invocationId} texto={resultado} />
+          </div>
         </div>
       )}
 
       {erro && (
-        <div className="mt-2 p-2 rounded bg-rose-50 border border-rose-200 text-xs text-rose-700">
+        <div className="mt-2 p-2 rounded bg-destructive/10 border border-destructive/25 text-xs text-destructive">
           {erro}
         </div>
       )}

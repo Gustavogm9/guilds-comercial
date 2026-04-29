@@ -29,6 +29,12 @@ import { anthropicAdapter } from "./providers/anthropic";
 import { openaiAdapter } from "./providers/openai";
 import { googleAdapter } from "./providers/google";
 import type { ProviderAdapter } from "./providers/types";
+import { renderTemplate } from "./template";
+import { getServerLocale, getT } from "@/lib/i18n";
+
+async function tIA() {
+  return getT(await getServerLocale());
+}
 
 const ADAPTERS: Record<AiProviderCodigo, ProviderAdapter | null> = {
   anthropic: anthropicAdapter,
@@ -60,16 +66,6 @@ export interface InvokeAIResult {
   erro?: string;
 }
 
-/** Substitui `{{chave}}` pelas vars. Chaves não preenchidas viram string vazia. */
-function renderTemplate(tpl: string, vars: Record<string, unknown>): string {
-  return tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k: string) => {
-    const v = vars[k];
-    if (v === undefined || v === null) return "";
-    if (typeof v === "object") return JSON.stringify(v);
-    return String(v);
-  });
-}
-
 /** Pega API key do env. api_key_ref do provider é o NOME do env var. */
 function resolveApiKey(provider: AiProvider): string | null {
   if (!provider.api_key_ref) return null;
@@ -90,10 +86,11 @@ function estimarCusto(
 
 export async function invokeAI(input: InvokeAIInput): Promise<InvokeAIResult> {
   const supabase = createClient();
+  const t = await tIA();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await getCurrentOrgId();
   if (!orgId) {
-    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: "Sem organização ativa" };
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: t("erros.sem_org") };
   }
   const role = (await getCurrentRole()) ?? "comercial";
 
@@ -108,10 +105,10 @@ export async function invokeAI(input: InvokeAIInput): Promise<InvokeAIResult> {
   const feature = featureRows?.[0] as AiFeature | undefined;
 
   if (!feature) {
-    return logErro(supabase, orgId, input, null, null, 0, "Feature não cadastrada");
+    return logErro(supabase, orgId, input, null, null, 0, t("erros.ia_feature_nao_cadastrada"));
   }
   if (!feature.ativo) {
-    return logErro(supabase, orgId, input, null, null, 0, "Feature desativada pelo admin");
+    return logErro(supabase, orgId, input, null, null, 0, t("erros.ia_feature_desabilitada"));
   }
 
   // 2. Permissão
@@ -133,7 +130,7 @@ export async function invokeAI(input: InvokeAIInput): Promise<InvokeAIResult> {
 
   if ((countOrg ?? 0) >= feature.limite_dia_org) {
     await registrarInvocacao(supabase, orgId, input, feature, null, null, 0, 0, 0, "bloqueado_budget", "Limite diário da org atingido");
-    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: "Limite diário da organização atingido" };
+    return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: t("erros.ia_limite_org") };
   }
 
   if (user?.id) {
@@ -147,22 +144,71 @@ export async function invokeAI(input: InvokeAIInput): Promise<InvokeAIResult> {
       .eq("status", "sucesso");
     if ((countUser ?? 0) >= feature.limite_dia_usuario) {
       await registrarInvocacao(supabase, orgId, input, feature, null, null, 0, 0, 0, "bloqueado_budget", "Limite diário do usuário atingido");
-      return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: "Seu limite diário atingido" };
+      return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: t("erros.ia_limite_usuario") };
     }
   }
 
-  // 4. Carrega prompt ativo — org-specific antes do global
+  // 4. Carrega prompt ativo — preferindo (org × idioma_org) com fallback para
+  // (org × pt-BR) e depois (global × idioma_org) e por fim (global × pt-BR).
+  // Pega idioma_padrao da org pra escolher prompt; default pt-BR.
+  const { data: orgRow } = await supabase
+    .from("organizacoes")
+    .select("idioma_padrao")
+    .eq("id", orgId)
+    .maybeSingle();
+  const idiomaOrg = (orgRow as any)?.idioma_padrao ?? "pt-BR";
+
+  // Carrega todos os prompts ativos (org+global) e escolhe o melhor match
   const { data: promptRows } = await supabase
     .from("ai_prompts")
     .select("*")
     .eq("feature_codigo", input.feature)
     .eq("ativo", true)
-    .or(`organizacao_id.eq.${orgId},organizacao_id.is.null`)
-    .order("organizacao_id", { ascending: false, nullsFirst: false })
-    .limit(1);
-  const prompt = promptRows?.[0] as AiPrompt | undefined;
+    .or(`organizacao_id.eq.${orgId},organizacao_id.is.null`);
+  const prompts = (promptRows ?? []) as AiPrompt[];
+
+  // Ranking: org+idioma > org+pt-BR > global+idioma > global+pt-BR
+  function rankPrompt(p: AiPrompt): number {
+    const isOrg = p.organizacao_id === orgId;
+    const matchIdioma = (p as any).idioma === idiomaOrg;
+    const matchPtBR = (p as any).idioma === "pt-BR";
+    if (isOrg && matchIdioma) return 4;
+    if (isOrg && matchPtBR) return 3;
+    if (!isOrg && matchIdioma) return 2;
+    if (!isOrg && matchPtBR) return 1;
+    return 0;
+  }
+  const sorted = prompts.slice().sort((a, b) => rankPrompt(b) - rankPrompt(a));
+  let prompt = sorted[0];
   if (!prompt) {
     return logErro(supabase, orgId, input, feature, null, 0, "Prompt ativo não encontrado");
+  }
+
+  // 4b. Verifica se há experimento A/B rodando — sobrescreve o prompt selecionado
+  let experimentInfo: { experimentId: number; variant: "a" | "b" } | null = null;
+  try {
+    const { data: experimentoData } = await supabase.rpc("escolher_prompt_experimento", {
+      _org: orgId,
+      _feature_codigo: input.feature,
+    });
+    if (experimentoData && experimentoData.length > 0) {
+      const escolha = experimentoData[0];
+      // Carrega o prompt da variant escolhida
+      const { data: variantPrompt } = await supabase
+        .from("ai_prompts")
+        .select("*")
+        .eq("id", escolha.prompt_id)
+        .maybeSingle();
+      if (variantPrompt) {
+        prompt = variantPrompt as AiPrompt;
+        experimentInfo = {
+          experimentId: Number(escolha.experiment_id),
+          variant: escolha.variant as "a" | "b",
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[ab-test] escolher_prompt_experimento falhou:", err);
   }
 
   // 5. Resolve provider
@@ -190,7 +236,47 @@ export async function invokeAI(input: InvokeAIInput): Promise<InvokeAIResult> {
   }
 
   // 6. Renderiza prompt e chama adapter
-  const userPrompt = renderTemplate(prompt.user_template, input.vars);
+  // Injeta `idioma` nas vars automaticamente (extraído da org) — assim user_templates
+  // podem referenciar {{idioma}} pra instruir o LLM a responder no idioma certo.
+  const varsComIdioma = {
+    idioma: idiomaOrg,
+    locale: idiomaOrg,
+    ...input.vars,
+  };
+  const userPrompt = renderTemplate(prompt.user_template, varsComIdioma);
+
+  // 6b. Carrega few-shot exemplos da org filtrados por contexto do lead.
+  // Injetados no system prompt antes da chamada — auto-evolução funcionando.
+  let systemPromptFinal = prompt.system_prompt ?? undefined;
+
+  // 6c. Suffix de idioma no system prompt — fallback para casos onde o
+  // user_template não usa {{idioma}}. Reforça resposta no locale da org.
+  const idiomaInstrucao = idiomaOrg === "en-US"
+    ? "\n\nIMPORTANT: Respond in English (en-US)."
+    : idiomaOrg === "pt-BR"
+    ? "\n\nIMPORTANTE: Responda em Português do Brasil (pt-BR)."
+    : `\n\nIMPORTANT: Respond in ${idiomaOrg}.`;
+  systemPromptFinal = (systemPromptFinal ?? "") + idiomaInstrucao;
+  try {
+    const { data: exemplos } = await supabase.rpc("obter_fewshot_exemplos", {
+      _org: orgId,
+      _feature_codigo: input.feature,
+      _lead_id: input.leadId ?? null,
+      _limite: 3,
+    });
+    if (exemplos && exemplos.length > 0) {
+      const exemplosTxt = exemplos
+        .map((ex: any, i: number) => {
+          const inputResumo = JSON.stringify(ex.input_vars).slice(0, 600);
+          return `### Exemplo ${i + 1} (score ${ex.score}, match ${ex.match_score})\nContexto: ${inputResumo}\nOutput aprovado:\n${ex.output}`;
+        })
+        .join("\n\n");
+      systemPromptFinal = `${systemPromptFinal ?? ""}\n\n## Exemplos de outputs anteriores aprovados desta organização (use o estilo, tom e estrutura como referência):\n\n${exemplosTxt}`.trim();
+    }
+  } catch (err) {
+    // Falha no fewshot não bloqueia a chamada principal
+    console.warn("[fewshot] obter_fewshot_exemplos falhou:", err);
+  }
 
   let texto = "";
   let tokensIn = 0;
@@ -204,7 +290,7 @@ export async function invokeAI(input: InvokeAIInput): Promise<InvokeAIResult> {
       apiKey,
       baseUrl: provider.base_url ?? undefined,
       modelo: feature.modelo,
-      systemPrompt: prompt.system_prompt ?? undefined,
+      systemPrompt: systemPromptFinal,
       userPrompt,
       temperature: Number(feature.temperature),
       maxTokens: feature.max_tokens,
@@ -229,9 +315,26 @@ export async function invokeAI(input: InvokeAIInput): Promise<InvokeAIResult> {
     status, erroMsg, texto, custoUsd,
   );
 
+  // 7b. Se faz parte de experimento, registra o evento (sem evento_sucesso ainda
+  // — ele vem depois quando UI chama registrar_evento_experimento ao usuário aceitar/copiar)
+  if (experimentInfo && invocationId) {
+    supabase.from("ai_experiment_events").insert({
+      experiment_id: experimentInfo.experimentId,
+      invocation_id: invocationId,
+      variant: experimentInfo.variant,
+    }).then(() => {}, (err: unknown) => console.warn("[ab-test] insert event:", err));
+  }
+
   if (status !== "sucesso") {
     return { ok: false, texto: "", invocationId, custoUsd, latenciaMs, erro: erroMsg ?? undefined };
   }
+
+  // 7.5. Registra usage para cobrança de overage (best-effort, não bloqueia)
+  supabase.rpc("registrar_ai_usage", { _org: orgId, _feature_codigo: input.feature })
+    .then(() => {})
+    .then(undefined, (err: unknown) => {
+      console.warn("[ai_usage] registrar_ai_usage falhou:", err);
+    });
 
   // 8. Parse JSON se solicitado
   let parsed: unknown = undefined;
@@ -284,16 +387,33 @@ export async function invokeAISystem(
     return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: "Feature desativada" };
   }
 
-  // 2. Carrega prompt
+  // 1.5 Idioma da org (pra escolher prompt + reforço de instrução)
+  const { data: orgRow } = await supabase
+    .from("organizacoes")
+    .select("idioma_padrao")
+    .eq("id", orgId)
+    .maybeSingle();
+  const idiomaOrg = (orgRow as any)?.idioma_padrao ?? "pt-BR";
+
+  // 2. Carrega prompts e ranqueia por (org, idioma)
   const { data: promptRows } = await supabase
     .from("ai_prompts")
     .select("*")
     .eq("feature_codigo", input.feature)
     .eq("ativo", true)
-    .or(`organizacao_id.eq.${orgId},organizacao_id.is.null`)
-    .order("organizacao_id", { ascending: false, nullsFirst: false })
-    .limit(1);
-  const prompt = promptRows?.[0] as AiPrompt | undefined;
+    .or(`organizacao_id.eq.${orgId},organizacao_id.is.null`);
+  const prompts = (promptRows ?? []) as AiPrompt[];
+  function rankPromptSys(p: AiPrompt): number {
+    const isOrg = p.organizacao_id === orgId;
+    const matchIdioma = (p as any).idioma === idiomaOrg;
+    const matchPtBR = (p as any).idioma === "pt-BR";
+    if (isOrg && matchIdioma) return 4;
+    if (isOrg && matchPtBR) return 3;
+    if (!isOrg && matchIdioma) return 2;
+    if (!isOrg && matchPtBR) return 1;
+    return 0;
+  }
+  const prompt = prompts.slice().sort((a, b) => rankPromptSys(b) - rankPromptSys(a))[0];
   if (!prompt) {
     return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: "Prompt ativo não encontrado" };
   }
@@ -322,8 +442,15 @@ export async function invokeAISystem(
     return { ok: false, texto: "", invocationId: null, custoUsd: 0, latenciaMs: 0, erro: `API key ausente (env ${provider.api_key_ref})` };
   }
 
-  // 4. Renderiza e chama
-  const userPrompt = renderTemplate(prompt.user_template, input.vars);
+  // 4. Renderiza e chama (com {{idioma}} injetado nas vars + suffix de idioma no system)
+  const varsComIdiomaSys = { idioma: idiomaOrg, locale: idiomaOrg, ...input.vars };
+  const userPrompt = renderTemplate(prompt.user_template, varsComIdiomaSys);
+  const idiomaInstrucaoSys = idiomaOrg === "en-US"
+    ? "\n\nIMPORTANT: Respond in English (en-US)."
+    : idiomaOrg === "pt-BR"
+    ? "\n\nIMPORTANTE: Responda em Português do Brasil (pt-BR)."
+    : `\n\nIMPORTANT: Respond in ${idiomaOrg}.`;
+  const systemPromptSys = (prompt.system_prompt ?? "") + idiomaInstrucaoSys;
   let texto = "";
   let tokensIn = 0;
   let tokensOut = 0;
@@ -334,7 +461,7 @@ export async function invokeAISystem(
       apiKey,
       baseUrl: provider.base_url ?? undefined,
       modelo: feature.modelo,
-      systemPrompt: prompt.system_prompt ?? undefined,
+      systemPrompt: systemPromptSys,
       userPrompt,
       temperature: Number(feature.temperature),
       maxTokens: feature.max_tokens,
@@ -387,6 +514,13 @@ export async function invokeAISystem(
     })
     .select("id")
     .maybeSingle();
+
+  // Registra usage pra cobrança de overage (best-effort)
+  supabase.rpc("registrar_ai_usage", { _org: orgId, _feature_codigo: input.feature })
+    .then(() => {})
+    .then(undefined, (err: unknown) => {
+      console.warn("[ai_usage] registrar_ai_usage (system) falhou:", err);
+    });
 
   // Parse JSON se pedido
   let parsed: unknown = undefined;

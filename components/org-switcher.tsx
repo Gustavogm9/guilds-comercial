@@ -2,7 +2,9 @@
 import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { Building2, ChevronDown, Check, Plus } from "lucide-react";
+import clsx from "clsx";
 import { trocarOrg } from "@/app/(app)/org-actions";
+import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 
 type OrgLite = { id: string; nome: string; role: "gestor" | "comercial" | "sdr" };
 
@@ -18,6 +20,9 @@ export default function OrgSwitcher({
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
+  const [locale, setLocale] = useState<Locale>("pt-BR");
+  useEffect(() => setLocale(getClientLocale()), []);
+  const t = getT(locale);
   const active = orgs.find(o => o.id === activeOrgId) ?? orgs[0];
 
   useEffect(() => {
@@ -35,29 +40,49 @@ export default function OrgSwitcher({
 
   if (!showDropdown) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 text-xs">
-        <Building2 className="w-3.5 h-3.5 text-slate-400"/>
-        <span className="font-medium truncate">{active.nome}</span>
+      <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs">
+        <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="font-medium truncate text-foreground" style={{ letterSpacing: "-0.13px" }}>
+          {active.nome}
+        </span>
       </div>
     );
   }
+
+  const labelOrgs = locale === "en-US" ? "Your organizations" : "Suas organizações";
+  const labelNova = locale === "en-US" ? "New organization" : "Nova empresa";
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg hover:bg-slate-50 transition"
+        className={clsx(
+          "w-full flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-md transition-colors",
+          "border border-border bg-card text-foreground",
+          "hover:bg-secondary",
+          "dark:bg-white/[0.02] dark:border-white/[0.08] dark:hover:bg-white/[0.04]",
+          "disabled:opacity-50",
+        )}
         disabled={pending}
+        style={{ letterSpacing: "-0.13px" }}
       >
-        <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0"/>
+        <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <span className="font-medium truncate flex-1 text-left">{active.nome}</span>
-        <ChevronDown className={`w-3 h-3 text-slate-400 transition ${open ? "rotate-180" : ""}`}/>
+        <ChevronDown
+          className={clsx("w-3 h-3 text-muted-foreground transition-transform", open && "rotate-180")}
+        />
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1">
-          <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
-            Suas organizações
+        <div
+          className={clsx(
+            "absolute left-0 right-0 top-full mt-1 z-50 py-1 rounded-md overflow-hidden",
+            "bg-popover border border-border shadow-stripe-md",
+            "dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08] dark:shadow-none",
+          )}
+        >
+          <div className="px-2.5 py-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground/70 font-semibold border-b border-border dark:border-white/[0.06]">
+            {labelOrgs}
           </div>
           {orgs.map(o => (
             <button
@@ -68,30 +93,42 @@ export default function OrgSwitcher({
                   trocarOrg(o.id);
                 });
               }}
-              className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center gap-2 ${
-                o.id === active.id ? "bg-slate-50" : ""
-              }`}
+              className={clsx(
+                "w-full text-left px-2.5 py-1.5 text-xs flex items-center gap-2 transition-colors",
+                "hover:bg-secondary dark:hover:bg-white/[0.04]",
+                o.id === active.id && "bg-secondary/70 dark:bg-white/[0.04]",
+              )}
             >
               <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{o.nome}</div>
-                <div className="text-[10px] uppercase text-slate-400 tracking-wider">{o.role}</div>
+                <div
+                  className="font-medium truncate text-foreground"
+                  style={{ letterSpacing: "-0.13px" }}
+                >
+                  {o.nome}
+                </div>
+                <div className="text-[10px] uppercase text-muted-foreground/70 tracking-[0.12em] font-semibold mt-0.5">
+                  {t(`papeis.${o.role}` as any)}
+                </div>
               </div>
-              {o.id === active.id && <Check className="w-3.5 h-3.5 text-guild-600 shrink-0"/>}
+              {o.id === active.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
             </button>
           ))}
           {isGestor && (
-            <>
-              <div className="border-t border-slate-100 mt-1 pt-1">
-                <Link
-                  href="/empresa/nova"
-                  onClick={() => setOpen(false)}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center gap-2 text-guild-700"
-                >
-                  <Plus className="w-3.5 h-3.5"/>
-                  Nova empresa
-                </Link>
-              </div>
-            </>
+            <div className="border-t border-border dark:border-white/[0.06] mt-1 pt-1">
+              <Link
+                href="/empresa/nova"
+                onClick={() => setOpen(false)}
+                className={clsx(
+                  "w-full text-left px-2.5 py-1.5 text-xs flex items-center gap-2 transition-colors",
+                  "text-primary hover:bg-secondary",
+                  "dark:hover:bg-white/[0.04]",
+                )}
+                style={{ letterSpacing: "-0.13px" }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="font-medium">{labelNova}</span>
+              </Link>
+            </div>
           )}
         </div>
       )}

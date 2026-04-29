@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
-import { createClient } from "./server";
-import type { Organizacao, MembroEnriched, Profile } from "@/lib/types";
+import { cache } from "react";
+import { createClient, getCurrentProfile, getCurrentUser } from "./server";
+import type { Organizacao, MembroEnriched } from "@/lib/types";
 
 const ORG_COOKIE = "x-organizacao-ativa";
 
@@ -8,14 +9,17 @@ const ORG_COOKIE = "x-organizacao-ativa";
  * Retorna todas as organizações em que o usuário logado é membro ativo,
  * já com role do usuário naquela org. Usado para popular o switcher do sidebar
  * e para validar a escolha da org ativa.
+ *
+ * Memoizado por request — getCurrentOrgId/getCurrentRole/sidebar costumam invocar
+ * isso múltiplas vezes no mesmo render e cada chamada é round-trip ao Supabase.
  */
-export async function listarOrgsDoUsuario(): Promise<
+export const listarOrgsDoUsuario = cache(async (): Promise<
   Array<Organizacao & { role: "gestor" | "comercial" | "sdr" }>
-> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+> => {
+  const user = await getCurrentUser();
   if (!user) return [];
 
+  const supabase = createClient();
   const { data, error } = await supabase
     .from("membros_organizacao")
     .select("role, organizacao:organizacoes(*)")
@@ -37,7 +41,7 @@ export async function listarOrgsDoUsuario(): Promise<
       (x): x is Organizacao & { role: "gestor" | "comercial" | "sdr" } =>
         x !== null
     );
-}
+});
 
 /**
  * Resolve a org "ativa" do usuário:
@@ -46,7 +50,7 @@ export async function listarOrgsDoUsuario(): Promise<
  *   3. Primeira org em que é membro
  * Retorna null se não há nenhuma.
  */
-export async function getCurrentOrgId(): Promise<string | null> {
+export const getCurrentOrgId = cache(async (): Promise<string | null> => {
   const orgs = await listarOrgsDoUsuario();
   if (orgs.length === 0) return null;
 
@@ -56,33 +60,24 @@ export async function getCurrentOrgId(): Promise<string | null> {
     return fromCookie;
   }
 
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("home_organizacao_id")
-      .eq("id", user.id)
-      .single();
-    const home = (profile as Pick<Profile, "home_organizacao_id"> | null)
-      ?.home_organizacao_id;
-    if (home && orgs.some((o) => o.id === home)) return home;
-  }
+  const profile = await getCurrentProfile();
+  const home = profile?.home_organizacao_id;
+  if (home && orgs.some((o) => o.id === home)) return home;
 
   return orgs[0].id;
-}
+});
 
 /**
  * Retorna a role efetiva do usuário na org ativa (gestor | comercial | sdr | null).
  */
-export async function getCurrentRole(): Promise<
+export const getCurrentRole = cache(async (): Promise<
   "gestor" | "comercial" | "sdr" | null
-> {
+> => {
   const orgId = await getCurrentOrgId();
   if (!orgId) return null;
   const orgs = await listarOrgsDoUsuario();
   return orgs.find((o) => o.id === orgId)?.role ?? null;
-}
+});
 
 /**
  * Lista os membros (enriched com display_name + email) da org ativa.

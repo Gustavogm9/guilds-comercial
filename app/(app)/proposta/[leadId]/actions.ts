@@ -37,5 +37,5 @@ export async function gerarPropostaAction(input: {
     },
   });
 
-  return { ok: result.ok, texto: result.texto, erro: result.erro };
+  return { ok: result.ok, texto: result.texto, erro: result.erro, invocationId: result.invocationId };
 }

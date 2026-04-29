@@ -1,0 +1,33 @@
+# Docker compose para dependências de DEV local (não-produção).
+#
+# Inclui:
+#   - mailpit: SMTP server fake + UI web pra inspecionar emails enviados
+#     localmente. Útil pra testar email de convite, welcome, password reset.
+#
+# Uso:
+#   docker compose -f docker-compose.dev.yml up -d
+#   open http://localhost:8025   # UI do Mailpit
+#
+# Para conectar com Supabase local stack (`supabase start`), edite
+# `supabase/config.toml` para apontar SMTP em mailpit:1025. Para testar emails
+# do app diretamente (sem Supabase Auth), aponte sua var SMTP_HOST=localhost
+# SMTP_PORT=1025 (sem auth).
+
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: guilds-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # UI web
+    environment:
+      MP_MAX_MESSAGES: 1000
+      MP_DATA_FILE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    volumes:
+      - mailpit-data:/data
+
+volumes:
+  mailpit-data:

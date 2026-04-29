@@ -2,11 +2,10 @@ import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-// Limitador de Rate em memória (MVP)
-// Estrutura: { [orgId]: { count: number, resetTime: number } }
-const rateLimitCache = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minuto
-const RATE_LIMIT_MAX = 1000; // 1000 req/min (Plano Business)
+// Rate limit: persistente via SQL function `consume_rate_token` (DB-based,
+// atomic) — sobrevive ao reset do serverless. Default 1000 req/min por org.
+// Veja migration 20260427100003_api_rate_limit_persistent.sql.
+const RATE_LIMIT_MAX_PER_MIN = 1000;
 
 export async function validateApiKey() {
   const headersList = headers();
@@ -50,20 +49,22 @@ export async function validateApiKey() {
 
   const orgId = apiKey.organizacao_id;
 
-  // Rate Limiting Básico in-memory
-  const now = Date.now();
-  let rateInfo = rateLimitCache.get(orgId);
+  // Rate Limiting persistente: chama função SQL atômica que faz upsert
+  // em api_rate_counters (org, minuto). Retorna false se passou do limite.
+  const { data: tokenAccepted, error: rateErr } = await supabaseAdmin.rpc(
+    'consume_rate_token',
+    { _org: orgId, _max_per_min: RATE_LIMIT_MAX_PER_MIN }
+  );
 
-  if (!rateInfo || rateInfo.resetTime < now) {
-    rateInfo = { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS };
-  } else {
-    rateInfo.count += 1;
-  }
-
-  rateLimitCache.set(orgId, rateInfo);
-
-  if (rateInfo.count > RATE_LIMIT_MAX) {
-    return { error: 'Rate limit exceeded (1000 req/min)', status: 429 };
+  if (rateErr) {
+    // Fail open em caso de erro do limiter: melhor processar a request
+    // do que bloquear toda a API por bug de DB. Logamos para Sentry pegar.
+    console.error('[api-auth] consume_rate_token failed', rateErr);
+  } else if (tokenAccepted === false) {
+    return {
+      error: `Rate limit exceeded (${RATE_LIMIT_MAX_PER_MIN} req/min)`,
+      status: 429,
+    };
   }
 
   // Atualiza last_used_at (assíncrono)

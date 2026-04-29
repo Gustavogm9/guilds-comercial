@@ -166,3 +166,8 @@ Referência pra decisões de modelagem, camadas, fluxo de dados.
 - Feature AI valida `papel_minimo` antes de chamar o provider.
 - Budget cap bloqueia chamada antes de disparar request externo.
 - Motivos de perda são enum fixo — valor inválido dá erro SQL.
+- **Troca obrigatória de senha** — o middleware redireciona para `/trocar-senha`
+  quando `auth.users.raw_user_meta_data.force_password_change = true`. O flag é
+  setado manualmente (Supabase Auth → Users → user_metadata) ao provisionar
+  contas com senha temporária; é limpo automaticamente após o usuário trocar a
+  senha em `/trocar-senha`. Signup self-service do `/onboarding` não usa esse flag.

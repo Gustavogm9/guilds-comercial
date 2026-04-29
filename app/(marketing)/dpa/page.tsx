@@ -5,14 +5,14 @@ export const metadata = {
 
 export default function DPAPage() {
   return (
-    <div className="bg-white py-16 sm:py-24">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 prose prose-slate prose-a:text-guild-600 hover:prose-a:text-guild-500">
-        <h1>Acordo de Processamento de Dados (DPA)</h1>
+    <div className="bg-card py-16 sm:py-24">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 prose dark:prose-invert prose-headings:text-foreground prose-a:text-primary hover:prose-a:brightness-110 max-w-none">
+        <h1 className="font-light tracking-tight">Acordo de Processamento de Dados (DPA)</h1>
         <p className="lead">
           Este Acordo de Processamento de Dados ("DPA" ou "Acordo") forma parte integral dos Termos de Uso do <strong>Guilds Comercial</strong>.
         </p>
-        
-        <p className="text-sm text-slate-500">
+
+        <p className="text-sm text-muted-foreground tabular-nums">
           Última atualização: 24 de Abril de 2026
         </p>
 
@@ -51,9 +51,9 @@ export default function DPAPage() {
           Sem demora injustificada e, em qualquer caso, não excedendo 48 horas após ter conhecimento, a Guilds Comercial notificará a Controladora sobre qualquer violação de segurança envolvendo Dados Pessoais.
         </p>
 
-        <hr className="my-8" />
-        <p className="text-sm text-slate-500 text-center">
-          Dúvidas sobre o DPA ou solicitações específicas do Encarregado (DPO)?<br /> 
+        <hr className="my-8 border-border" />
+        <p className="text-sm text-muted-foreground text-center">
+          Dúvidas sobre o DPA ou solicitações específicas do Encarregado (DPO)?<br />
           Contate-nos em <a href="mailto:dpo@guilds.com.br">dpo@guilds.com.br</a>.
         </p>
       </div>

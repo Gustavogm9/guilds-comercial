@@ -535,10 +535,7 @@ create policy membros_select on public.membros_organizacao
 
 create policy membros_insert_gestor on public.membros_organizacao
   for insert to authenticated
-  with check (
-    profile_id = auth.uid()                -- auto-adicionar em convite aceito
-    or public.is_gestor_in_org(organizacao_id)
-  );
+  with check (public.is_gestor_in_org(organizacao_id));
 
 create policy membros_update_gestor on public.membros_organizacao
   for update to authenticated

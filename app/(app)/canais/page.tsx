@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { Mail, MessageSquare, PhoneCall, Zap, TrendingDown, TrendingUp } from "lucide-react";
+import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -20,15 +21,16 @@ type KpiCanal = {
 };
 
 const CANAL_ICON: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
-  "Email":              { icon: Mail,         color: "text-indigo-600 bg-indigo-50" },
-  "WhatsApp":           { icon: MessageSquare, color: "text-emerald-600 bg-emerald-50" },
-  "Email + WhatsApp":   { icon: Zap,          color: "text-violet-600 bg-violet-50" },
-  "Ligação":            { icon: PhoneCall,    color: "text-amber-600 bg-amber-50" },
+  "Email":              { icon: Mail,         color: "text-primary bg-primary/10" },
+  "WhatsApp":           { icon: MessageSquare, color: "text-success-500 bg-success-500/10" },
+  "Email + WhatsApp":   { icon: Zap,          color: "text-primary bg-primary/10" },
+  "Ligação":            { icon: PhoneCall,    color: "text-warning-500 bg-warning-500/10" },
 };
 
 export default async function CanaisPage() {
   const me = await getCurrentProfile();
   if (!me) return null;
+  const t = getT(await getServerLocale());
 
   const orgId = await getCurrentOrgId();
   if (!orgId) redirect("/hoje");
@@ -67,9 +69,9 @@ export default async function CanaisPage() {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Canais</h1>
-        <p className="text-sm text-slate-500">
-          Performance por canal de contato — lead → resposta → raio-x → call → proposta → fechado.
+        <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.canais_titulo")}</h1>
+        <p className="text-sm text-muted-foreground">
+          {t("paginas.canais_sub")}
         </p>
       </header>
 
@@ -84,26 +86,26 @@ export default async function CanaisPage() {
 
       {melhorCanal && piorCanal && melhorCanal.canal_principal !== piorCanal.canal_principal && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-          <div className="card p-4 bg-emerald-50/50 border-emerald-200 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 grid place-items-center shrink-0">
+          <div className="card p-4 bg-success-500/10 border-success-500/25 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-success-500/15 text-success-500 grid place-items-center shrink-0">
               <TrendingUp className="w-4 h-4"/>
             </div>
             <div className="min-w-0">
-              <div className="text-xs uppercase tracking-wider text-emerald-700 font-medium">Canal mais eficiente</div>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-success-500 font-semibold">Canal mais eficiente</div>
               <div className="text-lg font-semibold truncate">{melhorCanal.canal_principal ?? "—"}</div>
-              <div className="text-xs text-slate-600">
+              <div className="text-xs text-muted-foreground tabular-nums">
                 {pct(melhorCanal.fechados, melhorCanal.leads)} de conversão · {melhorCanal.fechados} fechados em {melhorCanal.leads} leads
               </div>
             </div>
           </div>
-          <div className="card p-4 bg-amber-50/50 border-amber-200 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 grid place-items-center shrink-0">
+          <div className="card p-4 bg-warning-500/10 border-warning-500/25 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-warning-500/15 text-warning-500 grid place-items-center shrink-0">
               <TrendingDown className="w-4 h-4"/>
             </div>
             <div className="min-w-0">
-              <div className="text-xs uppercase tracking-wider text-amber-700 font-medium">Canal menos eficiente</div>
+              <div className="text-[10px] uppercase tracking-[0.12em] text-warning-500 font-semibold">Canal menos eficiente</div>
               <div className="text-lg font-semibold truncate">{piorCanal.canal_principal ?? "—"}</div>
-              <div className="text-xs text-slate-600">
+              <div className="text-xs text-muted-foreground tabular-nums">
                 {pct(piorCanal.fechados, piorCanal.leads)} de conversão · repensar cadência ou oferta
               </div>
             </div>
@@ -115,64 +117,64 @@ export default async function CanaisPage() {
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+            <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
               <tr>
-                <th className="text-left px-3 py-2 font-medium">Canal</th>
-                <th className="text-right px-3 py-2 font-medium">Leads</th>
-                <th className="text-right px-3 py-2 font-medium">Resp.</th>
-                <th className="text-right px-3 py-2 font-medium">Resp %</th>
-                <th className="text-right px-3 py-2 font-medium">Raio-X ofert.</th>
-                <th className="text-right px-3 py-2 font-medium">Raio-X pg.</th>
-                <th className="text-right px-3 py-2 font-medium">Calls</th>
-                <th className="text-right px-3 py-2 font-medium">Propostas</th>
-                <th className="text-right px-3 py-2 font-medium">Fechados</th>
-                <th className="text-right px-3 py-2 font-medium">Conv %</th>
-                <th className="text-right px-3 py-2 font-medium">Receita</th>
+                <th className="text-left px-3 py-2 font-semibold">Canal</th>
+                <th className="text-right px-3 py-2 font-semibold">Leads</th>
+                <th className="text-right px-3 py-2 font-semibold">Resp.</th>
+                <th className="text-right px-3 py-2 font-semibold">Resp %</th>
+                <th className="text-right px-3 py-2 font-semibold">Raio-X ofert.</th>
+                <th className="text-right px-3 py-2 font-semibold">Raio-X pg.</th>
+                <th className="text-right px-3 py-2 font-semibold">Calls</th>
+                <th className="text-right px-3 py-2 font-semibold">Propostas</th>
+                <th className="text-right px-3 py-2 font-semibold">Fechados</th>
+                <th className="text-right px-3 py-2 font-semibold">Conv %</th>
+                <th className="text-right px-3 py-2 font-semibold">Receita</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {linhas.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="text-center py-12 text-slate-400">
-                    Sem dados de canais. Os leads precisam ter <code className="bg-slate-100 px-1 rounded text-[11px]">canal_principal</code> preenchido.
+                  <td colSpan={11} className="text-center py-12 text-muted-foreground/70">
+                    Sem dados de canais. Os leads precisam ter <code className="bg-secondary dark:bg-white/[0.05] px-1 rounded text-[11px]">canal_principal</code> preenchido.
                   </td>
                 </tr>
               )}
               {linhas.map((l, i) => {
                 const nome = l.canal_principal ?? "(não informado)";
-                const meta = CANAL_ICON[nome] ?? { icon: Zap, color: "text-slate-500 bg-slate-50" };
+                const meta = CANAL_ICON[nome] ?? { icon: Zap, color: "text-muted-foreground bg-secondary/60 dark:bg-white/[0.03]" };
                 const Icon = meta.icon;
                 const respPct = pct(l.respondidos, l.leads);
                 const convPct = pct(l.fechados, l.leads);
                 return (
-                  <tr key={i} className="hover:bg-slate-50">
+                  <tr key={i} className="hover:bg-secondary/60 dark:hover:bg-white/[0.03]">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <div className={`w-7 h-7 rounded-lg grid place-items-center ${meta.color}`}>
                           <Icon className="w-3.5 h-3.5"/>
                         </div>
                         <Link href={`/base?tab=bruta&canal=${encodeURIComponent(nome)}`}
-                              className="font-medium hover:text-guild-700">
+                              className="font-medium hover:text-primary">
                           {nome}
                         </Link>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right">{l.leads}</td>
-                    <td className="px-3 py-2 text-right">{l.respondidos}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{l.leads}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{l.respondidos}</td>
                     <td className="px-3 py-2 text-right">
                       <Barra pct={l.leads > 0 ? Math.round((l.respondidos / l.leads) * 100) : 0}
                              label={respPct} />
                     </td>
-                    <td className="px-3 py-2 text-right">{l.raiox_ofertado}</td>
-                    <td className="px-3 py-2 text-right">{l.raiox_pagos}</td>
-                    <td className="px-3 py-2 text-right">{l.calls_marcadas}</td>
-                    <td className="px-3 py-2 text-right">{l.propostas}</td>
-                    <td className="px-3 py-2 text-right text-emerald-700 font-medium">{l.fechados}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{l.raiox_ofertado}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{l.raiox_pagos}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{l.calls_marcadas}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{l.propostas}</td>
+                    <td className="px-3 py-2 text-right text-success-500 font-medium tabular-nums">{l.fechados}</td>
                     <td className="px-3 py-2 text-right">
                       <Barra pct={l.leads > 0 ? Math.round((l.fechados / l.leads) * 100) : 0}
                              label={convPct} tone="success" />
                     </td>
-                    <td className="px-3 py-2 text-right text-slate-700 font-medium">
+                    <td className="px-3 py-2 text-right text-foreground/80 font-medium tabular-nums">
                       {Number(l.receita_canal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
                     </td>
                   </tr>
@@ -180,19 +182,19 @@ export default async function CanaisPage() {
               })}
             </tbody>
             {linhas.length > 0 && (
-              <tfoot className="bg-slate-50 text-xs text-slate-600 font-medium">
+              <tfoot className="bg-secondary/60 dark:bg-white/[0.03] text-xs text-muted-foreground font-medium">
                 <tr>
                   <td className="px-3 py-2">Total</td>
-                  <td className="px-3 py-2 text-right">{total.leads}</td>
-                  <td className="px-3 py-2 text-right">{total.respondidos}</td>
-                  <td className="px-3 py-2 text-right">{pct(total.respondidos, total.leads)}</td>
-                  <td className="px-3 py-2 text-right">{total.raiox_ofertado}</td>
-                  <td className="px-3 py-2 text-right">{total.raiox_pagos}</td>
-                  <td className="px-3 py-2 text-right">{total.calls_marcadas}</td>
-                  <td className="px-3 py-2 text-right">{total.propostas}</td>
-                  <td className="px-3 py-2 text-right text-emerald-700">{total.fechados}</td>
-                  <td className="px-3 py-2 text-right">{pct(total.fechados, total.leads)}</td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right tabular-nums">{total.leads}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{total.respondidos}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{pct(total.respondidos, total.leads)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{total.raiox_ofertado}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{total.raiox_pagos}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{total.calls_marcadas}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{total.propostas}</td>
+                  <td className="px-3 py-2 text-right text-success-500 tabular-nums">{total.fechados}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{pct(total.fechados, total.leads)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">
                     {total.receita_canal.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
                   </td>
                 </tr>
@@ -216,26 +218,26 @@ function pct(num: number, den: number): string {
 
 function Card({ title, v, tone = "neutral" }: { title: string; v: string | number; tone?: "neutral" | "success" | "warning" }) {
   const tones = {
-    neutral: "text-slate-900",
-    success: "text-emerald-700",
-    warning: "text-amber-700",
+    neutral: "text-foreground",
+    success: "text-success-500",
+    warning: "text-warning-500",
   };
   return (
     <div className="card p-4">
-      <div className="text-xs text-slate-500 uppercase tracking-wider">{title}</div>
-      <div className={`text-xl font-semibold leading-tight mt-1 truncate ${tones[tone]}`}>{v}</div>
+      <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">{title}</div>
+      <div className={`text-xl font-semibold leading-tight mt-1 truncate tabular-nums ${tones[tone]}`}>{v}</div>
     </div>
   );
 }
 
 function Barra({ pct, label, tone = "neutral" }: { pct: number; label: string; tone?: "neutral" | "success" }) {
-  const bar = tone === "success" ? "bg-emerald-500" : "bg-guild-500";
+  const bar = tone === "success" ? "bg-success-500" : "bg-primary";
   return (
     <div className="flex items-center justify-end gap-2">
-      <div className="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div className="w-14 h-1.5 bg-secondary dark:bg-white/[0.05] rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(100, pct)}%` }}/>
       </div>
-      <span className="text-xs text-slate-600 w-9 text-right">{label}</span>
+      <span className="text-xs text-muted-foreground w-9 text-right tabular-nums">{label}</span>
     </div>
   );
 }

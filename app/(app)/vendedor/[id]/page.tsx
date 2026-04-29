@@ -103,23 +103,23 @@ export default async function VendedorPage({ params, searchParams }: {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           {isGestor && (
-            <Link href="/time" className="btn-ghost text-slate-500 hover:text-guild-700">
+            <Link href="/time" className="btn-ghost text-muted-foreground hover:text-primary">
               <ArrowLeft className="w-4 h-4"/> Time
             </Link>
           )}
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{k.display_name}</h1>
-            <p className="text-sm text-slate-500">
-              <span className="uppercase tracking-wider text-xs">{k.role}</span>
+            <p className="text-sm text-muted-foreground">
+              <span className="uppercase tracking-[0.12em] text-[10px] font-semibold">{k.role}</span>
               {k.email && <span> · {k.email}</span>}
-              {membroAtual && !membroAtual.ativo && <span className="text-urgent-500"> · inativo</span>}
+              {membroAtual && !membroAtual.ativo && <span className="text-destructive"> · inativo</span>}
             </p>
           </div>
         </div>
         <form className="flex items-center gap-1 text-xs">
           {(["7d","30d","all"] as const).map(p => (
             <Link key={p} href={`/vendedor/${params.id}?periodo=${p}`}
-              className={`px-2.5 py-1 rounded-md border ${periodo === p ? "bg-guild-600 text-white border-guild-600" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+              className={`px-2.5 py-1 rounded-md border ${periodo === p ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:bg-secondary/60 dark:hover:bg-white/[0.04]"}`}>
               {p === "7d" ? "7 dias" : p === "30d" ? "30 dias" : "Tudo"}
             </Link>
           ))}
@@ -151,21 +151,21 @@ export default async function VendedorPage({ params, searchParams }: {
       {(vencidas.length > 0 || hoje.length > 0) && (
         <section className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
           {vencidas.length > 0 && (
-            <div className="card p-4 bg-red-50 border-red-200 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-urgent-500 mt-0.5"/>
+            <div className="card p-4 bg-destructive/10 border-destructive/25 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive mt-0.5"/>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-urgent-500">{vencidas.length} ação(ões) vencida(s)</div>
-                <div className="text-xs text-slate-600">Mais antigas: {vencidas.slice(0, 3).map(l => l.empresa ?? "—").join(", ")}{vencidas.length > 3 ? "…" : ""}</div>
+                <div className="text-sm font-semibold text-destructive tabular-nums">{vencidas.length} ação(ões) vencida(s)</div>
+                <div className="text-xs text-muted-foreground">Mais antigas: {vencidas.slice(0, 3).map(l => l.empresa ?? "—").join(", ")}{vencidas.length > 3 ? "…" : ""}</div>
               </div>
               <Link href="/hoje" className="btn-secondary text-xs">Ver Hoje</Link>
             </div>
           )}
           {hoje.length > 0 && (
-            <div className="card p-4 bg-amber-50 border-amber-200 flex items-start gap-3">
+            <div className="card p-4 bg-warning-500/10 border-warning-500/25 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-warning-500 mt-0.5"/>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-warning-500">{hoje.length} ação(ões) para hoje</div>
-                <div className="text-xs text-slate-600">Empresas: {hoje.slice(0, 3).map(l => l.empresa ?? "—").join(", ")}{hoje.length > 3 ? "…" : ""}</div>
+                <div className="text-sm font-semibold text-warning-500 tabular-nums">{hoje.length} ação(ões) para hoje</div>
+                <div className="text-xs text-muted-foreground">Empresas: {hoje.slice(0, 3).map(l => l.empresa ?? "—").join(", ")}{hoje.length > 3 ? "…" : ""}</div>
               </div>
               <Link href="/hoje" className="btn-secondary text-xs">Ver Hoje</Link>
             </div>
@@ -175,7 +175,7 @@ export default async function VendedorPage({ params, searchParams }: {
 
       {/* Ligações no período */}
       <section className="mb-6">
-        <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2 flex items-center gap-1">
+        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
           <PhoneCall className="w-3.5 h-3.5"/> Ligações — {periodo === "7d" ? "7 dias" : periodo === "30d" ? "30 dias" : "histórico"}
         </h2>
         <div className="card p-4 grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
@@ -189,7 +189,7 @@ export default async function VendedorPage({ params, searchParams }: {
 
       {/* Funil */}
       <section className="mb-6">
-        <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2">Funil do vendedor</h2>
+        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">Funil do vendedor</h2>
         <div className="card p-4">
           <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
             {ETAPAS_PIPELINE_VISIVEL.map(stage => {
@@ -197,8 +197,8 @@ export default async function VendedorPage({ params, searchParams }: {
               const c = STAGE_COLORS[stage];
               return (
                 <div key={stage} className={`rounded-lg border ${c.border} ${c.bg} p-2.5`}>
-                  <div className={`text-[10px] uppercase tracking-wider font-medium ${c.text}`}>{stage}</div>
-                  <div className="text-xl font-semibold text-slate-800">{n}</div>
+                  <div className={`text-[10px] uppercase tracking-[0.12em] font-semibold ${c.text}`}>{stage}</div>
+                  <div className="text-xl font-semibold text-foreground tabular-nums">{n}</div>
                 </div>
               );
             })}
@@ -208,58 +208,58 @@ export default async function VendedorPage({ params, searchParams }: {
 
       {/* Leads no pipeline */}
       <section>
-        <h2 className="text-sm uppercase tracking-wider font-semibold text-slate-500 mb-2">
+        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">
           Pipeline do vendedor ({pipelineLeads.length})
         </h2>
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+              <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
                 <tr>
-                  <th className="text-left px-3 py-2 font-medium">Empresa</th>
-                  <th className="text-left px-3 py-2 font-medium">Etapa</th>
-                  <th className="text-right px-3 py-2 font-medium">Valor</th>
-                  <th className="text-right px-3 py-2 font-medium">Prob.</th>
-                  <th className="text-right px-3 py-2 font-medium">Ponderado</th>
-                  <th className="text-left px-3 py-2 font-medium">Próxima ação</th>
-                  <th className="text-left px-3 py-2 font-medium">Data</th>
+                  <th className="text-left px-3 py-2 font-semibold">Empresa</th>
+                  <th className="text-left px-3 py-2 font-semibold">Etapa</th>
+                  <th className="text-right px-3 py-2 font-semibold">Valor</th>
+                  <th className="text-right px-3 py-2 font-semibold">Prob.</th>
+                  <th className="text-right px-3 py-2 font-semibold">Ponderado</th>
+                  <th className="text-left px-3 py-2 font-semibold">Próxima ação</th>
+                  <th className="text-left px-3 py-2 font-semibold">Data</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {pipelineLeads.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-10 text-slate-400">Sem leads no pipeline.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-10 text-muted-foreground/70">Sem leads no pipeline.</td></tr>
                 )}
                 {pipelineLeads.slice(0, 50).map(l => {
                   const c = STAGE_COLORS[l.crm_stage ?? "Prospecção"];
                   return (
-                    <tr key={l.id} className="hover:bg-slate-50">
+                    <tr key={l.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                       <td className="px-3 py-2">
-                        <Link href={`/pipeline/${l.id}`} className="font-medium hover:text-guild-700">
+                        <Link href={`/pipeline/${l.id}`} className="font-medium hover:text-primary">
                           {l.empresa || l.nome || "(sem nome)"}
                         </Link>
-                        {l.nome && l.empresa && <div className="text-[11px] text-slate-500">{l.nome}</div>}
+                        {l.nome && l.empresa && <div className="text-[11px] text-muted-foreground">{l.nome}</div>}
                       </td>
                       <td className="px-3 py-2">
-                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border ${c.border} ${c.bg} ${c.text}`}>
+                        <span className={`text-[10px] uppercase tracking-[0.12em] px-2 py-0.5 rounded border ${c.border} ${c.bg} ${c.text}`}>
                           {l.crm_stage}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-600">
+                      <td className="px-3 py-2 text-right text-foreground/80 tabular-nums">
                         {l.valor_potencial > 0 ? l.valor_potencial.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-500">
+                      <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
                         {l.probabilidade > 0 ? `${Math.round(l.probabilidade * 100)}%` : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-700 font-medium">
+                      <td className="px-3 py-2 text-right text-foreground font-medium tabular-nums">
                         {l.receita_ponderada > 0 ? l.receita_ponderada.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[160px]">{l.proxima_acao ?? "—"}</td>
-                      <td className="px-3 py-2 text-xs">
+                      <td className="px-3 py-2 text-xs text-muted-foreground truncate max-w-[160px]">{l.proxima_acao ?? "—"}</td>
+                      <td className="px-3 py-2 text-xs tabular-nums">
                         {l.data_proxima_acao ? (
                           <span className={
-                            l.urgencia === "vencida" ? "text-urgent-500 font-medium"
+                            l.urgencia === "vencida" ? "text-destructive font-medium"
                             : l.urgencia === "hoje" ? "text-warning-500 font-medium"
-                            : "text-slate-500"
+                            : "text-muted-foreground"
                           }>
                             {new Date(l.data_proxima_acao).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                           </span>
@@ -273,7 +273,7 @@ export default async function VendedorPage({ params, searchParams }: {
           </div>
         </div>
         {pipelineLeads.length > 50 && (
-          <p className="text-xs text-slate-500 mt-2">Mostrando 50 de {pipelineLeads.length}. Use <Link href="/pipeline" className="text-guild-700 hover:underline">Pipeline</Link> para ver tudo.</p>
+          <p className="text-xs text-muted-foreground mt-2 tabular-nums">Mostrando 50 de {pipelineLeads.length}. Use <Link href="/pipeline" className="text-primary hover:underline">Pipeline</Link> para ver tudo.</p>
         )}
       </section>
     </div>
@@ -282,27 +282,27 @@ export default async function VendedorPage({ params, searchParams }: {
 
 function KPI({ title, v, icon, tone = "neutral" }: { title: string; v: string | number; icon: React.ReactNode; tone?: "neutral" | "success" | "warning" }) {
   const tones = {
-    neutral: "bg-slate-100 text-slate-600",
-    success: "bg-emerald-50 text-emerald-700",
-    warning: "bg-amber-50 text-amber-700",
+    neutral: "bg-secondary text-muted-foreground dark:bg-white/[0.05]",
+    success: "bg-success/15 text-success-500",
+    warning: "bg-warning-500/10 text-warning-500",
   };
   return (
     <div className="card p-4 flex items-center gap-3">
       <div className={`w-9 h-9 rounded-lg grid place-items-center ${tones[tone]}`}>{icon}</div>
       <div className="min-w-0">
-        <div className="text-xs text-slate-500 uppercase tracking-wider">{title}</div>
-        <div className="text-xl font-semibold leading-tight truncate">{v}</div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">{title}</div>
+        <div className="text-xl font-semibold leading-tight truncate tabular-nums">{v}</div>
       </div>
     </div>
   );
 }
 
 function Mini({ label, v, tone = "neutral" }: { label: string; v: number; tone?: "neutral" | "success" }) {
-  const c = tone === "success" ? "text-emerald-700" : "text-slate-800";
+  const c = tone === "success" ? "text-success-500" : "text-foreground";
   return (
     <div className="card p-3">
       <div className="label">{label}</div>
-      <div className={`text-lg font-semibold leading-tight ${c}`}>{v ?? 0}</div>
+      <div className={`text-lg font-semibold leading-tight tabular-nums ${c}`}>{v ?? 0}</div>
     </div>
   );
 }
@@ -311,8 +311,8 @@ function Stat({ label, v, suf }: { label: string; v: number; suf?: string }) {
   return (
     <div>
       <div className="label">{label}</div>
-      <div className="text-lg font-semibold leading-tight">
-        {v} {suf && <span className="text-xs text-slate-500">· {suf}</span>}
+      <div className="text-lg font-semibold leading-tight tabular-nums">
+        {v} {suf && <span className="text-xs text-muted-foreground">· {suf}</span>}
       </div>
     </div>
   );
