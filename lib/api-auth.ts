@@ -8,7 +8,7 @@ import crypto from 'crypto';
 const RATE_LIMIT_MAX_PER_MIN = 1000;
 
 export async function validateApiKey() {
-  const headersList = headers();
+  const headersList = await headers();
   const authHeader = headersList.get('authorization');
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {

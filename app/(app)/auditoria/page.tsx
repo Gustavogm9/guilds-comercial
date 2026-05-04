@@ -21,11 +21,12 @@ interface EventoEnriched {
   origem: "lead" | "organizacao";
 }
 
-export default async function AuditoriaPage({
-  searchParams,
-}: {
-  searchParams: { tipo?: string; ator?: string };
-}) {
+export default async function AuditoriaPage(
+  props: {
+    searchParams: Promise<{ tipo?: string; ator?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const role = await getCurrentRole();
   if (role !== "gestor") redirect("/hoje");
   const t = getT(await getServerLocale());

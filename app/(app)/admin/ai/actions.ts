@@ -13,6 +13,37 @@ async function requireGestor() {
   return orgId;
 }
 
+/**
+ * Verifica se a env var da API key do provider está populada no servidor.
+ * Não retorna o valor — apenas presença e últimos 4 chars (pra UX).
+ *
+ * Server-only: env vars não são expostas ao client. Esta action é a única
+ * forma do client saber se um provider está configurado sem vazar a key.
+ */
+export async function checarApiKeyEnv(envVarName: string): Promise<{
+  configured: boolean;
+  lastChars: string | null;
+  charCount: number;
+}> {
+  await requireGestor();
+  if (!envVarName || !envVarName.trim()) {
+    return { configured: false, lastChars: null, charCount: 0 };
+  }
+  // Sanitiza nome — só ENV-style (uppercase + underscore + digits)
+  if (!/^[A-Z][A-Z0-9_]*$/.test(envVarName)) {
+    return { configured: false, lastChars: null, charCount: 0 };
+  }
+  const value = process.env[envVarName];
+  if (!value || value.length === 0) {
+    return { configured: false, lastChars: null, charCount: 0 };
+  }
+  return {
+    configured: true,
+    lastChars: value.slice(-4),
+    charCount: value.length,
+  };
+}
+
 /** Ativa ou desativa uma feature de IA para a org. */
 export async function toggleFeature(codigo: AiFeatureCodigo, ativo: boolean) {
   const orgId = await requireGestor();

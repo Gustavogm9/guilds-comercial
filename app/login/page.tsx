@@ -1,8 +1,9 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
+import { Loader2 } from "lucide-react";
 
 function LoginForm() {
   const supabase = createClient();
@@ -11,18 +12,20 @@ function LoginForm() {
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirecting, startRedirect] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
   const [locale, setLocale] = useState<Locale>("pt-BR");
   useEffect(() => setLocale(getClientLocale()), []);
   const t = getT(locale);
+  const busy = loading || redirecting;
 
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setErro(error.message === "Invalid login credentials"
         ? t("auth.login_credenciais_invalidas")
         : error.message);
@@ -30,15 +33,20 @@ function LoginForm() {
     }
 
     if (data.user?.user_metadata?.force_password_change === true) {
-      router.push("/trocar-senha");
-      router.refresh();
+      startRedirect(() => {
+        router.push("/trocar-senha");
+        router.refresh();
+      });
       return;
     }
 
     const next = searchParams.get("next");
     const destino = next && next.startsWith("/") ? next : "/hoje";
-    router.push(destino);
-    router.refresh();
+    // Mantém pending até navegação completar — feedback visual no botão + bar topo
+    startRedirect(() => {
+      router.push(destino);
+      router.refresh();
+    });
   }
 
   return (
@@ -71,8 +79,9 @@ function LoginForm() {
 
         {erro && <div className="text-sm text-urgent-500 bg-urgent-500/10 border border-urgent-500/30 rounded-lg p-2">{erro}</div>}
 
-        <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
-          {loading ? t("auth.login_entrando") : t("auth.login_entrar")}
+        <button type="submit" disabled={busy} className="btn-primary w-full justify-center">
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+          {redirecting ? "Carregando…" : loading ? t("auth.login_entrando") : t("auth.login_entrar")}
         </button>
       </form>
 

@@ -1,7 +1,7 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
-import { Filter, Search, X } from "lucide-react";
+import { useState, Suspense, useTransition } from "react";
+import { Filter, Search, X, Loader2 } from "lucide-react";
 import ExportCsvButton from "@/components/export-csv-button";
 import type { LeadEnriched } from "@/lib/types";
 
@@ -21,12 +21,17 @@ function PipelineToolbarInner(props: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [busca, setBusca] = useState(qFiltro);
+  const [pending, startTransition] = useTransition();
 
   function aplicarFiltro(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
-    router.push(`/pipeline?${params.toString()}`);
+    // useTransition envolve a navegação — `pending` fica true até o RSC voltar.
+    // Combina com NavigationProgress (barra topo) e desabilita inputs no meio do filtro.
+    startTransition(() => {
+      router.push(`/pipeline?${params.toString()}`, { scroll: false });
+    });
   }
 
   function buscar(e: React.FormEvent) {
@@ -58,7 +63,11 @@ function PipelineToolbarInner(props: Props) {
   }));
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      className="flex flex-wrap items-center gap-2"
+      // visual cue: enquanto o filtro está em transição, faz fade leve no toolbar
+      style={pending ? { opacity: 0.6, pointerEvents: "none" } : undefined}
+    >
       {/* Busca (FR-CRM-07) */}
       <form onSubmit={buscar} className="relative flex items-center">
         <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 pointer-events-none" />
@@ -68,11 +77,13 @@ function PipelineToolbarInner(props: Props) {
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Buscar empresa, nome, email..."
           className="input-base !py-1.5 !text-xs pl-8 w-56"
+          disabled={pending}
         />
         {busca && (
           <button
             type="button"
             onClick={limparBusca}
+            disabled={pending}
             className="absolute right-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-3 h-3" />
@@ -85,6 +96,7 @@ function PipelineToolbarInner(props: Props) {
         <select
           value={respFiltro}
           onChange={(e) => aplicarFiltro("resp", e.target.value)}
+          disabled={pending}
           className="input-base !py-1.5 !text-xs w-36"
         >
           <option value="all">Todo o time</option>
@@ -99,6 +111,7 @@ function PipelineToolbarInner(props: Props) {
         <select
           value={segFiltro}
           onChange={(e) => aplicarFiltro("seg", e.target.value)}
+          disabled={pending}
           className="input-base !py-1.5 !text-xs w-36"
         >
           <option value="">Segmento</option>
@@ -110,6 +123,7 @@ function PipelineToolbarInner(props: Props) {
       <select
         value={tempFiltro}
         onChange={(e) => aplicarFiltro("temp", e.target.value)}
+        disabled={pending}
         className="input-base !py-1.5 !text-xs w-28"
       >
         <option value="">Temperatura</option>
@@ -118,8 +132,13 @@ function PipelineToolbarInner(props: Props) {
         <option value="Frio">❄ Frio</option>
       </select>
 
-      {/* Indicador de filtros ativos */}
-      {temFiltros && (
+      {/* Indicador de filtros ativos OU pending */}
+      {pending ? (
+        <div className="flex items-center gap-1 text-[11px] text-primary bg-primary/10 px-2 py-1 rounded-md border border-primary/25 font-medium">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Filtrando…
+        </div>
+      ) : temFiltros && (
         <div className="flex items-center gap-1 text-[11px] text-primary bg-primary/10 px-2 py-1 rounded-md border border-primary/25 font-medium tabular-nums">
           <Filter className="w-3 h-3" />
           {leads.length} leads filtrados

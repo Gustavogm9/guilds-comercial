@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { MotivoPerda } from "@/lib/types";
 import { MOTIVOS_PERDA } from "@/lib/types";
+import { montarCadenciaRows } from "@/lib/cadencia-templates";
 
 async function requireOrg() {
   const orgId = await getCurrentOrgId();
@@ -78,29 +79,8 @@ export async function criarLead(input: {
   }
 
   if (direto) {
-    // Cria os 6 passos de cadência D0/D3/D7/D11/D16/D30
-    const baseDate = new Date();
-    const passos = [
-      { passo: "D0",  dias: 0,  canal: "Email + WhatsApp", objetivo: "Contexto / dor" },
-      { passo: "D3",  dias: 3,  canal: "WhatsApp",         objetivo: "Insistência educada" },
-      { passo: "D7",  dias: 7,  canal: "Email",            objetivo: "Impacto / custo invisível" },
-      { passo: "D11", dias: 11, canal: "WhatsApp",         objetivo: "Quebra padrão" },
-      { passo: "D16", dias: 16, canal: "Email",            objetivo: "Prova social / case" },
-      { passo: "D30", dias: 30, canal: "Email",            objetivo: "Encerramento elegante" },
-    ];
-    const cadenciaRows = passos.map(p => {
-      const d = new Date(baseDate);
-      d.setDate(d.getDate() + p.dias);
-      return {
-        organizacao_id: orgId,
-        lead_id: data!.id,
-        passo: p.passo,
-        canal: p.canal,
-        objetivo: p.objetivo,
-        data_prevista: d.toISOString().slice(0, 10),
-        status: "pendente" as const,
-      };
-    });
+    // Cria os 6 passos canônicos D0/D3/D7/D11/D16/D30 (lib/cadencia-templates)
+    const cadenciaRows = montarCadenciaRows({ organizacao_id: orgId, lead_id: data!.id });
     await supabase.from("cadencia").upsert(cadenciaRows, { onConflict: "lead_id,passo" });
   }
 
@@ -287,31 +267,8 @@ export async function promoverParaPipeline(lead_id: number, proxima_acao: string
     data_proxima_acao: hoje,
   }).eq("id", lead_id);
 
-  // Cria os 6 passos de cadência (D0/D3/D7/D11/D16/D30)
-  const baseDate = new Date();
-  const passos = [
-    { passo: "D0",  dias: 0,  canal: "Email + WhatsApp", objetivo: "Contexto / dor" },
-    { passo: "D3",  dias: 3,  canal: "WhatsApp",         objetivo: "Insistência educada" },
-    { passo: "D7",  dias: 7,  canal: "Email",            objetivo: "Impacto / custo invisível" },
-    { passo: "D11", dias: 11, canal: "WhatsApp",         objetivo: "Quebra padrão" },
-    { passo: "D16", dias: 16, canal: "Email",            objetivo: "Prova social / case" },
-    { passo: "D30", dias: 30, canal: "Email",            objetivo: "Encerramento elegante" },
-  ];
-
-  const cadenciaRows = passos.map(p => {
-    const d = new Date(baseDate);
-    d.setDate(d.getDate() + p.dias);
-    return {
-      organizacao_id: orgId,
-      lead_id,
-      passo: p.passo,
-      canal: p.canal,
-      objetivo: p.objetivo,
-      data_prevista: d.toISOString().slice(0, 10),
-      status: "pendente" as const,
-    };
-  });
-
+  // Cria os 6 passos canônicos D0/D3/D7/D11/D16/D30 (lib/cadencia-templates)
+  const cadenciaRows = montarCadenciaRows({ organizacao_id: orgId, lead_id });
   await supabase.from("cadencia").upsert(cadenciaRows, { onConflict: "lead_id,passo" });
 
   await supabase.from("lead_evento").insert({

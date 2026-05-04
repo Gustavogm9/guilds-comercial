@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
+import { Loader2 } from "lucide-react";
 
 export default function CadastroPage() {
   const supabase = createClient();
@@ -14,7 +15,11 @@ export default function CadastroPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // `loading` cobre o signup HTTP. `redirecting` cobre a transição pra /onboarding
+  // (que é pesada — RSC com várias queries). Sem isto, o botão volta a "Criar conta"
+  // enquanto a navegação está em andamento → parece travado.
   const [loading, setLoading] = useState(false);
+  const [redirecting, startRedirect] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState(false);
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -35,25 +40,31 @@ export default function CadastroPage() {
       },
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       setErro(error.message);
       return;
     }
 
     if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setLoading(false);
       setErro(t("auth.cadastro_email_ja_existe"));
       return;
     }
 
     if (data.session === null) {
+      setLoading(false);
       setSucesso(true);
     } else {
-      router.push("/onboarding");
-      router.refresh();
+      // Mantém loading=true até a navegação completar (useTransition resolve quando RSC volta)
+      startRedirect(() => {
+        router.push("/onboarding");
+        router.refresh();
+      });
     }
   }
+
+  const busy = loading || redirecting;
 
   if (sucesso) {
     return (
@@ -118,8 +129,13 @@ export default function CadastroPage() {
 
           {erro && <div className="text-sm text-urgent-500 bg-urgent-500/10 border border-urgent-500/30 rounded-lg p-2">{erro}</div>}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
-            {loading ? t("auth.cadastro_criando") : t("auth.cadastro_criar")}
+          <button type="submit" disabled={busy} className="btn-primary w-full justify-center">
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            {redirecting
+              ? "Preparando seu workspace…"
+              : loading
+              ? t("auth.cadastro_criando")
+              : t("auth.cadastro_criar")}
           </button>
         </form>
 

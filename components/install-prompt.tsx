@@ -6,13 +6,14 @@ import { Download, X } from "lucide-react";
 /**
  * Banner discreto de instalação PWA.
  *
- * Captura o evento `beforeinstallprompt` (Chrome/Edge/Android), guarda
- * referência e mostra um botão. Quando o user clica, dispara o prompt nativo.
- * Esconde por 30 dias se dispensado (localStorage).
+ * Regras de exibição (v2):
+ *   - Mostra UMA vez por sessão (sessionStorage) — não aparece a cada navegação.
+ *   - Se user clicar X, esconde por 30 dias (localStorage).
+ *   - Se user só ignorar, esconde por 3 dias (cooldown leve).
+ *   - Auto-esconde após 15s sem interação.
  *
- * iOS não dispara `beforeinstallprompt` — mostra hint manual ("Adicionar
- * à tela inicial via menu Compartilhar") só no primeiro carregamento Safari
- * em mobile, dispensável.
+ * Captura `beforeinstallprompt` (Chrome/Edge/Android). iOS Safari mostra hint
+ * manual já que não dispara o evento.
  */
 
 interface BeforeInstallPromptEvent extends Event {
@@ -20,16 +21,41 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const DISMISS_KEY = "guilds-pwa-install-dismissed";
-const DISMISS_DAYS = 30;
+const DISMISS_KEY      = "guilds-pwa-install-dismissed";  // X clicado
+const COOLDOWN_KEY     = "guilds-pwa-install-cooldown";   // só ignorou
+const SESSION_KEY      = "guilds-pwa-install-shown";      // já mostrou nessa sessão
+const DISMISS_DAYS     = 30;
+const COOLDOWN_DAYS    = 3;
+const AUTO_HIDE_MS     = 15_000;
 
-function dismissed(): boolean {
+function inCooldown(): boolean {
   if (typeof window === "undefined") return true;
-  const v = localStorage.getItem(DISMISS_KEY);
-  if (!v) return false;
-  const ts = parseInt(v, 10);
-  if (Number.isNaN(ts)) return false;
-  return Date.now() - ts < DISMISS_DAYS * 86400_000;
+
+  // 1) Já mostrou nesta sessão? Não mostra de novo
+  if (sessionStorage.getItem(SESSION_KEY)) return true;
+
+  // 2) Dispensa explícita? 30 dias
+  const d = localStorage.getItem(DISMISS_KEY);
+  if (d) {
+    const ts = parseInt(d, 10);
+    if (!Number.isNaN(ts) && Date.now() - ts < DISMISS_DAYS * 86400_000) return true;
+  }
+
+  // 3) Cooldown leve? 3 dias
+  const c = localStorage.getItem(COOLDOWN_KEY);
+  if (c) {
+    const ts = parseInt(c, 10);
+    if (!Number.isNaN(ts) && Date.now() - ts < COOLDOWN_DAYS * 86400_000) return true;
+  }
+
+  return false;
+}
+
+function markShownSession() {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(SESSION_KEY, "1");
+  // Cooldown leve também — pra ser conservador caso o user feche aba e abra de novo
+  localStorage.setItem(COOLDOWN_KEY, String(Date.now()));
 }
 
 export default function InstallPrompt() {
@@ -38,16 +64,17 @@ export default function InstallPrompt() {
   const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
-    if (dismissed()) return;
+    if (inCooldown()) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
       setEvt(e as BeforeInstallPromptEvent);
       setHidden(false);
+      markShownSession();
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // iOS Safari: não dispara o evento, mas é o caso mais comum em mobile BR
+    // iOS Safari: não dispara o evento, hint manual
     const ua = navigator.userAgent;
     const isIOS = /iPhone|iPad|iPod/.test(ua) && !/CriOS|FxiOS/.test(ua);
     const isStandalone = (navigator as any).standalone === true ||
@@ -55,12 +82,20 @@ export default function InstallPrompt() {
     if (isIOS && !isStandalone) {
       setIosHint(true);
       setHidden(false);
+      markShownSession();
     }
 
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  function dismiss() {
+  // Auto-hide após 15s
+  useEffect(() => {
+    if (hidden) return;
+    const timer = setTimeout(() => setHidden(true), AUTO_HIDE_MS);
+    return () => clearTimeout(timer);
+  }, [hidden]);
+
+  function dismissPersistent() {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setHidden(true);
   }
@@ -72,7 +107,7 @@ export default function InstallPrompt() {
     if (choice.outcome === "accepted") {
       setHidden(true);
     } else {
-      dismiss();
+      dismissPersistent();
     }
   }
 
@@ -82,13 +117,16 @@ export default function InstallPrompt() {
     <div
       role="dialog"
       aria-label="Instalar como app"
-      className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm card p-3 z-40 shadow-lg flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2"
+      className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm card p-3 z-40 shadow-stripe-md flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2"
     >
-      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 grid place-items-center text-primary-foreground font-bold text-lg flex-shrink-0">
+      <div
+        className="w-10 h-10 rounded-lg bg-primary grid place-items-center text-primary-foreground font-semibold text-lg flex-shrink-0"
+        style={{ boxShadow: "inset 0 1px 0 hsl(0 0% 100% / 0.18)" }}
+      >
         G
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium">Instalar Guilds Comercial</div>
+        <div className="text-sm font-medium" style={{ letterSpacing: "-0.13px" }}>Instalar Guilds Comercial</div>
         {iosHint ? (
           <p className="text-xs text-muted-foreground mt-0.5">
             Toque em <strong>Compartilhar</strong> e depois <strong>Adicionar à tela inicial</strong>.
@@ -105,7 +143,7 @@ export default function InstallPrompt() {
         )}
       </div>
       <button
-        onClick={dismiss}
+        onClick={dismissPersistent}
         className="text-muted-foreground hover:text-foreground p-1 -m-1 flex-shrink-0"
         aria-label="Dispensar"
       >

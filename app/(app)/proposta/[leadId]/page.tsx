@@ -7,7 +7,8 @@ import { ChevronLeft, FileText } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function PropostaPage({ params }: { params: { leadId: string } }) {
+export default async function PropostaPage(props: { params: Promise<{ leadId: string }> }) {
+  const params = await props.params;
   const me = await getCurrentProfile();
   if (!me) return null;
 

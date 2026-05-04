@@ -11,9 +11,12 @@ import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function PipelinePage({ searchParams }: {
-  searchParams: { resp?: string; q?: string; seg?: string; temp?: string };
-}) {
+export default async function PipelinePage(
+  props: {
+    searchParams: Promise<{ resp?: string; q?: string; seg?: string; temp?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;

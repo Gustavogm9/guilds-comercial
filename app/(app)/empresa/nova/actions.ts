@@ -51,7 +51,7 @@ export async function criarNovaEmpresa(nome: string) {
   });
 
   // Troca para a nova org
-  cookies().set(ORG_ACTIVE_COOKIE, org!.id, {
+  (await cookies()).set(ORG_ACTIVE_COOKIE, org!.id, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

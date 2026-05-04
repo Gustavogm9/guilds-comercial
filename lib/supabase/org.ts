@@ -6,12 +6,12 @@ import type { Organizacao, MembroEnriched } from "@/lib/types";
 const ORG_COOKIE = "x-organizacao-ativa";
 
 /**
- * Retorna todas as organizações em que o usuário logado é membro ativo,
- * já com role do usuário naquela org. Usado para popular o switcher do sidebar
- * e para validar a escolha da org ativa.
+ * Retorna todas as orgs em que o user logado é membro ativo (com role).
  *
- * Memoizado por request — getCurrentOrgId/getCurrentRole/sidebar costumam invocar
- * isso múltiplas vezes no mesmo render e cada chamada é round-trip ao Supabase.
+ * Memoizado por request via `react.cache()` — getCurrentOrgId/Role/sidebar
+ * costumam invocar isso múltiplas vezes no mesmo render. Não usamos
+ * `unstable_cache` aqui porque `createClient()` lê `cookies()` (auth) e o
+ * Next 14 proíbe acessar dynamic data sources dentro de `unstable_cache`.
  */
 export const listarOrgsDoUsuario = cache(async (): Promise<
   Array<Organizacao & { role: "gestor" | "comercial" | "sdr" }>
@@ -28,8 +28,6 @@ export const listarOrgsDoUsuario = cache(async (): Promise<
 
   if (error || !data) return [];
 
-  // supabase retorna organizacao como objeto aninhado
-  // Cast via `as any` necessário: o tipo inferido do Supabase é any[] mas o runtime retorna objeto
   return (data as any[])
     .map((row) => {
       const org = row.organizacao as Organizacao | null;
@@ -54,7 +52,7 @@ export const getCurrentOrgId = cache(async (): Promise<string | null> => {
   const orgs = await listarOrgsDoUsuario();
   if (orgs.length === 0) return null;
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const fromCookie = cookieStore.get(ORG_COOKIE)?.value;
   if (fromCookie && orgs.some((o) => o.id === fromCookie)) {
     return fromCookie;

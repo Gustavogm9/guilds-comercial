@@ -1,7 +1,9 @@
 import type { Config } from "tailwindcss";
 
 const config = {
-  darkMode: ["class"],
+  // Tailwind 4: darkMode aceita string "class" ou usa @custom-variant em globals.css.
+  // O variant real está mapeado em app/globals.css → @custom-variant dark.
+  darkMode: "class",
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",

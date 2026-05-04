@@ -7,7 +7,7 @@ import type { AiFeature, AiPrompt, AiProvider, AiUso30d, AiFeatureCodigo, AiProv
 import type { LogRow } from "./page";
 import {
   toggleFeature, atualizarFeatureConfig, criarVersaoPrompt,
-  reverterParaVersao, atualizarProvider,
+  reverterParaVersao, atualizarProvider, checarApiKeyEnv,
 } from "./actions";
 import {
   Bot, FileCode, Plug, Activity, ChevronRight, Save, RotateCcw,
@@ -395,16 +395,72 @@ function PromptEditor({ prompt, historico }: { prompt: AiPrompt; historico: AiPr
 function ProvidersTab({ providers }: { providers: AiProvider[] }) {
   return (
     <div className="space-y-3">
-      <div className="bg-warning-500/10 border border-warning-500/25 text-foreground/80 text-xs p-3 rounded-lg flex gap-2">
-        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-warning-500" />
-        <div>
-          API keys são lidas de <code className="bg-card/60 px-1 rounded">process.env</code> pelo nome em <b>api_key_ref</b>.
-          Configure as variáveis no Supabase → Settings → Edge Functions ou no deploy.
+      <div className="card p-4 space-y-2">
+        <div className="flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+          <div className="text-xs text-foreground/80 space-y-1.5 flex-1">
+            <p>
+              <b>Onde colocar a chave:</b> as API keys ficam em <b>variáveis de ambiente do servidor</b> (não
+              no banco de dados) — boas práticas de segurança não permitem armazenar chaves em texto puro
+              em DB ainda que cifradas pelo app.
+            </p>
+            <p className="text-muted-foreground">
+              <b>Como configurar:</b> Vercel → Project Settings → Environment Variables (ou Supabase →
+              Settings → Edge Functions, se rodando edge). O campo <code className="bg-secondary dark:bg-white/[0.05] px-1 rounded">Env var</code> abaixo é só o <i>nome</i> da variável (ex: <code className="bg-secondary dark:bg-white/[0.05] px-1 rounded">ANTHROPIC_API_KEY</code>) — o valor real fica no host de deploy.
+            </p>
+            <p className="text-muted-foreground">
+              Após colar a chave no host, faça redeploy. O badge ao lado de cada provider mostra se a chave
+              está acessível agora no servidor.
+            </p>
+          </div>
         </div>
       </div>
 
       {providers.map(p => <ProviderRow key={p.id} provider={p} />)}
     </div>
+  );
+}
+
+// Badge de status da API key (configurada no servidor ou não)
+function ApiKeyStatusBadge({ envVarName }: { envVarName: string }) {
+  const [status, setStatus] = useState<{ configured: boolean; lastChars: string | null } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function check() {
+    setLoading(true);
+    try {
+      const r = await checarApiKeyEnv(envVarName);
+      setStatus({ configured: r.configured, lastChars: r.lastChars });
+    } catch {
+      setStatus({ configured: false, lastChars: null });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (envVarName) check();
+    else setStatus(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [envVarName]);
+
+  if (!envVarName) {
+    return <span className="text-[10px] text-muted-foreground/60 italic">sem env var definida</span>;
+  }
+  if (loading || !status) {
+    return <span className="text-[10px] text-muted-foreground/60">verificando…</span>;
+  }
+  if (status.configured) {
+    return (
+      <span className="text-[10px] inline-flex items-center gap-1 text-success-500 bg-success-500/10 border border-success-500/25 px-1.5 py-0.5 rounded font-semibold uppercase tracking-[0.1em]">
+        <CheckCircle2 className="w-2.5 h-2.5" /> ok · ••••{status.lastChars}
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] inline-flex items-center gap-1 text-destructive bg-destructive/10 border border-destructive/25 px-1.5 py-0.5 rounded font-semibold uppercase tracking-[0.1em]">
+      <XCircle className="w-2.5 h-2.5" /> não configurada
+    </span>
   );
 }
 
@@ -455,11 +511,17 @@ function ProviderRow({ provider }: { provider: AiProvider }) {
             className="input-base text-xs font-mono"/>
         </div>
         <div>
-          <label className="label">Env var com API key</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="label !mb-0">Env var com API key</label>
+            <ApiKeyStatusBadge envVarName={state.api_key_ref} />
+          </div>
           <input value={state.api_key_ref}
             onChange={(e) => setState({ ...state, api_key_ref: e.target.value })}
             placeholder="ANTHROPIC_API_KEY"
             className="input-base text-xs font-mono"/>
+          <p className="text-[10px] text-muted-foreground/70 mt-1">
+            Nome da variável de ambiente. O valor da chave fica no host (Vercel/Supabase).
+          </p>
         </div>
         <div>
           <label className="label">Base URL (opcional)</label>

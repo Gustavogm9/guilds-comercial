@@ -19,7 +19,8 @@ type LigacaoRow = {
   leads: { empresa: string | null; nome: string | null; segmento: string | null } | null;
 };
 
-export default async function LigacoesPage({ searchParams }: { searchParams: { dias?: string; resp?: string } }) {
+export default async function LigacoesPage(props: { searchParams: Promise<{ dias?: string; resp?: string }> }) {
+  const searchParams = await props.searchParams;
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;

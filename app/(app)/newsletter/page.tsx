@@ -21,7 +21,8 @@ type NewsletterRow = {
   leads: { empresa: string | null; nome: string | null; email: string | null; segmento: string | null } | null;
 };
 
-export default async function NewsletterPage({ searchParams }: { searchParams: { tab?: string } }) {
+export default async function NewsletterPage(props: { searchParams: Promise<{ tab?: string }> }) {
+  const searchParams = await props.searchParams;
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;

@@ -22,7 +22,7 @@ export async function trocarOrg(organizacao_id: string) {
 
   if (!membro) return;
 
-  cookies().set(ORG_ACTIVE_COOKIE, organizacao_id, {
+  (await cookies()).set(ORG_ACTIVE_COOKIE, organizacao_id, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

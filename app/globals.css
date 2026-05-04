@@ -1,6 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/**
+ * Tailwind 4 — usa @import + @config pra manter o schema legado de tokens HSL.
+ * O `tailwind.config.ts` continua válido (Tailwind 4 lê via @config).
+ *
+ * Não migramos pra `@theme` block ainda pra evitar refactor de 100+ arquivos
+ * que usam `hsl(var(--xxx))`. Quando estabilizar, podemos converter incrementalmente.
+ */
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+/* Tailwind 4: variant `dark:` requer mapeamento explícito pra `.dark` (selector legado) */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ================================================================
    TOKENS DE COR
@@ -126,6 +135,22 @@
   }
   code, pre, kbd, samp {
     font-family: var(--font-mono), ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+
+  /* === Selects nativos: força tokens dentro do popup do navegador ===
+     Sem isto, em dark mode o Chrome/Edge mostra opções com bg branco e texto preto
+     (system colors). `option` usa bg-popover / fg para casar com o resto. */
+  select option,
+  select optgroup {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+  /* Algumas combinações precisam de color-scheme pra arrow + scrollbar do select */
+  select {
+    color-scheme: light dark;
+  }
+  .dark select {
+    color-scheme: dark;
   }
 }
 

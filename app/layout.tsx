@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import ServiceWorkerRegister from "@/components/sw-register";
 import InstallPrompt from "@/components/install-prompt";
+import NavigationProgress from "@/components/navigation-progress";
 
 // Linear DNA: Inter Variable com features cv01/ss03/ss01 ativadas globalmente
 // (features são aplicadas via CSS no body em globals.css — next/font só serve a fonte).
@@ -36,6 +38,12 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  // Chrome 99+ deprecou `apple-mobile-web-app-capable` em favor do `mobile-web-app-capable`.
+  // O appleWebApp.capable acima ainda gera a tag apple- (necessária pra iOS Safari).
+  // Adicionamos `mobile-web-app-capable` aqui pra Chrome/Edge/Android pararem de avisar.
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
@@ -59,6 +67,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {/* Barra fina de progresso no topo durante navegação Next.js — cobre app + auth + marketing */}
+          <Suspense fallback={null}>
+            <NavigationProgress />
+          </Suspense>
           {children}
           <ServiceWorkerRegister />
           <InstallPrompt />

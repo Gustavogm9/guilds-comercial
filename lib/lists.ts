@@ -28,6 +28,9 @@ export const ETAPAS_PIPELINE_VISIVEL = [
   "Fechado",
 ] as const;
 
+/** Etapas que exigem motivo obrigatório ao entrar. */
+export const ETAPAS_EXIGEM_MOTIVO: string[] = ["Perdido", "Nutrição"];
+
 /** Probabilidade default por etapa (espelha lead_probabilidade_por_etapa no Postgres). */
 export const PROBABILIDADE_POR_ETAPA: Record<string, number> = {
   "Base": 0,

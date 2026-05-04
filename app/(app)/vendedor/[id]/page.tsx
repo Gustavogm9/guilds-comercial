@@ -27,10 +27,14 @@ type KpiResp = {
   receita_fechada: number;
 };
 
-export default async function VendedorPage({ params, searchParams }: {
-  params: { id: string };
-  searchParams: { periodo?: "7d" | "30d" | "all" };
-}) {
+export default async function VendedorPage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ periodo?: "7d" | "30d" | "all" }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const me = await getCurrentProfile();
   if (!me) return null;
 

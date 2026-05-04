@@ -76,7 +76,8 @@ function buildLeadPatch(body: any) {
   return { error: null, patch };
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await validateApiKey();
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -96,7 +97,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   return NextResponse.json({ data }, { status: 200 });
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await validateApiKey();
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });

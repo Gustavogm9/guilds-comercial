@@ -19,7 +19,8 @@ import { ORG_ACTIVE_COOKIE } from "@/lib/supabase/org";
  *    - seta cookie da org ativa
  *    - redireciona para /hoje
  */
-export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const supabase = createClient();
   const token = params.token;
 
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   }
 
   // Seta cookie da org ativa
-  cookies().set(ORG_ACTIVE_COOKIE, convite.organizacao_id, {
+  (await cookies()).set(ORG_ACTIVE_COOKIE, convite.organizacao_id, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

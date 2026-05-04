@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarOrgsDoUsuario } from "@/lib/supabase/org";
 import Sidebar from "@/components/sidebar";
 import MobileNav from "@/components/mobile-nav";
 import NovoLeadFab from "@/components/novo-lead-fab";
 import TrialBanner from "@/components/trial-banner";
+import AiCreditsBadge from "@/components/ai-credits-badge";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
@@ -38,6 +40,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         isGestor={isGestor}
         orgs={orgs.map(o => ({ id: o.id, nome: o.nome, role: o.role }))}
         activeOrgId={orgId}
+        aiCreditsSlot={
+          // Suspense desacopla o badge do render do shell — sidebar aparece
+          // imediatamente, badge streama quando a query (cacheada 60s) volta.
+          <Suspense fallback={<AiCreditsBadgeSkeleton />}>
+            <AiCreditsBadge orgId={orgId} />
+          </Suspense>
+        }
       />
       <main className="flex-1 min-w-0 pb-24 md:pb-0 relative z-0">
         {/* HEADER MOBILE — Linear/Stripe-feel: bg-card sólido com border soft */}
@@ -65,6 +74,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <MobileNav />
       </main>
       <NovoLeadFab />
+    </div>
+  );
+}
+
+function AiCreditsBadgeSkeleton() {
+  return (
+    <div className="px-2.5 py-2 space-y-1.5 animate-pulse">
+      <div className="h-2.5 w-20 rounded bg-secondary dark:bg-white/[0.05]" />
+      <div className="h-3 w-32 rounded bg-secondary/70 dark:bg-white/[0.03]" />
+      <div className="h-1 w-full rounded-full bg-secondary dark:bg-white/[0.05]" />
     </div>
   );
 }

@@ -3,14 +3,44 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
-export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
+/**
+ * Navbar do marketing — verifica sessão via Supabase client SDK no useEffect
+ * (não depende de RSC + cookies()), assim layout marketing pode permanecer
+ * estático (SSG/edge cache) e não force dynamic em todas as páginas.
+ *
+ * Default otimista: mostra "Entrar / Criar conta" enquanto a sessão é resolvida —
+ * é o caso comum (visitante anônimo). Se descobrir que está logado, troca pra
+ * "Ir para o painel" sem flicker visível pra unauth.
+ */
+export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let alive = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (alive) setIsLoggedIn(!!session);
+    });
+
+    // Atualiza em login/logout em outras abas ou expiração de token
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   return (

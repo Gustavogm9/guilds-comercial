@@ -21,6 +21,69 @@ export interface TemplateCadencia {
 }
 
 // ============================================================
+// PASSOS CANÔNICOS — metadata pra criar rows na tabela `cadencia`
+// ============================================================
+// Diferente de TEMPLATES_PT_BR/EN_US (que tem o corpo da mensagem),
+// PASSOS é a programação canônica dos 6 touchpoints D0→D30 com canal
+// preferencial e objetivo. Usado quando promove lead pra pipeline ou
+// inicia cadência manualmente — popula a tabela `cadencia` com 1 row
+// por passo (`unique(lead_id, passo)`).
+//
+// Centralizar aqui evita drift: se mudar a estratégia comercial (ex:
+// adicionar D45, mudar canal de D11), só mexe num arquivo.
+//
+// Tradução do `objetivo` é virtual — em UI lê via i18n ("cadencia.passo_X_objetivo").
+// O DB armazena a string em PT por compat com queries existentes.
+export interface PassoCadenciaSpec {
+  passo: CadenciaPasso;
+  dias: number;
+  canal: string;     // pode ser "Email + WhatsApp" (multi)
+  objetivo: string;  // PT — UI traduz se locale=en-US
+}
+
+export const PASSOS_CADENCIA: readonly PassoCadenciaSpec[] = [
+  { passo: "D0",  dias: 0,  canal: "Email + WhatsApp", objetivo: "Contexto / dor" },
+  { passo: "D3",  dias: 3,  canal: "WhatsApp",         objetivo: "Insistência educada" },
+  { passo: "D7",  dias: 7,  canal: "Email",            objetivo: "Impacto / custo invisível" },
+  { passo: "D11", dias: 11, canal: "WhatsApp",         objetivo: "Quebra padrão" },
+  { passo: "D16", dias: 16, canal: "Email",            objetivo: "Prova social / case" },
+  { passo: "D30", dias: 30, canal: "Email",            objetivo: "Encerramento elegante" },
+] as const;
+
+/**
+ * Constrói os rows pra inserir na tabela `cadencia` a partir de um lead+org.
+ * Encapsula o cálculo de `data_prevista` baseado em `dias` desde hoje.
+ */
+export function montarCadenciaRows(input: {
+  organizacao_id: string;
+  lead_id: number;
+  baseDate?: Date;
+}): Array<{
+  organizacao_id: string;
+  lead_id: number;
+  passo: CadenciaPasso;
+  canal: string;
+  objetivo: string;
+  data_prevista: string;
+  status: "pendente";
+}> {
+  const base = input.baseDate ?? new Date();
+  return PASSOS_CADENCIA.map((p) => {
+    const d = new Date(base);
+    d.setDate(d.getDate() + p.dias);
+    return {
+      organizacao_id: input.organizacao_id,
+      lead_id: input.lead_id,
+      passo: p.passo,
+      canal: p.canal,
+      objetivo: p.objetivo,
+      data_prevista: d.toISOString().slice(0, 10),
+      status: "pendente" as const,
+    };
+  });
+}
+
+// ============================================================
 // PT-BR (default)
 // ============================================================
 export const TEMPLATES_PT_BR: TemplateCadencia[] = [

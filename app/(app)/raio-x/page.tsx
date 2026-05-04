@@ -28,7 +28,8 @@ type RaioXJoin = {
   leads: { id: number; empresa: string | null; nome: string | null; segmento: string | null; cargo: string | null; whatsapp: string | null } | null;
 };
 
-export default async function RaioXPage({ searchParams }: { searchParams: { tab?: string; resp?: string } }) {
+export default async function RaioXPage(props: { searchParams: Promise<{ tab?: string; resp?: string }> }) {
+  const searchParams = await props.searchParams;
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;

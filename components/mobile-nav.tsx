@@ -37,6 +37,7 @@ export default function MobileNav() {
             <Link
               key={href}
               href={href}
+              prefetch
               className={clsx(
                 "relative flex flex-col items-center justify-center py-2 text-[10px] gap-1 transition-colors",
                 active ? "text-primary" : "text-muted-foreground hover:text-foreground",

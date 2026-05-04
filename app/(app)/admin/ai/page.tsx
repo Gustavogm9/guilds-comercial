@@ -11,9 +11,12 @@ export const dynamic = "force-dynamic";
 
 type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos";
 
-export default async function AdminAiPage({ searchParams }: {
-  searchParams: { tab?: Tab; feature?: string };
-}) {
+export default async function AdminAiPage(
+  props: {
+    searchParams: Promise<{ tab?: Tab; feature?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const me = await getCurrentProfile();
   if (!me) return null;
   const orgId = await getCurrentOrgId();

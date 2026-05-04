@@ -1,12 +1,14 @@
 "use client";
 import { useState, useTransition } from "react";
 import { ETAPAS_CRM } from "@/lib/lists";
-import { moverEtapa, ETAPAS_EXIGEM_MOTIVO } from "@/app/(app)/hoje/actions";
+import { moverEtapa } from "@/app/(app)/hoje/actions";
+import { ETAPAS_EXIGEM_MOTIVO } from "@/lib/lists";
 import CadenciaModal from "@/components/cadencia-modal";
 import QuickActions from "@/components/quick-actions";
 import MotivoSaidaModal from "@/components/motivo-saida-modal";
 import type { CrmStage, LeadEnriched } from "@/lib/types";
-import { MessageSquareQuote } from "lucide-react";
+import { MessageSquareQuote, Play } from "lucide-react";
+import { iniciarCadenciaManual } from "@/app/(app)/cadencia/actions";
 
 export default function LeadDetailActions({
   lead, vendedor,
@@ -43,6 +45,20 @@ export default function LeadDetailActions({
 
       <button onClick={() => setOpen(true)} className="btn-primary text-xs">
         <MessageSquareQuote className="w-3.5 h-3.5"/> Templates de cadência
+      </button>
+
+      <button
+        onClick={() => {
+          start(async () => {
+            await iniciarCadenciaManual(lead.id);
+            alert("Cadência iniciada/reiniciada com sucesso!");
+          });
+        }}
+        className="btn-ghost text-xs font-medium text-primary hover:bg-primary/10"
+        title="Iniciar ou reiniciar os 6 passos da cadência para este lead"
+      >
+        <Play className="w-3.5 h-3.5 mr-1" />
+        Iniciar Cadência
       </button>
 
       <CadenciaModal open={open} onClose={() => setOpen(false)} lead={lead} vendedor={vendedor} />

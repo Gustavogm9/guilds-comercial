@@ -69,9 +69,11 @@ export function getT(locale: Locale) {
  * essa função é só chamada em RSC.
  */
 export async function getServerLocale(): Promise<Locale> {
-  // Lazy import — next/headers só funciona em RSC/route handler
+  // Lazy import — next/headers só funciona em RSC/route handler.
+  // Next 15+: cookies() é async (retorna Promise<ReadonlyRequestCookies>).
   const { cookies } = await import("next/headers");
-  const c = cookies().get(LOCALE_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const c = cookieStore.get(LOCALE_COOKIE)?.value;
   return isLocale(c) ? c : DEFAULT_LOCALE;
 }
 

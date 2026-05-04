@@ -12,7 +12,8 @@ import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function HojePage({ searchParams }: { searchParams: { todos?: string } }) {
+export default async function HojePage(props: { searchParams: Promise<{ todos?: string }> }) {
+  const searchParams = await props.searchParams;
   const supabase = createClient();
   const locale = await getServerLocale();
   const t = getT(locale);

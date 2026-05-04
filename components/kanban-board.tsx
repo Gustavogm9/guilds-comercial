@@ -1,12 +1,12 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
   PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { moverEtapa, ETAPAS_EXIGEM_MOTIVO } from "@/app/(app)/hoje/actions";
-import { ETAPAS_PIPELINE_VISIVEL, STAGE_COLORS, URGENCIA_LABELS } from "@/lib/lists";
+import { moverEtapa } from "@/app/(app)/hoje/actions";
+import { ETAPAS_PIPELINE_VISIVEL, STAGE_COLORS, URGENCIA_LABELS, ETAPAS_EXIGEM_MOTIVO } from "@/lib/lists";
 import type { CrmStage, LeadEnriched } from "@/lib/types";
 import { GripVertical, AlertCircle, Clock, Activity } from "lucide-react";
 import clsx from "clsx";
@@ -15,6 +15,10 @@ import MotivoSaidaModal from "./motivo-saida-modal";
 export default function KanbanBoard({ leads }: { leads: LeadEnriched[] }) {
   const [active, setActive] = useState<LeadEnriched | null>(null);
   const [items, setItems] = useState(leads);
+  // BUG FIX: quando o server retorna leads filtrados (busca/segmento/temp/responsável),
+  // a prop `leads` muda mas o useState fica preso ao valor inicial. Sincroniza
+  // sempre que server retornar nova lista — server é source of truth.
+  useEffect(() => { setItems(leads); }, [leads]);
   const [, start] = useTransition();
   // Se o usuário arrastar pra Perdido/Nutrição, abre modal de motivo em vez de mover direto.
   const [motivoModo, setMotivoModo] = useState<{ lead_id: number; destino: CrmStage; etapaOriginal: CrmStage | null } | null>(null);
@@ -53,7 +57,7 @@ export default function KanbanBoard({ leads }: { leads: LeadEnriched[] }) {
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={onStart} onDragEnd={onEnd}>
+    <DndContext id="kanban-board" sensors={sensors} onDragStart={onStart} onDragEnd={onEnd}>
       <div className="flex gap-3 overflow-x-auto pb-4 px-4 md:px-8">
         {ETAPAS_PIPELINE_VISIVEL.map(stage => (
           <Column key={stage} stage={stage}

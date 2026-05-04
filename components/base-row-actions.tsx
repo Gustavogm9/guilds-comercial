@@ -21,7 +21,7 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
               <Check className="w-3.5 h-3.5"/> Qualificar <ChevronDown className="w-3 h-3"/>
             </button>
             {open === "qual" && (
-              <div className="absolute right-0 z-20 mt-1 w-72 card p-3 space-y-2 shadow-stripe-md">
+              <div className="absolute right-0 z-20 mt-1 w-72 bg-popover text-popover-foreground border border-border rounded-md p-3 space-y-2 shadow-stripe-md dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08]">
                 <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">Qualificar lead</div>
                 <textarea
                   value={dor}

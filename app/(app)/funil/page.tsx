@@ -45,9 +45,12 @@ type ValorRow = { crm_stage: CrmStage; leads_abertos: number; valor_aberto: numb
 type CohortRow = { semana: string; entraram: number; ganhos: number; perdidos: number; nutricao: number; em_aberto: number; receita_ganha: number; dias_para_fechar: number | null; responsavel_id: string | null };
 type PerdaRow = { motivo: string; qtd: number; valor_perdido: number; responsavel_id: string | null };
 
-export default async function FunilPage({ searchParams }: {
-  searchParams: { resp?: string };
-}) {
+export default async function FunilPage(
+  props: {
+    searchParams: Promise<{ resp?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const me = await getCurrentProfile();
   if (!me) return null;
   const t = getT(await getServerLocale());

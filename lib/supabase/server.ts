@@ -1,22 +1,34 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
+/**
+ * Supabase SSR client com cookies do Next.
+ *
+ * Next 15+ tornou `cookies()` async — usamos a API `getAll`/`setAll` recomendada
+ * pelo @supabase/ssr ≥ 0.5, que aceita callbacks async. Assim createClient
+ * continua síncrono e não precisamos mudar todos os call-sites.
+ */
 export const createClient = () => {
-  const cookieStore = cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        async getAll() {
+          const store = await cookies();
+          return store.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          try { cookieStore.set({ name, value, ...options }); } catch {}
-        },
-        remove(name: string, options: CookieOptions) {
-          try { cookieStore.set({ name, value: "", ...options }); } catch {}
+        async setAll(cookiesToSet) {
+          try {
+            const store = await cookies();
+            cookiesToSet.forEach(({ name, value, options }) => {
+              store.set(name, value, options);
+            });
+          } catch {
+            // Server Components não podem mutar cookies (read-only).
+            // Middleware e Server Actions podem — silenciamos a falha em RSC.
+          }
         },
       },
     }

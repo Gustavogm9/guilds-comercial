@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home, Kanban, Users, Search, Activity, Mail, PhoneCall, LogOut, UserCog,
-  Radio, User, BarChart3, Bot, Settings, ShieldCheck,
+  Radio, User, BarChart3, Bot, Settings, ShieldCheck, Repeat,
 } from "lucide-react";
 import clsx from "clsx";
 import OrgSwitcher from "./org-switcher";
@@ -43,6 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     titleKey: "sidebar.comunicacao",
     items: [
+      { href: "/cadencia",   i18nKey: "sidebar.cadencia",   icon: Repeat },
       { href: "/ligacoes",   i18nKey: "sidebar.ligacoes",   icon: PhoneCall },
       { href: "/canais",     i18nKey: "sidebar.canais",     icon: Radio,    gestorOnly: true },
       { href: "/newsletter", i18nKey: "sidebar.newsletter", icon: Mail },
@@ -74,12 +75,14 @@ export default function Sidebar({
   isGestor,
   orgs,
   activeOrgId,
+  aiCreditsSlot,
 }: {
   user: { display_name: string; email: string; role: string };
   userId: string;
   isGestor: boolean;
   orgs: OrgLite[];
   activeOrgId: string | null;
+  aiCreditsSlot?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -144,6 +147,7 @@ export default function Sidebar({
                   <Link
                     key={href}
                     href={resolvedHref}
+                    prefetch
                     className={clsx(
                       "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors duration-150 relative",
                       active
@@ -174,6 +178,13 @@ export default function Sidebar({
           );
         })}
       </nav>
+
+      {/* AI CREDITS BADGE (server-rendered, opcional) */}
+      {aiCreditsSlot && (
+        <div className="px-2 pb-2 border-t border-border dark:border-white/[0.06] pt-2">
+          {aiCreditsSlot}
+        </div>
+      )}
 
       {/* FOOTER USER PROFILE & THEME */}
       <div className="p-2 border-t border-border dark:border-white/[0.06]">

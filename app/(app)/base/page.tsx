@@ -10,9 +10,12 @@ import { getServerLocale, getT } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function BasePage({ searchParams }: {
-  searchParams: { tab?: "bruta" | "qualificada"; q?: string; resp?: string };
-}) {
+export default async function BasePage(
+  props: {
+    searchParams: Promise<{ tab?: "bruta" | "qualificada"; q?: string; resp?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;

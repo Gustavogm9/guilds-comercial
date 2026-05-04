@@ -5,6 +5,9 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },
+    // Tree-shake imports nas libs com barrel files (lucide tem 1.4k ícones).
+    // Sem isto, importar 1 ícone inclui várias dezenas no bundle.
+    optimizePackageImports: ["lucide-react", "@dnd-kit/core", "@dnd-kit/sortable"],
   },
 };
 

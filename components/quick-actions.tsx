@@ -31,7 +31,7 @@ export default function QuickActions({ lead }: { lead: LeadEnriched }) {
           <PhoneCall className="w-3.5 h-3.5"/> Liguei <ChevronDown className="w-3 h-3"/>
         </button>
         {open === "lig" && (
-          <div className="absolute z-20 mt-1 w-72 card p-2 shadow-lg">
+          <div className="absolute z-20 mt-1 w-72 bg-popover text-popover-foreground border border-border rounded-md p-2 shadow-stripe-md dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08]">
             {RESULTADOS_RAPIDOS.map(r => (
               <button key={r.v} disabled={pending}
                 onClick={() => start(async () => {

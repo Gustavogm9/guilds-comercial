@@ -4,6 +4,7 @@ import { getCurrentOrgId } from "@/lib/supabase/org";
 import { revalidatePath } from "next/cache";
 import type { CrmStage, MotivoPerda, PercepcaoVendedor, TomInteracao } from "@/lib/types";
 import { MOTIVOS_PERDA } from "@/lib/types";
+import { ETAPAS_EXIGEM_MOTIVO } from "@/lib/lists";
 
 async function requireOrg() {
   const orgId = await getCurrentOrgId();
@@ -89,7 +90,7 @@ export async function registrarToque(input: {
 }
 
 /** Etapas que exigem motivo obrigatório ao entrar. */
-export const ETAPAS_EXIGEM_MOTIVO: CrmStage[] = ["Perdido", "Nutrição"];
+// Removido export constante para lib/lists.ts pois Next.js proíbe em Server Actions
 
 /**
  * Move lead para nova etapa.

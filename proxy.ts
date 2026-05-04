@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-export async function middleware(req: NextRequest) {
+/**
+ * Proxy do Next 16 — substitui o file convention `middleware.ts` (deprecado).
+ * Next 16+ chama esta função de `proxy.ts` na raiz do projeto pra rotear
+ * requests antes do RSC render. Comportamento e API são iguais ao middleware
+ * de versões anteriores.
+ */
+export async function proxy(req: NextRequest) {
   let res = NextResponse.next({ request: { headers: req.headers } });
 
   const supabase = createServerClient(
@@ -80,5 +86,15 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Exclui:
+  //  - /monitoring (Sentry tunnel route)
+  //  - /_next/* (assets do Next)
+  //  - favicon, manifest, robots, sitemap (file conventions Next que rodam middleware-free)
+  //  - rotas /icon e /apple-icon (Next gera estes via app/icon.tsx + app/apple-icon.tsx)
+  //  - extensões de imagem comuns (svg, png, jpg, jpeg, gif, webp, ico)
+  // Sem isso, o middleware redireciona /manifest.webmanifest pra /login (não-logado),
+  // o que faz o Chrome receber HTML "/login" e falhar ao parsear como JSON.
+  matcher: [
+    "/((?!monitoring|_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|icon|apple-icon|sw.js|workbox-.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };
