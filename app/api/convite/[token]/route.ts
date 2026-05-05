@@ -40,8 +40,34 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
   }
 
   const { data: { user } } = await supabase.auth.getUser();
+
+  // Bug fix: se a pessoa NÃO tem conta (cenário típico — foi convidada por email),
+  // redireciona pra página de aceitar-convite que faz signup + aceita o convite
+  // num só fluxo. Antes redirecionava pra /login, mas a pessoa não tinha senha
+  // pra entrar — ficava travada.
   if (!user) {
-    return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(`/api/convite/${token}`)}&email=${encodeURIComponent(convite.email)}`, req.url));
+    // Verifica se já existe conta nesse email (pessoa já existe em outra org)
+    const supabaseAdminCheck = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+    const { data: contaExistente } = await supabaseAdminCheck
+      .from("profiles")
+      .select("id")
+      .eq("email", convite.email.toLowerCase())
+      .maybeSingle();
+
+    if (contaExistente) {
+      // Pessoa já tem conta — pede só o login
+      return NextResponse.redirect(
+        new URL(
+          `/login?next=${encodeURIComponent(`/api/convite/${token}`)}&email=${encodeURIComponent(convite.email)}`,
+          req.url,
+        ),
+      );
+    }
+    // Pessoa nova — fluxo de signup via convite
+    return NextResponse.redirect(new URL(`/aceitar-convite/${token}`, req.url));
   }
 
   if (user.email?.toLowerCase() !== convite.email.toLowerCase()) {
