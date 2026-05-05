@@ -26,7 +26,11 @@ export default async function PipelinePage(
   if (!orgId) redirect("/hoje");
   const role = await getCurrentRole();
   const isGestor = role === "gestor";
-  const respFiltro = searchParams.resp ?? (isGestor ? "all" : me.id);
+
+  // Bug 5: força respFiltro = me.id pra não-gestores mesmo com ?resp=X na URL.
+  // Antes: vendedor podia tentar `?resp=other_user` e ver 0 leads (RLS bloqueava
+  // mas UX silenciosa parecia bug). Agora ignoramos o param.
+  const respFiltro = isGestor ? (searchParams.resp ?? "all") : me.id;
 
   let q = supabase
     .from("v_leads_enriched")
@@ -39,8 +43,14 @@ export default async function PipelinePage(
 
   // FR-CRM-07 — Busca por empresa/nome/email
   if (searchParams.q?.trim()) {
-    const termo = `%${searchParams.q.trim()}%`;
-    q = q.or(`empresa.ilike.${termo},nome.ilike.${termo},email.ilike.${termo}`);
+    // Bug 4: sanitiza chars que quebram parser PostgREST .or() (vírgula, parênteses, asterisco).
+    // O `.replace` aqui é defesa em profundidade — pipeline-toolbar já sanitiza
+    // antes de mandar pra URL, mas alguém pode digitar manualmente.
+    const limpo = searchParams.q.trim().replace(/[,()]/g, " ").replace(/\*/g, "_").trim();
+    if (limpo.length >= 2) {
+      const termo = `%${limpo}%`;
+      q = q.or(`empresa.ilike.${termo},nome.ilike.${termo},email.ilike.${termo}`);
+    }
   }
 
   // FR-CRM-05 — Filtros avançados

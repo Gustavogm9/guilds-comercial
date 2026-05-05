@@ -11,6 +11,44 @@ type StatusCadencia = "pendente" | "enviado" | "respondido" | "pular" | "removid
 const STATUS_VALIDOS: StatusCadencia[] = ["pendente", "enviado", "respondido", "pular", "removido"];
 
 /**
+ * Salva a mensagem gerada por IA num passo de cadência específico (lead+passo)
+ * e marca como enviado. Usado quando o vendedor copia ou abre WhatsApp do
+ * CadenciaPassoCard — antes a mensagem era state local e perdida ao recarregar.
+ */
+export async function salvarMensagemPassoEnviada(input: {
+  leadId: number;
+  passo: "D0" | "D3" | "D7" | "D11" | "D16" | "D30";
+  mensagem: string;
+}) {
+  const t = getT(await getServerLocale());
+  const me = await getCurrentProfile();
+  if (!me) throw new Error(t("erros.usuario_nao_autenticado"));
+
+  const orgId = await getCurrentOrgId();
+  if (!orgId) throw new Error(t("erros.sem_org"));
+
+  const supabase = createClient();
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  const { error } = await supabase
+    .from("cadencia")
+    .update({
+      status: "enviado",
+      data_executada: hoje,
+      mensagem_enviada: input.mensagem.slice(0, 5000),
+    })
+    .eq("lead_id", input.leadId)
+    .eq("passo", input.passo)
+    .eq("organizacao_id", orgId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/cadencia");
+  revalidatePath(`/pipeline/${input.leadId}`);
+  return { ok: true };
+}
+
+/**
  * Marca um passo de cadência como enviado / respondido / pular / pendente.
  *
  * Permissões: qualquer usuário autenticado da org. RLS no banco garante isolamento

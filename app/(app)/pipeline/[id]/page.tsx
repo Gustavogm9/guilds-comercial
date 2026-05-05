@@ -9,34 +9,45 @@ import { STAGE_COLORS } from "@/lib/lists";
 import type { LeadEnriched, LeadScore } from "@/lib/types";
 import { ChevronLeft, MessageSquare, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin } from "lucide-react";
 import ObjectionHandler from "@/components/objection-handler";
+import { getServerLocale, getT, type Locale } from "@/lib/i18n";
 
-// Calcula breakdown do score — mesma lógica do SQL, replicada aqui pra mostrar visualmente.
+/**
+ * Detalhe do lead — visão completa pra trabalhar pipeline.
+ *
+ * Fixes desta rodada:
+ *   - Bug 6: validação estrita do params.id (regex em vez de parseInt loose)
+ *   - Robustez 11: limit(50) em ligações
+ *   - Robustez 12: comentário sobre drift do calcularBreakdown vs SQL
+ *   - i18n 18, 21, 22: strings + summarizePayload + fmt usando locale
+ *   - i18n 23: currency lê de organizacoes.moeda_padrao
+ *   - UX 31: header com sticky (TODO em rodada futura)
+ *   - A11y 36: select etapa com aria-label
+ *
+ * DÍVIDA conhecida:
+ *   - Item 12: `calcularBreakdown` duplica lógica de `lead_score_fechamento()` SQL.
+ *     Drift se SQL evoluir e este JS não. Fix futuro: criar view
+ *     `v_lead_score_breakdown` retornando os 8 fatores já calculados.
+ *   - Item 38: 6 queries em paralelo. Fix futuro: view única `v_lead_detail`
+ *     consolidando tudo num round-trip.
+ */
 function calcularBreakdown(lead: LeadEnriched, raioxPago: boolean, ultimasLigacoes: Array<{ tom_interacao: string | null }>) {
-  // Etapa (25)
   const etapaMap: Record<string, number> = {
     "Prospecção": 2, "Qualificado": 5, "Raio-X Ofertado": 8, "Raio-X Feito": 12,
     "Call Marcada": 14, "Diagnóstico Pago": 18, "Proposta": 21, "Negociação": 25,
     "Fechado": 25, "Perdido": 0, "Nutrição": 3,
   };
   const etapa = lead.crm_stage ? (etapaMap[lead.crm_stage] ?? 0) : 0;
-  // Fit (10)
   const fit_icp = lead.fit_icp === true ? 10 : lead.fit_icp === false ? 0 : 3;
-  // Decisor (8)
   const decisor = lead.decisor === true ? 8 : lead.decisor === false ? 0 : 2;
-  // Temperatura (10)
   const tempMap: Record<string, number> = { Quente: 10, Morno: 5, Frio: 1 };
   const temperatura = tempMap[lead.temperatura] ?? 3;
-  // Raio-X pago (10)
   const voucher = raioxPago ? 10 : 0;
-  // Velocidade (12)
   const dias = lead.dias_sem_tocar ?? 0;
   const velocidade = Math.max(0, 12 - Math.min(12, Math.floor(dias / 2)));
-  // Percepção (15)
   const percMap: Record<string, number> = {
     "Muito alta": 15, Alta: 11, Média: 6, Baixa: 2, "Muito baixa": 0,
   };
   const percepcao = lead.percepcao_vendedor ? (percMap[lead.percepcao_vendedor] ?? 5) : 5;
-  // Interações (10)
   const pos = ultimasLigacoes.slice(0, 3).filter(l => l.tom_interacao === "positivo").length;
   const neg = ultimasLigacoes.slice(0, 3).filter(l => l.tom_interacao === "negativo").length;
   let interacoes = 3;
@@ -55,19 +66,32 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
+  const locale = await getServerLocale();
+  const t = getT(locale);
 
   const orgId = await getCurrentOrgId();
   if (!orgId) redirect("/hoje");
 
+  // Bug 6: validação estrita — parseInt aceita "123abc" silenciosamente
+  if (!/^\d+$/.test(params.id)) notFound();
   const id = parseInt(params.id, 10);
   if (Number.isNaN(id)) notFound();
 
+  // i18n 23: currency da org (default BRL)
+  const { data: orgRow } = await supabase
+    .from("organizacoes")
+    .select("moeda_padrao")
+    .eq("id", orgId)
+    .maybeSingle();
+  const currency = ((orgRow as any)?.moeda_padrao as string) || "BRL";
+
+  // Robustez 11: limit(50) em ligações pra não estourar payload em leads com muitas calls
   const [{ data: leadRow }, { data: ligacoes }, { data: cadencia }, { data: raiox }, { data: eventos }, { data: scoreRow }] =
     await Promise.all([
       supabase.from("v_leads_enriched").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
-      supabase.from("ligacoes").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("data_hora", { ascending: false }),
+      supabase.from("ligacoes").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("data_hora", { ascending: false }).limit(50),
       supabase.from("cadencia").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("passo"),
-      supabase.from("raio_x").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }),
+      supabase.from("raio_x").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }).limit(10),
       supabase.from("lead_evento").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }).limit(50),
       supabase.from("v_lead_score").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
     ]);
@@ -76,8 +100,8 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
   const lead = leadRow as LeadEnriched;
   const score = scoreRow as LeadScore | null;
   const stage = lead.crm_stage ? STAGE_COLORS[lead.crm_stage] : null;
+  const stageLabel = lead.crm_stage ? t(`pipeline_etapas.${lead.crm_stage}`) : null;
 
-  // Breakdown (idempotente com a função SQL lead_score_fechamento)
   const raioxPago = (raiox ?? []).some((r: { status_oferta?: string }) =>
     r.status_oferta === "Pago" || r.status_oferta === "Concluído");
   const breakdown = calcularBreakdown(
@@ -88,19 +112,25 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
-      <Link href="/pipeline" className="btn-ghost text-xs mb-3"><ChevronLeft className="w-3.5 h-3.5"/> Voltar ao pipeline</Link>
+      <Link href="/pipeline" className="btn-ghost text-xs mb-3">
+        <ChevronLeft className="w-3.5 h-3.5"/> {t("pipeline.detail_voltar")}
+      </Link>
 
       <div className="card p-5 md:p-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-semibold tracking-tight truncate">
-                {lead.empresa || lead.nome || "(sem nome)"}
+                {lead.empresa || lead.nome || t("pipeline.card_sem_nome")}
               </h1>
-              {lead.is_demo && <span className="text-[10px] uppercase tracking-[0.12em] bg-warning-500/10 text-warning-500 px-2 py-0.5 rounded border border-warning-500/25">demo</span>}
+              {lead.is_demo && (
+                <span className="text-[10px] uppercase tracking-[0.12em] bg-warning-500/10 text-warning-500 px-2 py-0.5 rounded border border-warning-500/25">
+                  {t("pipeline.detail_demo_badge")}
+                </span>
+              )}
               {lead.crm_stage && stage && (
                 <span className={`text-xs px-2 py-1 rounded border ${stage.bg} ${stage.text} ${stage.border}`}>
-                  {lead.crm_stage}
+                  {stageLabel}
                 </span>
               )}
             </div>
@@ -117,31 +147,45 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
         {/* Dados do lead */}
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-2 mt-6 text-sm">
-          <Field icon={Briefcase} label="Segmento" value={lead.segmento} />
-          <Field icon={MapPin}    label="Cidade/UF" value={lead.cidade_uf} />
-          <Field icon={Phone}     label="WhatsApp" value={lead.whatsapp} />
-          <Field icon={Mail}      label="Email" value={lead.email} />
-          <Field icon={Linkedin}  label="LinkedIn" value={lead.linkedin} />
-          <Field icon={User2}     label="Decisor?" value={lead.decisor === true ? "Sim" : lead.decisor === false ? "Não" : "—"} />
+          <Field icon={Briefcase} label={t("pipeline.detail_field_segmento")} value={lead.segmento} />
+          <Field icon={MapPin}    label={t("pipeline.detail_field_cidade")}   value={lead.cidade_uf} />
+          <Field icon={Phone}     label={t("pipeline.detail_field_whatsapp")} value={lead.whatsapp} />
+          <Field icon={Mail}      label={t("pipeline.detail_field_email")}    value={lead.email} />
+          <Field icon={Linkedin}  label={t("pipeline.detail_field_linkedin")} value={lead.linkedin} />
+          <Field
+            icon={User2}
+            label={t("pipeline.detail_decisor_label")}
+            value={lead.decisor === true ? t("pipeline.detail_decisor_sim") : lead.decisor === false ? t("pipeline.detail_decisor_nao") : "—"}
+          />
         </div>
 
         <div className="mt-4 grid md:grid-cols-3 gap-4 text-sm">
-          <KV label="Próxima ação" v={lead.proxima_acao ?? "—"} sub={lead.data_proxima_acao ? fmt(lead.data_proxima_acao) : ""} />
-          <KV label="Último toque" v={lead.data_ultimo_toque ? fmt(lead.data_ultimo_toque) : "—"}
-              sub={lead.dias_sem_tocar > 0 ? `${lead.dias_sem_tocar}d sem tocar` : ""} />
-          <KV label="Valor potencial" v={(lead.valor_potencial ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-              sub={`${Math.round((lead.probabilidade ?? 0)*100)}% prob · ${(lead.receita_ponderada ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })} ponderado`} />
+          <KV
+            label={t("pipeline.detail_proxima_acao")}
+            v={lead.proxima_acao ?? "—"}
+            sub={lead.data_proxima_acao ? fmt(lead.data_proxima_acao, locale) : ""}
+          />
+          <KV
+            label={t("pipeline.detail_ultimo_toque")}
+            v={lead.data_ultimo_toque ? fmt(lead.data_ultimo_toque, locale) : "—"}
+            sub={lead.dias_sem_tocar > 0 ? t("hoje.lead_dias_sem_tocar").replace("{{n}}", String(lead.dias_sem_tocar)) : ""}
+          />
+          <KV
+            label={t("pipeline.detail_valor_potencial")}
+            v={(lead.valor_potencial ?? 0).toLocaleString(locale, { style: "currency", currency })}
+            sub={`${t("pipeline.detail_prob").replace("{{n}}", String(Math.round((lead.probabilidade ?? 0)*100)))} · ${t("pipeline.detail_ponderado").replace("{{v}}", (lead.receita_ponderada ?? 0).toLocaleString(locale, { style: "currency", currency, maximumFractionDigits: 0 }))}`}
+          />
         </div>
 
         {lead.dor_principal && (
           <div className="mt-4">
-            <div className="label">Dor principal</div>
+            <div className="label">{t("pipeline.detail_dor_principal")}</div>
             <p className="text-sm mt-1">{lead.dor_principal}</p>
           </div>
         )}
         {lead.observacoes && (
           <div className="mt-4">
-            <div className="label">Observações</div>
+            <div className="label">{t("pipeline.detail_observacoes")}</div>
             <p className="text-sm mt-1 whitespace-pre-wrap">{lead.observacoes}</p>
           </div>
         )}
@@ -151,7 +195,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       {lead.funnel_stage === "pipeline" && lead.crm_stage !== "Fechado" && lead.crm_stage !== "Perdido" && (
         <section className="mt-6">
           <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">
-            Potencial de fechamento
+            {t("pipeline.detail_potencial_fechamento")}
           </h2>
           <LeadScoreCard
             leadId={lead.id}
@@ -183,7 +227,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
           <ObjectionHandler leadId={lead.id} empresa={lead.empresa} segmento={lead.segmento} />
           {(lead.crm_stage === "Proposta" || lead.crm_stage === "Negociação") && (
             <Link href={`/proposta/${lead.id}`} className="btn-secondary text-xs inline-flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5" /> Gerar Proposta com IA
+              <FileText className="w-3.5 h-3.5" /> {t("pipeline.actions_proposta_ai")}
             </Link>
           )}
         </section>
@@ -191,15 +235,20 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
       {/* Cadência */}
       <section className="mt-6">
-        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">Cadência</h2>
+        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">
+          {t("pipeline.detail_section_cadencia")}
+        </h2>
         <div className="card p-3 md:p-4">
-          {(cadencia?.length ?? 0) === 0 && <p className="text-sm text-muted-foreground">Nenhum passo de cadência registrado.</p>}
+          {(cadencia?.length ?? 0) === 0 && (
+            <p className="text-sm text-muted-foreground">{t("pipeline.detail_section_cadencia_vazio")}</p>
+          )}
           <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {(["D0","D3","D7","D11","D16","D30"] as const).map(p => {
               const c = (cadencia ?? []).find((x: any) => x.passo === p);
               return (
                 <CadenciaPassoCard
                   key={p}
+                  cadenciaId={c?.id ?? null}
                   passo={p}
                   status={c?.status ?? "pendente"}
                   objetivo={c?.objetivo ?? "—"}
@@ -216,6 +265,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
                   raioxScore={(raiox ?? [])[0]?.score ?? undefined}
                   vendedor={me.display_name}
                   whatsapp={lead.whatsapp ?? undefined}
+                  paisOrg={(lead as any).pais_org ?? "BR"}
                 />
               );
             })}
@@ -226,19 +276,24 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       {/* Ligações */}
       <section className="mt-6">
         <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-          <PhoneCall className="w-3.5 h-3.5"/> Ligações ({(ligacoes ?? []).length})
+          <PhoneCall className="w-3.5 h-3.5"/> {t("pipeline.detail_section_ligacoes").replace("{{n}}", String((ligacoes ?? []).length))}
         </h2>
         <div className="card divide-y">
-          {(ligacoes ?? []).length === 0 && <p className="p-4 text-sm text-muted-foreground">Sem ligações registradas.</p>}
+          {(ligacoes ?? []).length === 0 && (
+            <p className="p-4 text-sm text-muted-foreground">{t("pipeline.detail_section_ligacoes_vazio")}</p>
+          )}
           {(ligacoes ?? []).map((l: any) => (
             <div key={l.id} className="p-3 text-sm flex items-start gap-3">
-              <div className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums">{fmtDateTime(l.data_hora)}</div>
+              <div className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums">{fmtDateTime(l.data_hora, locale)}</div>
               <div className="flex-1">
                 <div className="font-medium">{l.resultado}</div>
                 {l.observacoes && <div className="text-muted-foreground text-xs mt-0.5">{l.observacoes}</div>}
               </div>
             </div>
           ))}
+          {(ligacoes ?? []).length === 50 && (
+            <p className="p-2 text-[10px] text-muted-foreground/70 text-center italic">{t("pipeline.limit_50_ligacoes")}</p>
+          )}
         </div>
       </section>
 
@@ -246,13 +301,23 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       {(raiox ?? []).length > 0 && (
         <section className="mt-6">
           <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-            <FileText className="w-3.5 h-3.5"/> Raio-X
+            <FileText className="w-3.5 h-3.5"/> {t("pipeline.detail_section_raiox")}
           </h2>
           <div className="card p-4 grid md:grid-cols-3 gap-4 text-sm">
-            <KV label="Score" v={String((raiox ?? [])[0].score ?? "—")} sub={(raiox ?? [])[0].nivel ?? ""}/>
-            <KV label="Perda anual estim." v={((raiox ?? [])[0].perda_anual_estimada ?? 0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}/>
-            <KV label="Pago" v={(raiox ?? [])[0].pago ? "Sim" : "Não"}
-                sub={(raiox ?? [])[0].preco_final?.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}/>
+            <KV
+              label={t("pipeline.detail_raiox_score")}
+              v={String((raiox ?? [])[0].score ?? "—")}
+              sub={(raiox ?? [])[0].nivel ?? ""}
+            />
+            <KV
+              label={t("pipeline.detail_raiox_perda")}
+              v={((raiox ?? [])[0].perda_anual_estimada ?? 0).toLocaleString(locale, { style: "currency", currency })}
+            />
+            <KV
+              label={t("pipeline.detail_raiox_pago")}
+              v={(raiox ?? [])[0].pago ? t("pipeline.detail_decisor_sim") : t("pipeline.detail_decisor_nao")}
+              sub={(raiox ?? [])[0].preco_final?.toLocaleString(locale, { style: "currency", currency })}
+            />
           </div>
         </section>
       )}
@@ -260,16 +325,18 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       {/* Timeline */}
       <section className="mt-6">
         <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-          <MessageSquare className="w-3.5 h-3.5"/> Timeline
+          <MessageSquare className="w-3.5 h-3.5"/> {t("pipeline.detail_section_timeline")}
         </h2>
         <div className="card divide-y">
-          {(eventos ?? []).length === 0 && <p className="p-4 text-sm text-muted-foreground">Sem eventos.</p>}
+          {(eventos ?? []).length === 0 && (
+            <p className="p-4 text-sm text-muted-foreground">{t("pipeline.detail_section_timeline_vazio")}</p>
+          )}
           {(eventos ?? []).map((ev: any) => (
             <div key={ev.id} className="p-3 text-sm flex items-start gap-3">
-              <div className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums">{fmtDateTime(ev.created_at)}</div>
+              <div className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums">{fmtDateTime(ev.created_at, locale)}</div>
               <div className="flex-1">
                 <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold mr-2">{ev.tipo}</span>
-                <span>{summarizePayload(ev.payload)}</span>
+                <span>{summarizePayload(ev.payload, t)}</span>
               </div>
             </div>
           ))}
@@ -288,6 +355,7 @@ function Field({ icon: Icon, label, value }: any) {
     </div>
   );
 }
+
 function KV({ label, v, sub }: { label: string; v: string; sub?: string }) {
   return (
     <div>
@@ -297,15 +365,24 @@ function KV({ label, v, sub }: { label: string; v: string; sub?: string }) {
     </div>
   );
 }
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "2-digit" });
+
+// i18n 22: locale-aware
+function fmt(d: string, locale: Locale = "pt-BR") {
+  return new Date(d).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "2-digit" });
 }
-function fmtDateTime(d: string) {
-  return new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+
+function fmtDateTime(d: string, locale: Locale = "pt-BR") {
+  return new Date(d).toLocaleString(locale, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
-function summarizePayload(p: any) {
+
+// i18n 21: traduz `→ ${para}` quando possível
+function summarizePayload(p: any, t: (k: string) => string) {
   if (!p) return "";
-  if (p.para)        return `→ ${p.para}`;
+  if (p.para) {
+    // Traduz a etapa quando aparece em payload de "etapa_alterada"
+    const etapaTraduzida = t(`pipeline_etapas.${p.para}`);
+    return t("pipeline.evento_seta").replace("{{para}}", etapaTraduzida || p.para);
+  }
   if (p.resultado)   return p.resultado;
   if (p.canal)       return `${p.canal}${p.passo ? ` (${p.passo})` : ""}${p.obs ? ` — ${p.obs}` : ""}`;
   return JSON.stringify(p);
