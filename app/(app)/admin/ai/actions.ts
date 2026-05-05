@@ -14,6 +14,38 @@ async function requireGestor() {
 }
 
 /**
+ * Valida limites de temperature/max_tokens/budgets pra evitar valores absurdos
+ * que quebrariam invocações de IA ou custariam fortunas.
+ */
+function validarParametrosFeature(input: {
+  temperature?: number;
+  max_tokens?: number;
+  limite_dia_org?: number;
+  limite_dia_usuario?: number;
+}) {
+  if (input.temperature !== undefined) {
+    if (!Number.isFinite(input.temperature) || input.temperature < 0 || input.temperature > 2) {
+      throw new Error("Temperature deve estar entre 0 e 2.");
+    }
+  }
+  if (input.max_tokens !== undefined) {
+    if (!Number.isInteger(input.max_tokens) || input.max_tokens < 1 || input.max_tokens > 200000) {
+      throw new Error("Max tokens deve estar entre 1 e 200000.");
+    }
+  }
+  if (input.limite_dia_org !== undefined) {
+    if (!Number.isInteger(input.limite_dia_org) || input.limite_dia_org < 0) {
+      throw new Error("Limite diário da org deve ser >= 0.");
+    }
+  }
+  if (input.limite_dia_usuario !== undefined) {
+    if (!Number.isInteger(input.limite_dia_usuario) || input.limite_dia_usuario < 0) {
+      throw new Error("Limite diário por usuário deve ser >= 0.");
+    }
+  }
+}
+
+/**
  * Verifica se a env var da API key do provider está populada no servidor.
  * Não retorna o valor — apenas presença e últimos 4 chars (pra UX).
  *
@@ -85,6 +117,12 @@ export async function atualizarFeatureConfig(input: {
   limite_dia_org?: number;
   limite_dia_usuario?: number;
 }) {
+  // Bug 1: validação de ranges (antes negativos passavam direto pra DB)
+  validarParametrosFeature(input);
+  if (input.modelo !== undefined && (typeof input.modelo !== "string" || !input.modelo.trim())) {
+    throw new Error("Modelo não pode ser vazio.");
+  }
+
   const orgId = await requireGestor();
   const supabase = createClient();
 
@@ -102,14 +140,16 @@ export async function atualizarFeatureConfig(input: {
   }
 
   if (existente) {
-    await supabase.from("ai_features").update(patch).eq("id", existente.id);
+    const { error } = await supabase.from("ai_features").update(patch).eq("id", existente.id);
+    if (error) throw error;
   } else {
     const { data: global } = await supabase
       .from("ai_features").select("*").is("organizacao_id", null)
       .eq("codigo", input.codigo).maybeSingle();
     if (!global) throw new Error("Feature não encontrada.");
     const { id: _, created_at: _c, updated_at: _u, ...rest } = global;
-    await supabase.from("ai_features").insert({ ...rest, ...patch, organizacao_id: orgId });
+    const { error } = await supabase.from("ai_features").insert({ ...rest, ...patch, organizacao_id: orgId });
+    if (error) throw error;
   }
   revalidatePath("/admin/ai");
 }
@@ -122,6 +162,21 @@ export async function criarVersaoPrompt(input: {
   variaveis_esperadas: string[];
   notas_editor?: string;
 }) {
+  // Bug 4+5: validação de input
+  if (!input.system_prompt || !input.system_prompt.trim()) {
+    throw new Error("System prompt não pode ser vazio.");
+  }
+  if (!input.user_template || !input.user_template.trim()) {
+    throw new Error("User template não pode ser vazio.");
+  }
+  if (!Array.isArray(input.variaveis_esperadas)) {
+    throw new Error("Variáveis esperadas deve ser uma lista.");
+  }
+  // Limite de tamanho — 50KB por prompt já é muito (200k tokens cobre uso real)
+  if (input.system_prompt.length > 50000 || input.user_template.length > 50000) {
+    throw new Error("Prompt muito longo (máx. 50KB cada).");
+  }
+
   const orgId = await requireGestor();
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -144,7 +199,7 @@ export async function criarVersaoPrompt(input: {
     .maybeSingle();
   const novaVersao = (ultima?.versao ?? 0) + 1;
 
-  await supabase.from("ai_prompts").insert({
+  const { error } = await supabase.from("ai_prompts").insert({
     organizacao_id: orgId,
     feature_codigo: input.feature_codigo,
     versao: novaVersao,
@@ -155,13 +210,55 @@ export async function criarVersaoPrompt(input: {
     notas_editor: input.notas_editor ?? null,
     criado_por: user?.id ?? null,
   });
+  // Bug 3: race-condition — se outro admin criou simultaneamente a mesma versao,
+  // a unique constraint (organizacao_id, feature_codigo, versao) levanta. Re-tenta uma vez.
+  if (error) {
+    if (error.code === "23505") {
+      const { data: ultima2 } = await supabase
+        .from("ai_prompts")
+        .select("versao")
+        .eq("organizacao_id", orgId)
+        .eq("feature_codigo", input.feature_codigo)
+        .order("versao", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const retry = (ultima2?.versao ?? 0) + 1;
+      const { error: e2 } = await supabase.from("ai_prompts").insert({
+        organizacao_id: orgId,
+        feature_codigo: input.feature_codigo,
+        versao: retry,
+        ativo: true,
+        system_prompt: input.system_prompt,
+        user_template: input.user_template,
+        variaveis_esperadas: input.variaveis_esperadas,
+        notas_editor: input.notas_editor ?? null,
+        criado_por: user?.id ?? null,
+      });
+      if (e2) throw e2;
+    } else {
+      throw error;
+    }
+  }
   revalidatePath("/admin/ai");
 }
 
 /** Reverte pra uma versão anterior (marca ela como ativa). */
 export async function reverterParaVersao(feature_codigo: AiFeatureCodigo, versao: number) {
+  if (!Number.isInteger(versao) || versao < 1) {
+    throw new Error("Versão inválida.");
+  }
   const orgId = await requireGestor();
   const supabase = createClient();
+
+  // Bug 7: confirma que a versão existe pra org antes de mexer no estado ativo
+  const { data: alvo } = await supabase
+    .from("ai_prompts")
+    .select("id")
+    .eq("organizacao_id", orgId)
+    .eq("feature_codigo", feature_codigo)
+    .eq("versao", versao)
+    .maybeSingle();
+  if (!alvo) throw new Error(`Versão ${versao} não encontrada para esta feature.`);
 
   await supabase.from("ai_prompts")
     .update({ ativo: false })
@@ -169,11 +266,10 @@ export async function reverterParaVersao(feature_codigo: AiFeatureCodigo, versao
     .eq("feature_codigo", feature_codigo)
     .eq("ativo", true);
 
-  await supabase.from("ai_prompts")
+  const { error } = await supabase.from("ai_prompts")
     .update({ ativo: true })
-    .eq("organizacao_id", orgId)
-    .eq("feature_codigo", feature_codigo)
-    .eq("versao", versao);
+    .eq("id", alvo.id);
+  if (error) throw error;
 
   revalidatePath("/admin/ai");
 }
@@ -188,6 +284,33 @@ export async function atualizarProvider(input: {
   custo_input_1k?: number;
   custo_output_1k?: number;
 }) {
+  // Bug 2+6: validação de input
+  if (input.api_key_ref !== undefined && input.api_key_ref !== "") {
+    // Aceita apenas nomes ENV-style (uppercase + digits + underscore) — evita injeção
+    if (!/^[A-Z][A-Z0-9_]*$/.test(input.api_key_ref)) {
+      throw new Error("api_key_ref deve ser nome de env-var válido (UPPER_SNAKE_CASE).");
+    }
+  }
+  if (input.modelo_default !== undefined && (!input.modelo_default || !input.modelo_default.trim())) {
+    throw new Error("Modelo default não pode ser vazio.");
+  }
+  if (input.base_url !== undefined && input.base_url !== "") {
+    try {
+      const u = new URL(input.base_url);
+      if (u.protocol !== "https:" && u.protocol !== "http:") {
+        throw new Error("base_url deve usar http(s).");
+      }
+    } catch {
+      throw new Error("base_url inválido.");
+    }
+  }
+  for (const k of ["custo_input_1k", "custo_output_1k"] as const) {
+    const v = input[k];
+    if (v !== undefined && (!Number.isFinite(v) || v < 0 || v > 1000)) {
+      throw new Error(`${k} deve estar entre 0 e 1000.`);
+    }
+  }
+
   const orgId = await requireGestor();
   const supabase = createClient();
 
@@ -204,14 +327,16 @@ export async function atualizarProvider(input: {
   }
 
   if (existente) {
-    await supabase.from("ai_providers").update(patch).eq("id", existente.id);
+    const { error } = await supabase.from("ai_providers").update(patch).eq("id", existente.id);
+    if (error) throw error;
   } else {
     const { data: global } = await supabase
       .from("ai_providers").select("*").is("organizacao_id", null)
       .eq("codigo", input.codigo).maybeSingle();
     if (!global) throw new Error("Provider não encontrado.");
     const { id: _, created_at: _c, updated_at: _u, ...rest } = global;
-    await supabase.from("ai_providers").insert({ ...rest, ...patch, organizacao_id: orgId });
+    const { error } = await supabase.from("ai_providers").insert({ ...rest, ...patch, organizacao_id: orgId });
+    if (error) throw error;
   }
   revalidatePath("/admin/ai");
 }

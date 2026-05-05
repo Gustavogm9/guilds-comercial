@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentRole } from "@/lib/supabase/org";
+import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -9,6 +9,9 @@ import { revalidatePath } from "next/cache";
  * Chamada da UI quando gestor marca um output como "perfeito" no /admin/ai.
  */
 export async function promoverInvocacaoAExemplo(invocationId: number) {
+  if (!Number.isInteger(invocationId) || invocationId <= 0) {
+    return { error: "ID de invocação inválido." };
+  }
   const role = await getCurrentRole();
   if (role !== "gestor") return { error: "Apenas gestores podem promover exemplos." };
 
@@ -29,16 +32,23 @@ export async function promoverInvocacaoAExemplo(invocationId: number) {
 
 /**
  * Desativa um exemplo (não apaga histórico).
+ * Defense-in-depth: filtra por organizacao_id mesmo confiando em RLS.
  */
 export async function desativarFewshotExemplo(exemploId: number) {
+  if (!Number.isInteger(exemploId) || exemploId <= 0) {
+    return { error: "ID inválido." };
+  }
   const role = await getCurrentRole();
   if (role !== "gestor") return { error: "Apenas gestores." };
+  const orgId = await getCurrentOrgId();
+  if (!orgId) return { error: "Sem organização ativa." };
 
   const supabase = createClient();
   const { error } = await supabase
     .from("ai_fewshot_exemplos")
     .update({ ativo: false })
-    .eq("id", exemploId);
+    .eq("id", exemploId)
+    .eq("organizacao_id", orgId);
 
   if (error) return { error: "Falha ao desativar." };
   revalidatePath("/admin/ai");
@@ -50,6 +60,9 @@ export async function desativarFewshotExemplo(exemploId: number) {
  * o output de uma invocação (score 60).
  */
 export async function registrarUsoOutput(invocationId: number) {
+  if (!Number.isInteger(invocationId) || invocationId <= 0) {
+    return { error: "" };
+  }
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado." };
