@@ -11,11 +11,12 @@ import type { Role } from "@/lib/types";
 
 function normalizarConvites(convites: Array<{ email: string; role: Role }>) {
   const roles: Role[] = ["gestor", "comercial", "sdr"];
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const porEmail = new Map<string, { email: string; role: Role }>();
 
   convites.forEach((convite) => {
     const email = convite.email.trim().toLowerCase();
-    if (!email || !email.includes("@")) return;
+    if (!email || !EMAIL_REGEX.test(email)) return;
     porEmail.set(email, {
       email,
       role: roles.includes(convite.role) ? convite.role : "comercial",
@@ -24,6 +25,10 @@ function normalizarConvites(convites: Array<{ email: string; role: Role }>) {
 
   return Array.from(porEmail.values()).slice(0, 5);
 }
+
+const IDIOMAS_VALIDOS = new Set(["pt-BR", "en-US"]);
+const MOEDAS_VALIDAS = new Set(["BRL", "USD", "EUR", "GBP"]);
+const PAIS_REGEX = /^[A-Z]{2}$/;
 
 export async function finalizarOnboarding(dados: {
   segmento: string;
@@ -91,10 +96,22 @@ export async function finalizarOnboarding(dados: {
   // CNPJ e razao_social vêm opcionais do wizard. CNPJ só persiste se BR e
   // se passar no constraint `^\d{14}$`. Tax ID é genérico (qualquer país).
   const pais = (dados.pais ?? "BR").toUpperCase();
+  if (!PAIS_REGEX.test(pais)) throw new Error("País inválido (esperado ISO-3166-1 alpha-2).");
   const isBR = pais === "BR";
   const cnpjLimpo = dados.cnpj?.replace(/\D/g, "") || null;
   const cnpjFinal = isBR && cnpjLimpo && cnpjLimpo.length === 14 ? cnpjLimpo : null;
   const taxIdFinal = dados.tax_id?.trim() || null;
+
+  // Whitelist de idioma e moeda
+  const idiomaFinal = dados.idioma_padrao && IDIOMAS_VALIDOS.has(dados.idioma_padrao)
+    ? dados.idioma_padrao : "pt-BR";
+  const moedaFinal = dados.moeda_padrao && MOEDAS_VALIDAS.has(dados.moeda_padrao)
+    ? dados.moeda_padrao : "BRL";
+
+  // Cap de tamanho em campos free-text (evita payloads gigantes pra DB)
+  const segmentoFinal = (dados.segmento || "").slice(0, 80).trim() || null;
+  const dorFinal = (dados.dor_principal || "").slice(0, 500).trim() || null;
+  const cargoFocoFinal = (dados.cargo_foco || "").slice(0, 80).trim() || null;
 
   const { data: org, error: orgErr } = await supabaseAdmin.from("organizacoes").insert({
     nome: empresaNome,
@@ -104,8 +121,8 @@ export async function finalizarOnboarding(dados: {
     cnpj: cnpjFinal,
     tax_id: taxIdFinal,
     pais,
-    idioma_padrao: dados.idioma_padrao || "pt-BR",
-    moeda_padrao: dados.moeda_padrao || "BRL",
+    idioma_padrao: idiomaFinal,
+    moeda_padrao: moedaFinal,
   }).select().single();
   if (orgErr) throw new Error("Erro ao criar organizacao: " + orgErr.message);
 
@@ -126,7 +143,7 @@ export async function finalizarOnboarding(dados: {
   });
   if (confErr) throw new Error("Erro ao criar configuracoes: " + confErr.message);
 
-  const orgLocale: Locale = (dados.idioma_padrao === "en-US" ? "en-US" : "pt-BR");
+  const orgLocale: Locale = (idiomaFinal === "en-US" ? "en-US" : "pt-BR");
   const templatesParaIdioma = getTemplatesByLocale(orgLocale);
   const templatesToInsert = templatesParaIdioma.map((template) => ({
     organizacao_id: org.id,
@@ -156,7 +173,7 @@ export async function finalizarOnboarding(dados: {
     email: user.email!,
     name: nome,
     orgName: empresaNome,
-    locale: dados.idioma_padrao || "pt-BR",
+    locale: idiomaFinal,
   }).catch(console.error);
 
   if (dados.gerarDemo) {
@@ -164,12 +181,12 @@ export async function finalizarOnboarding(dados: {
       organizacao_id: org.id,
       nome: "Carlos Silva",
       empresa: "Empresa Exemplo LTDA",
-      cargo: dados.cargo_foco || "Socio Diretor",
+      cargo: cargoFocoFinal || "Socio Diretor",
       funnel_stage: "pipeline",
       crm_stage: "Prospecção",
       temperatura: "Morno",
-      dor_principal: dados.dor_principal || null,
-      segmento: dados.segmento || null,
+      dor_principal: dorFinal,
+      segmento: segmentoFinal,
       valor_potencial: 5000,
       responsavel_id: user.id,
       data_primeiro_contato: new Date().toISOString().slice(0, 10),
@@ -198,7 +215,7 @@ export async function finalizarOnboarding(dados: {
       inviterName: nome,
       inviteUrl: `${getAppUrl()}/api/convite/${convite.token}`,
       role: convite.role,
-      locale: dados.idioma_padrao || "pt-BR",
+      locale: idiomaFinal,
     })));
   }
 
@@ -207,8 +224,8 @@ export async function finalizarOnboarding(dados: {
     ator_id: user.id,
     tipo: "onboarding_concluido",
     payload: {
-      segmento: dados.segmento,
-      cargo_foco: dados.cargo_foco,
+      segmento: segmentoFinal,
+      cargo_foco: cargoFocoFinal,
       gerar_demo: dados.gerarDemo,
       convites: convites.length,
       ia_habilitada: dados.habilitarIA ?? true,

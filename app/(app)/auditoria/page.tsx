@@ -36,8 +36,9 @@ export default async function AuditoriaPage(
 
   const supabase = createClient();
 
-  // Carrega últimos 200 eventos de cada tabela em paralelo
-  const [leadsRes, orgsRes, profilesRes] = await Promise.all([
+  // Carrega últimos 200 eventos de cada tabela em paralelo.
+  // Profiles: limita aos membros da org (antes carregava TODA a tabela profiles).
+  const [leadsRes, orgsRes, membrosRes] = await Promise.all([
     supabase
       .from("lead_evento")
       .select("id, tipo, ator_id, payload, created_at, lead_id, leads(empresa)")
@@ -51,9 +52,16 @@ export default async function AuditoriaPage(
       .order("created_at", { ascending: false })
       .limit(200),
     supabase
-      .from("profiles")
-      .select("id, display_name"),
+      .from("membros_organizacao")
+      .select("profile_id, profiles(id, display_name)")
+      .eq("organizacao_id", orgId),
   ]);
+  const profilesRes = {
+    data: (membrosRes.data ?? []).map((m: any) => ({
+      id: m.profiles?.id ?? m.profile_id,
+      display_name: m.profiles?.display_name ?? "—",
+    })),
+  };
 
   const profilesMap = new Map<string, string>();
   (profilesRes.data ?? []).forEach((p: any) => profilesMap.set(p.id, p.display_name));
@@ -164,8 +172,8 @@ export default async function AuditoriaPage(
                   )}
                 </div>
                 <span className="text-xs text-muted-foreground flex items-center gap-1 flex-shrink-0">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(e.created_at).toLocaleString("pt-BR", {
+                  <Calendar className="w-3 h-3" aria-hidden="true" />
+                  {new Date(e.created_at).toLocaleString(undefined, {
                     dateStyle: "short",
                     timeStyle: "short",
                   })}
