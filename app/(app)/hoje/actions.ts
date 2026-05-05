@@ -1,4 +1,21 @@
 "use server";
+/**
+ * Server actions da /hoje.
+ *
+ * DÍVIDA TÉCNICA conhecida (não bloqueante):
+ *
+ *  - Item 5: `registrarLigacao` faz 3 mutações sequenciais (insert ligacoes →
+ *    update leads → insert lead_evento). Não é atomicidade transacional —
+ *    se a 2ª falhar, fica registro órfão. Em produção, mitigado pelo retry
+ *    do vendedor. Fix futuro: function PG `registrar_ligacao_atomico(...)`
+ *    via RPC, embrulhando as 3 ops em transação BEGIN/COMMIT.
+ *
+ *  - Item 25: query da view `v_leads_enriched` em /hoje não é cacheada com
+ *    `unstable_cache` porque a função do Next 15+ proíbe `cookies()` dentro
+ *    do callback (e o Supabase client lê auth via cookies). Fix futuro: usar
+ *    service role bypass + filtros manuais por orgId — trade-off com
+ *    defense-in-depth de RLS, então fica como decisão de produto.
+ */
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import { revalidatePath } from "next/cache";
@@ -12,6 +29,21 @@ async function requireOrg() {
   return orgId;
 }
 
+/**
+ * Pre-check de segurança: confirma que o lead pertence à org ativa do user
+ * antes de qualquer mutação. RLS já protege, mas o silêncio do "0 rows affected"
+ * é confuso pra debug — preferimos throw explícito.
+ */
+async function assertLeadDaOrg(supabase: ReturnType<typeof createClient>, lead_id: number, orgId: string) {
+  const { data } = await supabase
+    .from("leads")
+    .select("id")
+    .eq("id", lead_id)
+    .eq("organizacao_id", orgId)
+    .maybeSingle();
+  if (!data) throw new Error(`Lead ${lead_id} não encontrado nesta organização.`);
+}
+
 export async function registrarLigacao(input: {
   lead_id: number;
   resultado: string;
@@ -22,6 +54,7 @@ export async function registrarLigacao(input: {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, input.lead_id, orgId);
 
   await supabase.from("ligacoes").insert({
     organizacao_id: orgId,
@@ -62,6 +95,7 @@ export async function registrarToque(input: {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, input.lead_id, orgId);
   const hoje = new Date().toISOString().slice(0, 10);
 
   if (input.passo) {
@@ -107,6 +141,7 @@ export async function moverEtapa(
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, lead_id, orgId);
   const exigeMotivo = ETAPAS_EXIGEM_MOTIVO.includes(novaEtapa);
   const arquivado = novaEtapa === "Fechado" || novaEtapa === "Perdido" || novaEtapa === "Nutrição";
 
@@ -182,6 +217,7 @@ export async function atualizarPercepcao(lead_id: number, percepcao: PercepcaoVe
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, lead_id, orgId);
 
   await supabase.from("leads")
     .update({ percepcao_vendedor: percepcao })
@@ -206,6 +242,7 @@ export async function atualizarPercepcao(lead_id: number, percepcao: PercepcaoVe
 export async function marcarTomUltimaInteracao(lead_id: number, tom: TomInteracao) {
   const supabase = createClient();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, lead_id, orgId);
 
   const { data: ultima } = await supabase
     .from("ligacoes")
@@ -228,10 +265,34 @@ export async function marcarTomUltimaInteracao(lead_id: number, tom: TomInteraca
 
 export async function adiarAcao(lead_id: number, dias: number) {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, lead_id, orgId);
+
+  if (!Number.isFinite(dias) || dias < 1 || dias > 90) {
+    throw new Error("Dias inválido (1-90).");
+  }
+
   const d = new Date();
   d.setDate(d.getDate() + dias);
+  const novaData = d.toISOString().slice(0, 10);
+
   await supabase.from("leads").update({
-    data_proxima_acao: d.toISOString().slice(0, 10),
-  }).eq("id", lead_id);
+    data_proxima_acao: novaData,
+  }).eq("id", lead_id).eq("organizacao_id", orgId);
+
+  // Audit log — mantém consistência com outras actions desta página
+  await supabase.from("lead_evento").insert({
+    organizacao_id: orgId,
+    lead_id,
+    ator_id: user?.id ?? null,
+    tipo: "acao_adiada",
+    payload: { dias, nova_data: novaData },
+  });
+
+  // Revalida /pipeline também — se user adiou pelo /hoje e abrir /pipeline em
+  // outra aba, deve ver a data atualizada sem F5.
   revalidatePath("/hoje");
+  revalidatePath("/pipeline");
+  revalidatePath(`/pipeline/${lead_id}`);
 }

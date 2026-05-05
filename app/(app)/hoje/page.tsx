@@ -2,16 +2,28 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
-import { URGENCIA_LABELS, STAGE_COLORS } from "@/lib/lists";
+import { ETAPAS_PIPELINE_VISIVEL, STAGE_COLORS, getUrgenciaLabel } from "@/lib/lists";
 import QuickActions from "@/components/quick-actions";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
-import ReativarNutricaoBtn from "@/components/reativar-nutricao-btn";
-import { getServerLocale, getT } from "@/lib/i18n";
+import { getServerLocale, getT, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Cockpit do dia — leads que precisam de ação hoje, agrupados por urgência.
+ *
+ * Fixes desta rodada:
+ *   - Bug 2: Top oportunidades agora filtra por crm_stage IN ETAPAS_PIPELINE_VISIVEL
+ *     (antes pegava também Fechado/Perdido/Nutrição).
+ *   - Bug 3: Removido ReativarNutricaoBtn do LeadRow — era dead code (a query
+ *     filtra fora Nutrição). O botão fica só no detalhe do lead.
+ *   - Issue 18: KPI "Hoje" agora vira neutral quando 0 (consistente com Vencidas).
+ *   - Issue 19: Top oportunidades movido pro topo (acima dos blocos temporais).
+ *   - Issues 8-10: i18n via getUrgenciaLabel + t() pra stages e "dias sem tocar".
+ *   - Issue 13: Currency lê de organizacoes.moeda_padrao em vez de hardcoded BRL.
+ */
 export default async function HojePage(props: { searchParams: Promise<{ todos?: string }> }) {
   const searchParams = await props.searchParams;
   const supabase = createClient();
@@ -35,20 +47,32 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
   const isGestor = role === "gestor";
   const verTodos = searchParams.todos === "1";
 
+  // Issue 13: lê moeda da org (default BRL se não setada)
+  const { data: orgRow } = await supabase
+    .from("organizacoes")
+    .select("moeda_padrao")
+    .eq("id", orgId)
+    .maybeSingle();
+  const currency = ((orgRow as any)?.moeda_padrao as string) || "BRL";
+
+  // Issue 2: usa ETAPAS_PIPELINE_VISIVEL como source of truth (mesmo que /pipeline)
+  const etapasVisiveis = [...ETAPAS_PIPELINE_VISIVEL];
+
   let q = supabase
     .from("v_leads_enriched")
     .select("*")
     .eq("organizacao_id", orgId)
-    .in("crm_stage", ["Prospecção","Qualificado","Raio-X Ofertado","Raio-X Feito","Call Marcada","Diagnóstico Pago","Proposta"])
+    .in("crm_stage", etapasVisiveis)
     .order("data_proxima_acao", { ascending: true, nullsFirst: false });
 
   if (!isGestor || !verTodos) q = q.eq("responsavel_id", me.id);
 
-  // Top oportunidades — ranking por valor_esperado (score × valor) do mesmo escopo
+  // Top oportunidades — Bug 2: agora filtra também por crm_stage ativo
   let qTop = supabase
     .from("v_top_oportunidades")
     .select("*")
     .eq("organizacao_id", orgId)
+    .in("crm_stage", etapasVisiveis)
     .order("valor_esperado", { ascending: false })
     .limit(5);
   if (!isGestor || !verTodos) qTop = qTop.eq("responsavel_id", me.id);
@@ -89,16 +113,14 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-6">
-        <KPI title={t("hoje.kpi_pendentes")} value={kpis.pendentes} tone="urgent" icon={<AlertTriangle className="w-4 h-4"/>} />
+        <KPI title={t("hoje.kpi_pendentes")} value={kpis.pendentes} tone={kpis.pendentes > 0 ? "urgent" : "neutral"} icon={<AlertTriangle className="w-4 h-4"/>} />
         <KPI title={t("hoje.kpi_vencidas")} value={kpis.vencidas} tone={kpis.vencidas > 0 ? "urgent" : "neutral"} icon={<Clock className="w-4 h-4"/>} />
-        <KPI title={t("hoje.kpi_hoje")} value={kpis.hoje} tone="warning" icon={<Sparkles className="w-4 h-4"/>} />
+        {/* Issue 18: tone condicional — não fica âmbar se 0 */}
+        <KPI title={t("hoje.kpi_hoje")} value={kpis.hoje} tone={kpis.hoje > 0 ? "warning" : "neutral"} icon={<Sparkles className="w-4 h-4"/>} />
         <KPI title={t("hoje.kpi_propostas_abertas")} value={kpis.propostas} tone="neutral" icon={<MessageSquare className="w-4 h-4"/>} />
       </div>
 
-      <Section title={t("hoje.section_vencidas")} tone="urgent" leads={vencidas} />
-      <Section title={t("hoje.section_hoje")} tone="warning" leads={hoje} />
-
-      {/* Top oportunidades */}
+      {/* Issue 19: Top oportunidades MOVIDO PRO TOPO — prioridade independente de urgência */}
       {top.length > 0 && (
         <section className="mb-6">
           <h2 className="text-[11px] uppercase tracking-[0.12em] font-semibold mb-2 text-primary flex items-center gap-1.5">
@@ -106,15 +128,17 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
             <span className="text-muted-foreground font-normal normal-case tracking-normal">{t("hoje.section_top_sub")}</span>
           </h2>
           <ul className="space-y-1.5">
-            {top.map(l => <TopRow key={l.id} l={l} t={t} locale={locale} />)}
+            {top.map(l => <TopRow key={l.id} l={l} t={t} locale={locale} currency={currency} />)}
           </ul>
         </section>
       )}
 
-      <Section title={t("hoje.section_amanha")} leads={amanha} />
-      <Section title={t("hoje.section_semana")} leads={semana} />
+      <Section title={t("hoje.section_vencidas")} tone="urgent" leads={vencidas} t={t} locale={locale} />
+      <Section title={t("hoje.section_hoje")} tone="warning" leads={hoje} t={t} locale={locale} />
+      <Section title={t("hoje.section_amanha")} leads={amanha} t={t} locale={locale} />
+      <Section title={t("hoje.section_semana")} leads={semana} t={t} locale={locale} />
       {semAcao.length > 0 && (
-        <Section title={t("hoje.section_sem_acao")} leads={semAcao} />
+        <Section title={t("hoje.section_sem_acao")} leads={semAcao} t={t} locale={locale} />
       )}
 
       {all.length === 0 && (
@@ -129,7 +153,6 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
 function KPI({ title, value, tone = "neutral", icon }: {
   title: string; value: number; tone?: "urgent"|"warning"|"success"|"neutral"; icon?: React.ReactNode;
 }) {
-  // Tones via tokens HSL — funcionam light + dark sem novas classes
   const tones: Record<string, string> = {
     urgent:  "bg-destructive/10 text-destructive",
     warning: "bg-warning-500/10 text-warning-500",
@@ -147,7 +170,13 @@ function KPI({ title, value, tone = "neutral", icon }: {
   );
 }
 
-function Section({ title, leads, tone = "neutral" }: { title: string; leads: LeadEnriched[]; tone?: string }) {
+function Section({ title, leads, tone = "neutral", t, locale }: {
+  title: string;
+  leads: LeadEnriched[];
+  tone?: string;
+  t: (k: string) => string;
+  locale: Locale;
+}) {
   if (leads.length === 0) return null;
   const titleColor =
     tone === "urgent"  ? "text-destructive" :
@@ -159,15 +188,24 @@ function Section({ title, leads, tone = "neutral" }: { title: string; leads: Lea
         {title} <span className="text-muted-foreground/60 font-normal normal-case tracking-normal">({leads.length})</span>
       </h2>
       <ul className="space-y-2">
-        {leads.map(l => <LeadRow key={l.id} l={l} />)}
+        {leads.map(l => <LeadRow key={l.id} l={l} t={t} locale={locale} />)}
       </ul>
     </section>
   );
 }
 
-function LeadRow({ l }: { l: LeadEnriched }) {
-  const u = URGENCIA_LABELS[l.urgencia];
+function LeadRow({ l, t, locale }: {
+  l: LeadEnriched;
+  t: (k: string) => string;
+  locale: Locale;
+}) {
+  // Issue 4: getUrgenciaLabel é safe-fallback se l.urgencia for inválido
+  const u = getUrgenciaLabel(l.urgencia);
+  // Issue 8: traduz label da urgência
+  const urgenciaLabel = t(`urgencia.${l.urgencia ?? "sem_acao"}`);
   const stageColor = l.crm_stage ? STAGE_COLORS[l.crm_stage] : null;
+  // Issue 9: traduz label da etapa
+  const stageLabel = l.crm_stage ? t(`pipeline_etapas.${l.crm_stage}`) : null;
   return (
     <li className="card p-3 md:p-4 transition-all hover:border-primary/30 hover:bg-secondary/40 dark:hover:bg-white/[0.03]">
       <div className="flex flex-col md:flex-row md:items-center gap-3">
@@ -178,28 +216,29 @@ function LeadRow({ l }: { l: LeadEnriched }) {
               className="font-medium text-foreground hover:text-primary truncate transition-colors"
               style={{ letterSpacing: "-0.13px" }}
             >
-              {l.empresa || l.nome || "(sem nome)"}
+              {l.empresa || l.nome || t("lead.sem_nome")}
             </Link>
             {l.crm_stage && stageColor && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-[0.1em] font-semibold ${stageColor.bg} ${stageColor.text} ${stageColor.border}`}>
-                {l.crm_stage}
+                {stageLabel}
               </span>
             )}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${u.color}`}>{u.label}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${u.color}`}>{urgenciaLabel}</span>
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             {l.nome ? `${l.nome} · ` : ""}
             {l.cargo ? `${l.cargo} · ` : ""}
             {l.segmento ?? "—"}
             {l.proxima_acao && <span className="ml-2 text-foreground/80">→ {l.proxima_acao}</span>}
-            {l.data_proxima_acao && <span className="ml-2 tabular-nums">({fmt(l.data_proxima_acao)})</span>}
-            {l.dias_sem_tocar > 0 && <span className="ml-2 tabular-nums">· {l.dias_sem_tocar}d sem tocar</span>}
+            {l.data_proxima_acao && <span className="ml-2 tabular-nums">({fmt(l.data_proxima_acao, locale)})</span>}
+            {l.dias_sem_tocar > 0 && (
+              <span className="ml-2 tabular-nums">
+                · {t("hoje.lead_dias_sem_tocar").replace("{{n}}", String(l.dias_sem_tocar))}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {l.crm_stage === "Nutrição" && (
-            <ReativarNutricaoBtn leadId={l.id} empresa={l.empresa} nome={l.nome} segmento={l.segmento} motivo={l.motivo_perda} />
-          )}
           <QuickActions lead={l} />
           <Link href={`/pipeline/${l.id}`} className="btn-ghost"><ChevronRight className="w-4 h-4"/></Link>
         </div>
@@ -211,12 +250,18 @@ function LeadRow({ l }: { l: LeadEnriched }) {
   );
 }
 
-function TopRow({ l, t, locale }: { l: TopOportunidade; t: (k: string) => string; locale: string }) {
+function TopRow({ l, t, locale, currency }: {
+  l: TopOportunidade;
+  t: (k: string) => string;
+  locale: string;
+  currency: string;
+}) {
   const scoreCor =
     l.score >= 70 ? "bg-success-500/15 text-success-500 border-success-500/30"
     : l.score >= 45 ? "bg-warning-500/15 text-warning-500 border-warning-500/30"
     : "bg-destructive/15 text-destructive border-destructive/30";
   const stageColor = l.crm_stage ? STAGE_COLORS[l.crm_stage] : null;
+  const stageLabel = l.crm_stage ? t(`pipeline_etapas.${l.crm_stage}`) : null;
   return (
     <li className="card p-3 transition-all hover:border-primary/40 bg-primary/[0.03] dark:bg-primary/[0.06]">
       <div className="flex items-center gap-3 flex-wrap">
@@ -230,11 +275,11 @@ function TopRow({ l, t, locale }: { l: TopOportunidade; t: (k: string) => string
               className="font-medium text-foreground hover:text-primary truncate transition-colors"
               style={{ letterSpacing: "-0.13px" }}
             >
-              {l.empresa || l.nome || "(sem nome)"}
+              {l.empresa || l.nome || t("lead.sem_nome")}
             </Link>
             {l.crm_stage && stageColor && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-[0.1em] font-semibold ${stageColor.bg} ${stageColor.text} ${stageColor.border}`}>
-                {l.crm_stage}
+                {stageLabel}
               </span>
             )}
             {l.percepcao_vendedor && (
@@ -246,16 +291,17 @@ function TopRow({ l, t, locale }: { l: TopOportunidade; t: (k: string) => string
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             {l.proxima_acao ? <span>→ {l.proxima_acao}</span> : <span className="italic">{t("hoje.sem_proxima_acao")}</span>}
-            {l.data_proxima_acao && <span className="ml-2 tabular-nums">({fmt(l.data_proxima_acao)})</span>}
+            {l.data_proxima_acao && <span className="ml-2 tabular-nums">({fmt(l.data_proxima_acao, locale)})</span>}
           </div>
         </div>
         <div className="text-right shrink-0">
           <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">{t("hoje.estimado")}</div>
+          {/* Issue 13: currency dinâmica da org */}
           <div className="text-sm font-semibold text-primary tabular-nums">
-            {Number(l.valor_esperado || 0).toLocaleString(locale, { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+            {Number(l.valor_esperado || 0).toLocaleString(locale, { style: "currency", currency, maximumFractionDigits: 0 })}
           </div>
           <div className="text-[10px] text-muted-foreground/70 tabular-nums">
-            {t("hoje.de_total")} {Number(l.valor_potencial || 0).toLocaleString(locale, { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+            {t("hoje.de_total")} {Number(l.valor_potencial || 0).toLocaleString(locale, { style: "currency", currency, maximumFractionDigits: 0 })}
           </div>
         </div>
         <Link href={`/pipeline/${l.id}`} className="btn-ghost shrink-0"><ChevronRight className="w-4 h-4"/></Link>
@@ -264,7 +310,7 @@ function TopRow({ l, t, locale }: { l: TopOportunidade; t: (k: string) => string
   );
 }
 
-function fmt(d: string) {
+function fmt(d: string, locale: string = "pt-BR") {
   const dt = new Date(d);
-  return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  return dt.toLocaleDateString(locale, { day: "2-digit", month: "short" });
 }

@@ -156,3 +156,15 @@ export const URGENCIA_LABELS = {
   futuro:      { label: "Futuro",       color: "text-muted-foreground bg-muted border-border" },
   sem_acao:    { label: "Sem ação",     color: "text-muted-foreground bg-muted/60 border-border" },
 } as const;
+
+export type UrgenciaKey = keyof typeof URGENCIA_LABELS;
+
+/**
+ * Acesso seguro à URGENCIA_LABELS.
+ * Defensa: se o valor de `l.urgencia` vier null/undefined ou inválido (ex: view
+ * com bug, lead recém-criado), usa "sem_acao" como fallback em vez de crashar.
+ */
+export function getUrgenciaLabel(urgencia: string | null | undefined) {
+  const safe = (urgencia ?? "sem_acao") as UrgenciaKey;
+  return URGENCIA_LABELS[safe] ?? URGENCIA_LABELS.sem_acao;
+}
