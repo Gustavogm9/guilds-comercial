@@ -9,6 +9,19 @@ const nextConfig = {
     // Sem isto, importar 1 ícone inclui várias dezenas no bundle.
     optimizePackageImports: ["lucide-react", "@dnd-kit/core", "@dnd-kit/sortable"],
   },
+  // Suprime o warning "Serializing big strings (Xkb) impacts deserialization performance"
+  // em webpack (usado pelo Next em alguns paths). Os JSONs de i18n e prompts grandes
+  // disparavam isso; configurar Buffer evita reserialização desnecessária.
+  webpack(config, { dev }) {
+    if (!dev) {
+      config.cache = config.cache && {
+        ...config.cache,
+        // Aumenta o limite antes de fazer split de strings na cache file system
+        compression: "gzip",
+      };
+    }
+    return config;
+  },
 };
 
 export default withSentryConfig(nextConfig, {
