@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition, useMemo } from "react";
+import { useEffect, useState, useTransition, useMemo } from "react";
 import { importarLeadsEmMassa, type DedupPolitica } from "../actions";
 import { Upload, CheckCircle2, AlertCircle, X, ArrowRight, ArrowLeft, Save, Layers } from "lucide-react";
 import Link from "next/link";
@@ -7,6 +7,9 @@ import {
   parseCsv, inferirMapping, aplicarMapping, CAMPOS_LEAD,
   type CampoLead,
 } from "@/lib/utils/csv-import";
+import { getClientLocale, getT, type Locale } from "@/lib/i18n";
+
+const MAX_CSV_SIZE = 10 * 1024 * 1024; // 10 MB
 
 type Step = "upload" | "mapping" | "preview" | "resultado";
 
@@ -36,12 +39,16 @@ function salvarTemplate(t: Template) {
 }
 
 export default function ImportarCsvClient() {
+  const [locale, setLocale] = useState<Locale>("pt-BR");
+  useEffect(() => setLocale(getClientLocale()), []);
+  const t = getT(locale);
   const [step, setStep] = useState<Step>("upload");
   const [filename, setFilename] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<Record<string, CampoLead | null>>({});
   const [politica, setPolitica] = useState<DedupPolitica>("ignorar");
+  const [erroUpload, setErroUpload] = useState<string | null>(null);
   const [resultado, setResultado] = useState<{
     criados: number;
     atualizados: number;
@@ -50,12 +57,21 @@ export default function ImportarCsvClient() {
     erros: string[];
   } | null>(null);
   const [pending, start] = useTransition();
-  const [templates, setTemplates] = useState<Template[]>(carregarTemplates());
+  const [templates, setTemplates] = useState<Template[]>([]);
+  // Carrega templates só no client (evita SSR/hydration mismatch com localStorage)
+  useEffect(() => setTemplates(carregarTemplates()), []);
   const [novoTemplateNome, setNovoTemplateNome] = useState("");
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    setErroUpload(null);
+    // Bloco B: limite de tamanho — evita travar o navegador com CSV gigante
+    if (f.size > MAX_CSV_SIZE) {
+      setErroUpload(t("base.import_arquivo_grande"));
+      e.target.value = "";
+      return;
+    }
     setFilename(f.name);
     const reader = new FileReader();
     reader.onload = () => {
@@ -65,6 +81,9 @@ export default function ImportarCsvClient() {
       setRawRows(r);
       setMapping(inferirMapping(h));
       setStep("mapping");
+    };
+    reader.onerror = () => {
+      setErroUpload(t("base.row_toast_erro"));
     };
     reader.readAsText(f, "UTF-8");
   }
@@ -76,20 +95,25 @@ export default function ImportarCsvClient() {
     setRawRows([]);
     setMapping({});
     setResultado(null);
+    setErroUpload(null);
   }
 
-  function aplicarTemplate(t: Template) {
+  function aplicarTemplate(tpl: Template) {
     const novo: Record<string, CampoLead | null> = {};
     headers.forEach((h) => {
-      novo[h] = t.mapping[h] ?? null;
+      novo[h] = tpl.mapping[h] ?? null;
     });
     setMapping(novo);
   }
 
   function salvarComoTemplate() {
-    if (!novoTemplateNome.trim()) return;
-    const t: Template = { nome: novoTemplateNome.trim(), mapping, criadoEm: Date.now() };
-    salvarTemplate(t);
+    const nome = novoTemplateNome.trim();
+    if (!nome) return;
+    // Bloco B: confirma sobrescrita se já existe template com o mesmo nome
+    const existente = templates.find((x) => x.nome === nome);
+    if (existente && !window.confirm(t("base.import_template_existente"))) return;
+    const novo: Template = { nome, mapping, criadoEm: Date.now() };
+    salvarTemplate(novo);
     setTemplates(carregarTemplates());
     setNovoTemplateNome("");
   }
@@ -104,35 +128,46 @@ export default function ImportarCsvClient() {
 
   function importar() {
     start(async () => {
-      const r = await importarLeadsEmMassa(rowsMapeadas as any, politica);
-      setResultado(r);
-      setStep("resultado");
+      try {
+        const r = await importarLeadsEmMassa(rowsMapeadas as any, politica);
+        setResultado(r);
+        setStep("resultado");
+      } catch (e) {
+        setErroUpload(e instanceof Error ? e.message : t("base.row_toast_erro"));
+      }
     });
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-xs">
-        <StepDot active={step === "upload"} done={step !== "upload"} label="1. Arquivo" />
-        <ArrowRight className="w-3 h-3 text-muted-foreground" />
-        <StepDot active={step === "mapping"} done={step === "preview" || step === "resultado"} label="2. Mapear" />
-        <ArrowRight className="w-3 h-3 text-muted-foreground" />
-        <StepDot active={step === "preview"} done={step === "resultado"} label="3. Conferir" />
-        <ArrowRight className="w-3 h-3 text-muted-foreground" />
-        <StepDot active={step === "resultado"} done={false} label="4. Pronto" />
+        <StepDot active={step === "upload"} done={step !== "upload"} label={t("base.import_step_arquivo")} />
+        <ArrowRight className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+        <StepDot active={step === "mapping"} done={step === "preview" || step === "resultado"} label={t("base.import_step_mapear")} />
+        <ArrowRight className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+        <StepDot active={step === "preview"} done={step === "resultado"} label={t("base.import_step_conferir")} />
+        <ArrowRight className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+        <StepDot active={step === "resultado"} done={false} label={t("base.import_step_pronto")} />
       </div>
 
       {step === "upload" && (
         <div className="card p-8 border-2 border-dashed text-center">
-          <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-foreground mb-3">Arraste um CSV ou clique para selecionar</p>
+          <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" aria-hidden="true" />
+          <p className="text-sm text-foreground mb-3">{t("base.import_arraste_csv")}</p>
           <label className="btn-primary cursor-pointer inline-flex">
             <input type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
-            Escolher arquivo CSV
+            {t("base.import_escolher_arquivo")}
           </label>
+          {erroUpload && (
+            <p
+              role="alert"
+              className="mt-3 text-xs text-destructive bg-destructive/5 border border-destructive/30 rounded-lg px-3 py-2 inline-flex items-center gap-1.5"
+            >
+              <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> {erroUpload}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground mt-4 max-w-md mx-auto">
-            Aceita exports de Pipedrive, RD Station, HubSpot ou qualquer CSV com cabeçalho.
-            O sistema detecta o mapeamento automaticamente — você confere e ajusta antes de importar.
+            {t("base.import_aceita_exports")}
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             <a
@@ -142,7 +177,7 @@ export default function ImportarCsvClient() {
               download="template_leads.csv"
               className="text-primary underline"
             >
-              Baixar template de exemplo
+              {t("base.import_baixar_template")}
             </a>
           </p>
         </div>
@@ -152,32 +187,34 @@ export default function ImportarCsvClient() {
         <>
           <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
-              <Upload className="w-4 h-4 text-muted-foreground" />
+              <Upload className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <div>
                 <div className="text-sm font-medium">{filename}</div>
                 <div className="text-xs text-muted-foreground">
-                  {headers.length} colunas · {rawRows.length} linhas detectadas
+                  {t("base.import_colunas_linhas")
+                    .replace("{{cols}}", String(headers.length))
+                    .replace("{{rows}}", String(rawRows.length))}
                 </div>
               </div>
             </div>
             <button onClick={reset} className="btn-ghost text-xs">
-              <X className="w-3.5 h-3.5" /> Trocar arquivo
+              <X className="w-3.5 h-3.5" aria-hidden="true" /> {t("base.import_trocar_arquivo")}
             </button>
           </div>
 
           {templates.length > 0 && (
             <div className="card p-3">
               <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                <Layers className="w-3 h-3" /> Templates salvos
+                <Layers className="w-3 h-3" aria-hidden="true" /> {t("base.import_templates_salvos")}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {templates.map((t) => (
+                {templates.map((tpl) => (
                   <button
-                    key={t.nome}
-                    onClick={() => aplicarTemplate(t)}
+                    key={tpl.nome}
+                    onClick={() => aplicarTemplate(tpl)}
                     className="text-xs px-2 py-1 rounded-md bg-muted/50 hover:bg-muted text-foreground border border-border"
                   >
-                    {t.nome}
+                    {tpl.nome}
                   </button>
                 ))}
               </div>
@@ -185,27 +222,27 @@ export default function ImportarCsvClient() {
           )}
 
           <div className="card p-4">
-            <div className="text-sm font-medium text-foreground mb-2">Mapear colunas do CSV → campos do Guilds</div>
+            <div className="text-sm font-medium text-foreground mb-2">{t("base.import_mapear_titulo")}</div>
             <p className="text-xs text-muted-foreground mb-4">
-              O sistema sugeriu o mapeamento. Confira e ajuste o que precisar.
-              Coluna mapeada como <span className="font-mono bg-muted px-1 rounded">— não importar</span> é descartada.
+              {t("base.import_mapear_desc")}{" "}
+              <span className="font-mono bg-muted px-1 rounded">{t("base.import_nao_importar")}</span>
             </p>
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/50">
                   <tr>
-                    <th className="text-left py-2 font-medium">Coluna no CSV</th>
-                    <th className="text-left py-2 font-medium">→</th>
-                    <th className="text-left py-2 font-medium">Campo do Guilds</th>
-                    <th className="text-left py-2 font-medium">Exemplo (1ª linha)</th>
+                    <th className="text-left py-2 font-medium">{t("base.import_coluna_csv")}</th>
+                    <th className="text-left py-2 font-medium" aria-hidden="true">→</th>
+                    <th className="text-left py-2 font-medium">{t("base.import_campo_guilds")}</th>
+                    <th className="text-left py-2 font-medium">{t("base.import_exemplo")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
                   {headers.map((h) => (
                     <tr key={h}>
                       <td className="py-2 font-mono text-xs text-foreground">{h}</td>
-                      <td className="py-2 text-muted-foreground"><ArrowRight className="w-3 h-3" /></td>
+                      <td className="py-2 text-muted-foreground"><ArrowRight className="w-3 h-3" aria-hidden="true" /></td>
                       <td className="py-2">
                         <select
                           value={mapping[h] ?? ""}
@@ -213,9 +250,10 @@ export default function ImportarCsvClient() {
                             const v = e.target.value as CampoLead | "";
                             setMapping({ ...mapping, [h]: v === "" ? null : v });
                           }}
+                          aria-label={`${t("base.import_campo_guilds")} ${h}`}
                           className="input-base text-sm py-1 min-w-[200px]"
                         >
-                          <option value="">— não importar —</option>
+                          <option value="">{t("base.import_nao_importar")}</option>
                           {CAMPOS_LEAD.map((c) => (
                             <option key={c.value} value={c.value}>{c.label}</option>
                           ))}
@@ -231,9 +269,9 @@ export default function ImportarCsvClient() {
             </div>
 
             {!empresaMapeada && (
-              <div className="mt-3 p-2 rounded-lg bg-urgent-500/10 border border-urgent-500/30 text-xs text-foreground flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-urgent-500" />
-                Você precisa mapear ao menos uma coluna como <strong>Empresa</strong>.
+              <div role="alert" className="mt-3 p-2 rounded-lg bg-urgent-500/10 border border-urgent-500/30 text-xs text-foreground flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-urgent-500" aria-hidden="true" />
+                {t("base.import_empresa_obrigatorio")}
               </div>
             )}
 
@@ -242,7 +280,8 @@ export default function ImportarCsvClient() {
                 type="text"
                 value={novoTemplateNome}
                 onChange={(e) => setNovoTemplateNome(e.target.value)}
-                placeholder="Salvar este mapeamento como template (ex: Pipedrive Export)"
+                placeholder={t("base.import_salvar_template_placeholder")}
+                aria-label={t("base.import_salvar_template_placeholder")}
                 className="input-base text-xs flex-1"
               />
               <button
@@ -250,21 +289,21 @@ export default function ImportarCsvClient() {
                 disabled={!novoTemplateNome.trim()}
                 className="btn-secondary text-xs"
               >
-                <Save className="w-3 h-3" /> Salvar
+                <Save className="w-3 h-3" aria-hidden="true" /> {t("base.import_salvar")}
               </button>
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-2">
             <button onClick={reset} className="btn-ghost text-sm">
-              <ArrowLeft className="w-3.5 h-3.5" /> Trocar arquivo
+              <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> {t("base.import_trocar_arquivo")}
             </button>
             <button
               onClick={() => setStep("preview")}
               disabled={!empresaMapeada}
               className="btn-primary text-sm"
             >
-              Conferir importação <ArrowRight className="w-3.5 h-3.5" />
+              {t("base.import_conferir_btn")} <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         </>
@@ -273,11 +312,11 @@ export default function ImportarCsvClient() {
       {step === "preview" && (
         <>
           <div className="card p-4">
-            <div className="text-sm font-medium mb-2">Pré-visualização</div>
+            <div className="text-sm font-medium mb-2">{t("base.import_preview_titulo")}</div>
             <div className="text-xs text-muted-foreground mb-3">
-              {totalValidos} linha(s) válidas
+              {t("base.import_validas").replace("{{n}}", String(totalValidos))}
               {totalSemEmpresa > 0 && (
-                <> · {totalSemEmpresa} sem empresa (serão ignoradas)</>
+                <> · {t("base.import_sem_empresa").replace("{{n}}", String(totalSemEmpresa))}</>
               )}
             </div>
 
@@ -286,12 +325,12 @@ export default function ImportarCsvClient() {
                 <thead className="bg-muted/50 sticky top-0">
                   <tr>
                     <th className="text-left px-2 py-1.5 font-medium">#</th>
-                    <th className="text-left px-2 py-1.5 font-medium">Empresa</th>
-                    <th className="text-left px-2 py-1.5 font-medium">Nome</th>
-                    <th className="text-left px-2 py-1.5 font-medium">Email</th>
-                    <th className="text-left px-2 py-1.5 font-medium">WhatsApp</th>
-                    <th className="text-left px-2 py-1.5 font-medium">Segmento</th>
-                    <th className="text-left px-2 py-1.5 font-medium">Status</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("base.tabela_empresa")}</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("modais.campo_nome")}</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("modais.campo_email")}</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("modais.campo_whatsapp")}</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("base.tabela_segmento")}</th>
+                    <th className="text-left px-2 py-1.5 font-medium">{t("comum.status")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
@@ -306,11 +345,11 @@ export default function ImportarCsvClient() {
                       <td className="px-2 py-1">
                         {r.empresa ? (
                           <span className="inline-flex items-center gap-1 text-success-500">
-                            <CheckCircle2 className="w-3 h-3" /> ok
+                            <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> {t("base.import_status_ok")}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-urgent-500">
-                            <AlertCircle className="w-3 h-3" /> sem empresa
+                            <AlertCircle className="w-3 h-3" aria-hidden="true" /> {t("base.import_status_sem_empresa")}
                           </span>
                         )}
                       </td>
@@ -321,21 +360,21 @@ export default function ImportarCsvClient() {
             </div>
             {rowsMapeadas.length > 100 && (
               <div className="text-[11px] text-muted-foreground mt-2">
-                Mostrando 100 de {rowsMapeadas.length} linhas. Todas serão processadas no import.
+                {t("base.import_mostrando_de").replace("{{total}}", String(rowsMapeadas.length))}
               </div>
             )}
           </div>
 
           <div className="card p-4">
             <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2">
-              O que fazer com leads duplicados (mesmo email ou WhatsApp)?
+              {t("base.import_dedup_titulo")}
             </div>
             <div className="space-y-2">
               {(
                 [
-                  { value: "ignorar", label: "Ignorar duplicatas (recomendado)", desc: "Pula linhas que já existem na sua base." },
-                  { value: "atualizar", label: "Atualizar leads existentes", desc: "Sobrescreve campos não-vazios do CSV no lead existente." },
-                  { value: "criar_mesmo_assim", label: "Criar de qualquer forma", desc: "Insere mesmo com duplicatas. Útil para testes." },
+                  { value: "ignorar", label: t("base.import_dedup_ignorar"), desc: t("base.import_dedup_ignorar_desc") },
+                  { value: "atualizar", label: t("base.import_dedup_atualizar"), desc: t("base.import_dedup_atualizar_desc") },
+                  { value: "criar_mesmo_assim", label: t("base.import_dedup_criar"), desc: t("base.import_dedup_criar_desc") },
                 ] as { value: DedupPolitica; label: string; desc: string }[]
               ).map((opt) => (
                 <label key={opt.value} className="flex items-start gap-2 p-2 rounded-lg border border-border cursor-pointer hover:bg-muted/30">
@@ -356,12 +395,21 @@ export default function ImportarCsvClient() {
             </div>
           </div>
 
+          {erroUpload && (
+            <p
+              role="alert"
+              className="text-xs text-destructive bg-destructive/5 border border-destructive/30 rounded-lg px-3 py-2 inline-flex items-center gap-1.5"
+            >
+              <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> {erroUpload}
+            </p>
+          )}
+
           <div className="flex items-center justify-end gap-2">
             <button onClick={() => setStep("mapping")} className="btn-ghost text-sm">
-              <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao mapeamento
+              <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> {t("base.import_voltar_mapeamento")}
             </button>
             <button onClick={importar} disabled={pending || totalValidos === 0} className="btn-primary text-sm">
-              {pending ? "Importando…" : `Importar ${totalValidos} lead(s) para Base bruta`}
+              {pending ? t("base.import_importando") : t("base.import_btn_importar").replace("{{n}}", String(totalValidos))}
             </button>
           </div>
         </>
@@ -369,33 +417,33 @@ export default function ImportarCsvClient() {
 
       {step === "resultado" && resultado && (
         <div className="card p-6 text-center space-y-3">
-          <CheckCircle2 className="w-10 h-10 mx-auto text-success-500" />
+          <CheckCircle2 className="w-10 h-10 mx-auto text-success-500" aria-hidden="true" />
           <div>
-            <div className="text-lg font-semibold">Importação concluída</div>
+            <div className="text-lg font-semibold">{t("base.import_concluido")}</div>
             <div className="text-sm text-muted-foreground">
-              <strong className="text-success-500">{resultado.criados}</strong> criados
+              <strong className="text-success-500">{resultado.criados}</strong> {t("base.import_criados")}
               {resultado.atualizados > 0 && (
-                <> · <strong className="text-primary">{resultado.atualizados}</strong> atualizados</>
+                <> · <strong className="text-primary">{resultado.atualizados}</strong> {t("base.import_atualizados")}</>
               )}
               {resultado.duplicados > 0 && politica === "ignorar" && (
-                <> · <strong className="text-warning-500">{resultado.duplicados}</strong> duplicatas ignoradas</>
+                <> · <strong className="text-warning-500">{resultado.duplicados}</strong> {t("base.import_duplicadas_ignoradas")}</>
               )}
               {resultado.sem_empresa > 0 && (
-                <> · {resultado.sem_empresa} sem empresa</>
+                <> · {t("base.import_sem_empresa").replace("{{n}}", String(resultado.sem_empresa))}</>
               )}
             </div>
           </div>
           {resultado.erros.length > 0 && (
             <div className="text-xs text-urgent-500 bg-urgent-500/10 border border-urgent-500/30 rounded-lg p-2 text-left">
-              <div className="font-semibold mb-1">{resultado.erros.length} erro(s):</div>
+              <div className="font-semibold mb-1">{t("base.import_erros_titulo").replace("{{n}}", String(resultado.erros.length))}</div>
               <ul className="list-disc list-inside">
                 {resultado.erros.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}
               </ul>
             </div>
           )}
           <div className="flex items-center justify-center gap-2 pt-2">
-            <button onClick={reset} className="btn-secondary text-sm">Importar outro arquivo</button>
-            <Link href="/base?tab=bruta" className="btn-primary text-sm">Ver na Base bruta</Link>
+            <button onClick={reset} className="btn-secondary text-sm">{t("base.import_outro_arquivo")}</button>
+            <Link href="/base?tab=bruta" className="btn-primary text-sm">{t("base.import_ver_base")}</Link>
           </div>
         </div>
       )}

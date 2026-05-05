@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { criarLead } from "@/app/(app)/base/actions";
 import { SEGMENTOS, FONTES } from "@/lib/lists";
 import { X, Plus } from "lucide-react";
@@ -9,8 +10,10 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
   profiles: { id: string; display_name: string }[];
   variant?: "button" | "fab";
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
+  const [erro, setErro] = useState<string | null>(null);
   const [locale, setLocale] = useState<Locale>("pt-BR");
   useEffect(() => setLocale(getClientLocale()), []);
   const t = getT(locale);
@@ -36,24 +39,33 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    setErro(null);
     start(async () => {
-      await criarLead({
-        nome: form.nome || undefined,
-        empresa: form.empresa || undefined,
-        cargo: form.cargo || undefined,
-        email: form.email || undefined,
-        whatsapp: form.whatsapp || undefined,
-        linkedin: form.linkedin || undefined,
-        segmento: form.segmento || undefined,
-        cidade_uf: form.cidade_uf || undefined,
-        fonte: form.fonte || undefined,
-        observacoes: form.observacoes || undefined,
-        responsavel_id: form.responsavel_id || undefined,
-        newsletter_optin: form.newsletter_optin,
-        direto_pipeline: form.direto_pipeline,
-      });
-      reset();
-      setOpen(false);
+      try {
+        const id = await criarLead({
+          nome: form.nome || undefined,
+          empresa: form.empresa || undefined,
+          cargo: form.cargo || undefined,
+          email: form.email || undefined,
+          whatsapp: form.whatsapp || undefined,
+          linkedin: form.linkedin || undefined,
+          segmento: form.segmento || undefined,
+          cidade_uf: form.cidade_uf || undefined,
+          fonte: form.fonte || undefined,
+          observacoes: form.observacoes || undefined,
+          responsavel_id: form.responsavel_id || undefined,
+          newsletter_optin: form.newsletter_optin,
+          direto_pipeline: form.direto_pipeline,
+        });
+        const direto = form.direto_pipeline;
+        reset();
+        setOpen(false);
+        // Bug 6: se foi direto p/ pipeline, abre a tela do lead recém-criado
+        if (direto && id) router.push(`/pipeline/${id}`);
+        else router.refresh();
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : t("base.row_toast_erro"));
+      }
     });
   }
 
@@ -139,14 +151,19 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
               </label>
             </div>
 
-            <div className="px-5 py-3 border-t border-border flex items-center justify-end gap-2">
-              <button type="button" onClick={() => setOpen(false)} className="btn-ghost text-sm">{t("comum.cancelar")}</button>
-              <button type="submit" disabled={pending || !form.empresa}
-                className={form.direto_pipeline ? "btn-primary text-sm bg-primary/90" : "btn-primary text-sm"}>
-                {pending
-                  ? t("modais.criando")
-                  : form.direto_pipeline ? t("modais.criar_e_pipeline") : t("modais.criar_lead")}
-              </button>
+            <div className="px-5 py-3 border-t border-border flex items-center justify-between gap-2 flex-wrap">
+              {erro ? (
+                <p className="text-xs text-destructive flex-1">{erro}</p>
+              ) : <span className="flex-1" />}
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setOpen(false)} className="btn-ghost text-sm">{t("comum.cancelar")}</button>
+                <button type="submit" disabled={pending || !form.empresa}
+                  className={form.direto_pipeline ? "btn-primary text-sm bg-primary/90" : "btn-primary text-sm"}>
+                  {pending
+                    ? t("modais.criando")
+                    : form.direto_pipeline ? t("modais.criar_e_pipeline") : t("modais.criar_lead")}
+                </button>
+              </div>
             </div>
           </form>
         </div>

@@ -13,6 +13,46 @@ async function requireOrg() {
   return orgId;
 }
 
+/**
+ * Pre-check: confirma que o lead pertence à org ativa.
+ * RLS já protege, mas o silêncio do "0 rows affected" é confuso pra debug.
+ */
+async function assertLeadDaOrg(supabase: ReturnType<typeof createClient>, lead_id: number, orgId: string) {
+  const { data } = await supabase
+    .from("leads")
+    .select("id")
+    .eq("id", lead_id)
+    .eq("organizacao_id", orgId)
+    .maybeSingle();
+  if (!data) throw new Error(`Lead ${lead_id} não encontrado nesta organização.`);
+}
+
+/**
+ * Pre-check: confirma que o profile_id é membro da org. Usado em criar/atribuir
+ * pra evitar atribuir lead a alguém de outra org (mesmo que RLS bloqueie).
+ */
+async function assertMembroDaOrg(supabase: ReturnType<typeof createClient>, profile_id: string, orgId: string) {
+  const { data } = await supabase
+    .from("membros_organizacao")
+    .select("profile_id")
+    .eq("profile_id", profile_id)
+    .eq("organizacao_id", orgId)
+    .eq("ativo", true)
+    .maybeSingle();
+  if (!data) throw new Error(`Usuário ${profile_id} não é membro ativo desta organização.`);
+}
+
+/**
+ * Normaliza campos antes de gravar — evita drift de formato em emails/whatsapp.
+ */
+function normalizarCamposLead<T extends { email?: string | null; whatsapp?: string | null }>(input: T): T {
+  return {
+    ...input,
+    email: input.email ? input.email.trim().toLowerCase() : input.email,
+    whatsapp: input.whatsapp ? input.whatsapp.replace(/\s+/g, " ").trim() : input.whatsapp,
+  };
+}
+
 /** Cria um novo lead. Por padrão vai para base bruta.
  *  Se `direto_pipeline` = true, já entra em Prospecção e cria cadência D0–D30. */
 export async function criarLead(input: {
@@ -34,6 +74,17 @@ export async function criarLead(input: {
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
 
+  // Bug 5: valida que responsavel_id é membro ativo da org
+  if (input.responsavel_id) {
+    await assertMembroDaOrg(supabase, input.responsavel_id, orgId);
+  }
+
+  // Robustez 13: normaliza email/whatsapp antes de gravar (dedup futuro funciona)
+  const norm = normalizarCamposLead({
+    email: input.email,
+    whatsapp: input.whatsapp,
+  });
+
   const hoje = new Date().toISOString().slice(0, 10);
   const direto = !!input.direto_pipeline;
 
@@ -42,8 +93,8 @@ export async function criarLead(input: {
     nome: input.nome ?? null,
     empresa: input.empresa ?? null,
     cargo: input.cargo ?? null,
-    email: input.email ?? null,
-    whatsapp: input.whatsapp ?? null,
+    email: norm.email ?? null,
+    whatsapp: norm.whatsapp ?? null,
     linkedin: input.linkedin ?? null,
     segmento: input.segmento ?? null,
     cidade_uf: input.cidade_uf ?? null,
@@ -232,6 +283,8 @@ export async function qualificarBase(input: {
 }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, input.lead_id, orgId);
 
   await supabase.from("leads").update({
     funnel_stage: "base_qualificada",
@@ -239,10 +292,10 @@ export async function qualificarBase(input: {
     decisor: input.decisor ?? null,
     dor_principal: input.dor_principal ?? null,
     temperatura: input.temperatura ?? "Morno",
-  }).eq("id", input.lead_id);
+  }).eq("id", input.lead_id).eq("organizacao_id", orgId);
 
   await supabase.from("lead_evento").insert({
-    organizacao_id: await requireOrg(),
+    organizacao_id: orgId,
     lead_id: input.lead_id,
     ator_id: user?.id ?? null,
     tipo: "qualificado_base",
@@ -257,6 +310,7 @@ export async function promoverParaPipeline(lead_id: number, proxima_acao: string
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, lead_id, orgId);
   const hoje = new Date().toISOString().slice(0, 10);
 
   await supabase.from("leads").update({
@@ -265,7 +319,7 @@ export async function promoverParaPipeline(lead_id: number, proxima_acao: string
     data_primeiro_contato: hoje,
     proxima_acao,
     data_proxima_acao: hoje,
-  }).eq("id", lead_id);
+  }).eq("id", lead_id).eq("organizacao_id", orgId);
 
   // Cria os 6 passos canônicos D0/D3/D7/D11/D16/D30 (lib/cadencia-templates)
   const cadenciaRows = montarCadenciaRows({ organizacao_id: orgId, lead_id });
@@ -304,13 +358,14 @@ export async function arquivarLead(
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, lead_id, orgId);
 
   await supabase.from("leads").update({
     funnel_stage: "arquivado",
     crm_stage: "Perdido",
     motivo_perda: motivo,
     motivo_perda_detalhe: motivo === "Outro" ? (detalhe ?? "").trim() : null,
-  }).eq("id", lead_id);
+  }).eq("id", lead_id).eq("organizacao_id", orgId);
 
   await supabase.from("lead_evento").insert({
     organizacao_id: orgId,
@@ -331,13 +386,17 @@ export async function atribuirResponsavel(lead_id: number, responsavel_id: strin
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
-  await supabase.from("leads").update({ responsavel_id }).eq("id", lead_id);
+  await assertLeadDaOrg(supabase, lead_id, orgId);
+  await assertMembroDaOrg(supabase, responsavel_id, orgId);
+  await supabase.from("leads").update({ responsavel_id })
+    .eq("id", lead_id).eq("organizacao_id", orgId);
   await supabase.from("lead_evento").insert({
     organizacao_id: orgId,
     lead_id, ator_id: user?.id ?? null,
     tipo: "responsavel_alterado", payload: { para: responsavel_id },
   });
   revalidatePath("/base");
+  revalidatePath("/pipeline");
 }
 
 /** Enriquecimento de Lead via IA (Copiloto) */
@@ -345,9 +404,12 @@ export async function enriquecerLead(lead_id: number) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, lead_id, orgId);
 
   // Buscar dados básicos do lead para usar como contexto
-  const { data: lead } = await supabase.from("leads").select("empresa, nome, email, segmento, cargo, cidade_uf, observacoes").eq("id", lead_id).single();
+  const { data: lead } = await supabase.from("leads")
+    .select("empresa, nome, email, segmento, cargo, cidade_uf, observacoes")
+    .eq("id", lead_id).eq("organizacao_id", orgId).single();
   if (!lead) throw new Error("Lead não encontrado.");
 
   // Import dynamic para evitar problema de ciclo

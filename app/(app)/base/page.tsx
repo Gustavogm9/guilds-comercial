@@ -6,7 +6,7 @@ import NovoLeadModal from "@/components/novo-lead-modal";
 import BaseRowActions from "@/components/base-row-actions";
 import type { LeadEnriched } from "@/lib/types";
 import { Inbox, CheckCircle2, Search, Upload } from "lucide-react";
-import { getServerLocale, getT } from "@/lib/i18n";
+import { getServerLocale, getT, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -19,26 +19,38 @@ export default async function BasePage(
   const supabase = createClient();
   const me = await getCurrentProfile();
   if (!me) return null;
-  const t = getT(await getServerLocale());
+  const locale = await getServerLocale();
+  const t = getT(locale);
 
   const orgId = await getCurrentOrgId();
   if (!orgId) redirect("/hoje");
   const role = await getCurrentRole();
   const isGestor = role === "gestor";
 
-  const tab = searchParams.tab ?? "bruta";
+  // Bug 3: validação estrita de tab (whitelist)
+  const tab: "bruta" | "qualificada" =
+    searchParams.tab === "qualificada" ? "qualificada" : "bruta";
   const q = searchParams.q?.trim() ?? "";
-  const respFiltro = searchParams.resp ?? (isGestor ? "all" : me.id);
+  // Bug 1: força respFiltro = me.id pra não-gestores mesmo com ?resp= na URL
+  const respFiltro = isGestor ? (searchParams.resp ?? "all") : me.id;
 
   let query = supabase
     .from("v_leads_enriched")
     .select("*")
     .eq("organizacao_id", orgId)
     .eq("funnel_stage", tab === "bruta" ? "base_bruta" : "base_qualificada")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // Robustez 11: paginação leve — primeiros 200 leads (resto por busca/filtro)
+    .limit(200);
 
   if (respFiltro !== "all") query = query.eq("responsavel_id", respFiltro);
-  if (q) query = query.or(`empresa.ilike.%${q}%,nome.ilike.%${q}%,email.ilike.%${q}%`);
+  if (q) {
+    // Bug 2: sanitiza chars que quebram parser PostgREST .or()
+    const limpo = q.replace(/[,()]/g, " ").replace(/\*/g, "_").trim();
+    if (limpo.length >= 2) {
+      query = query.or(`empresa.ilike.%${limpo}%,nome.ilike.%${limpo}%,email.ilike.%${limpo}%`);
+    }
+  }
 
   const [{ data: leads }, membros, { count: countBruta }, { count: countQual }] =
     await Promise.all([
@@ -64,7 +76,7 @@ export default async function BasePage(
         </div>
         <div className="flex items-center gap-2">
           <Link href="/base/importar" className="btn-secondary text-xs inline-flex items-center gap-1.5">
-            <Upload className="w-3.5 h-3.5"/> Importar CSV
+            <Upload className="w-3.5 h-3.5"/> {t("base.btn_importar_csv")}
           </Link>
           <NovoLeadModal profiles={profs} />
         </div>
@@ -73,30 +85,31 @@ export default async function BasePage(
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border dark:border-white/[0.06] mb-4">
         <Tab href={`/base?tab=bruta`} active={tab === "bruta"}
-             icon={<Inbox className="w-3.5 h-3.5"/>} label="Bruta" count={countBruta ?? 0} />
+             icon={<Inbox className="w-3.5 h-3.5"/>} label={t("base.tab_bruta")} count={countBruta ?? 0} />
         <Tab href={`/base?tab=qualificada`} active={tab === "qualificada"}
-             icon={<CheckCircle2 className="w-3.5 h-3.5"/>} label="Qualificada" count={countQual ?? 0} />
+             icon={<CheckCircle2 className="w-3.5 h-3.5"/>} label={t("base.tab_qualificada")} count={countQual ?? 0} />
       </div>
 
       {/* Filtros */}
-      <form className="flex items-center gap-2 mb-3 flex-wrap">
+      <form className="flex items-center gap-2 mb-3 flex-wrap" role="search">
         <input type="hidden" name="tab" value={tab} />
         <div className="relative">
-          <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-muted-foreground" />
+          <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
           <input
             name="q"
             defaultValue={q}
-            placeholder="Buscar empresa, nome ou email"
+            placeholder={t("base.filtro_buscar_placeholder")}
+            aria-label={t("base.filtro_buscar_placeholder")}
             className="input-base !pl-7 text-xs w-72"
           />
         </div>
         {isGestor && (
-          <select name="resp" defaultValue={respFiltro} className="input-base !text-xs w-40">
-            <option value="all">Todo o time</option>
+          <select name="resp" defaultValue={respFiltro} className="input-base !text-xs w-40" aria-label={t("base.tabela_resp")}>
+            <option value="all">{t("base.filtro_todo_time")}</option>
             {profs.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
           </select>
         )}
-        <button type="submit" className="btn-secondary text-xs">Filtrar</button>
+        <button type="submit" className="btn-secondary text-xs">{t("base.filtro_filtrar")}</button>
       </form>
 
       {/* Lista */}
@@ -105,20 +118,20 @@ export default async function BasePage(
           <table className="w-full text-sm">
             <thead className="bg-secondary/60 dark:bg-white/[0.02] text-[10px] uppercase tracking-[0.12em] text-muted-foreground border-b border-border dark:border-white/[0.06]">
               <tr>
-                <th className="text-left px-3 py-2.5 font-semibold">Empresa</th>
-                <th className="text-left px-3 py-2.5 font-semibold">Contato</th>
-                <th className="text-left px-3 py-2.5 font-semibold">Segmento</th>
-                <th className="text-left px-3 py-2.5 font-semibold">Fonte</th>
-                <th className="text-left px-3 py-2.5 font-semibold">Resp.</th>
-                <th className="text-left px-3 py-2.5 font-semibold">Entrou</th>
-                <th className="text-right px-3 py-2.5 font-semibold">Ações</th>
+                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_empresa")}</th>
+                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_contato")}</th>
+                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_segmento")}</th>
+                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_fonte")}</th>
+                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_resp")}</th>
+                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_entrou")}</th>
+                <th className="text-right px-3 py-2.5 font-semibold">{t("base.tabela_acoes")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60 dark:divide-white/[0.05]">
               {all.length === 0 && (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-muted-foreground/70 italic">
-                    Nenhum lead nesta caixa. {tab === "bruta" && "Use 'Novo lead' acima."}
+                    {tab === "bruta" ? t("base.tabela_vazio_bruta") : t("base.tabela_vazio_qualificada")}
                   </td>
                 </tr>
               )}
@@ -130,11 +143,11 @@ export default async function BasePage(
                       className="font-medium text-foreground hover:text-primary transition-colors"
                       style={{ letterSpacing: "-0.13px" }}
                     >
-                      {l.empresa || "(sem empresa)"}
+                      {l.empresa || t("base.tabela_sem_empresa")}
                     </Link>
                     {l.is_demo && (
                       <span className="ml-1.5 text-[10px] uppercase bg-warning-500/15 text-warning-500 border border-warning-500/25 px-1.5 py-0.5 rounded font-semibold">
-                        demo
+                        {t("base.tabela_demo")}
                       </span>
                     )}
                   </td>
@@ -145,7 +158,7 @@ export default async function BasePage(
                   <td className="px-3 py-2 text-xs text-muted-foreground">{l.segmento ?? "—"}</td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">{l.fonte ?? "—"}</td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">{l.responsavel_nome ?? "—"}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{fmt(l.data_entrada)}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{fmt(l.data_entrada, locale)}</td>
                   <td className="px-3 py-2 text-right">
                     <BaseRowActions lead={l} />
                   </td>
@@ -184,6 +197,6 @@ function Tab({ href, active, icon, label, count }: {
   );
 }
 
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+function fmt(d: string, locale: Locale) {
+  return new Date(d).toLocaleDateString(locale, { day: "2-digit", month: "short" });
 }
