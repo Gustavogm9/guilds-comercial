@@ -9,6 +9,19 @@ import type { EnderecoOrg, RegimeTributario } from "@/lib/types";
 
 const REGIMES = ["simples_nacional", "lucro_presumido", "lucro_real", "mei", "isento"] as const;
 const PAIS_CODES = new Set(PAISES.map((p) => p.code));
+// Lista alinhada com lib/i18n/index.ts
+const IDIOMAS_VALIDOS = new Set(["pt-BR", "en-US"]);
+// Alinhado com lib/stripe.ts SUPPORTED_CURRENCIES
+const MOEDAS_VALIDAS = new Set(["BRL", "USD", "EUR", "GBP"]);
+
+function isHttpUrl(s: string): boolean {
+  try {
+    const u = new URL(s);
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
 
 export async function updateOrganization(formData: FormData) {
   const role = await getCurrentRole();
@@ -24,6 +37,12 @@ export async function updateOrganization(formData: FormData) {
   const nome = formData.get("nome")?.toString().trim();
   if (!nome || nome.length < 2) {
     return { error: "Nome muito curto." };
+  }
+  if (nome.length > 120) {
+    return { error: "Nome muito longo (máx. 120 chars)." };
+  }
+  if (/[\x00-\x1F\x7F]/.test(nome)) {
+    return { error: "Nome contém caracteres inválidos." };
   }
 
   const pais          = (formData.get("pais")?.toString().trim().toUpperCase() || "BR");
@@ -61,6 +80,8 @@ export async function updateOrganization(formData: FormData) {
 
   // Validações
   if (!PAIS_CODES.has(pais)) return { error: "País inválido." };
+  if (!IDIOMAS_VALIDOS.has(idioma_padrao)) return { error: "Idioma inválido." };
+  if (!MOEDAS_VALIDAS.has(moeda_padrao)) return { error: "Moeda inválida." };
   if (tax_id) {
     const v = validarTaxId(tax_id, pais);
     if (!v.valid) return { error: v.motivo ?? "Tax ID inválido." };
@@ -71,6 +92,9 @@ export async function updateOrganization(formData: FormData) {
   if (isBR && regime && !REGIMES.includes(regime as any)) return { error: "Regime tributário inválido." };
   if (isBR && endereco.cep && endereco.cep.length !== 8) return { error: "CEP deve ter 8 dígitos." };
   if (isBR && endereco.uf && endereco.uf.length !== 2) return { error: "UF deve ter 2 letras." };
+  // Bug: site e logo_url devem ser http(s) (logo_url já vai virar src de <img>)
+  if (site && !isHttpUrl(site)) return { error: "Site deve ser uma URL http(s) válida." };
+  if (logo_url && !isHttpUrl(logo_url)) return { error: "Logo URL deve ser uma URL http(s) válida." };
 
   const supabase = createClient();
   const { error } = await supabase
