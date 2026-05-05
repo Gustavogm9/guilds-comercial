@@ -4,10 +4,20 @@ import { invokeAI } from "@/lib/ai/dispatcher";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 
+const VARIACOES_VALIDAS = ["conservadora", "recomendada", "premium"] as const;
+
 export async function gerarPropostaAction(input: {
   leadId: number;
   variacao: "conservadora" | "recomendada" | "premium";
 }) {
+  // Validação de input
+  if (!Number.isInteger(input.leadId) || input.leadId <= 0) {
+    return { ok: false, texto: "", erro: "Lead inválido" };
+  }
+  if (!VARIACOES_VALIDAS.includes(input.variacao)) {
+    return { ok: false, texto: "", erro: "Variação inválida" };
+  }
+
   const supabase = createClient();
   const orgId = await getCurrentOrgId();
   if (!orgId) return { ok: false, texto: "", erro: "Sem organização" };

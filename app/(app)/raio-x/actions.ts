@@ -9,6 +9,20 @@ async function requireOrg() {
   return orgId;
 }
 
+const NIVEIS_VALIDOS = ["Alto", "Médio", "Baixo"] as const;
+
+async function assertLeadDaOrg(supabase: ReturnType<typeof createClient>, lead_id: number, orgId: string) {
+  const { data } = await supabase.from("leads").select("id")
+    .eq("id", lead_id).eq("organizacao_id", orgId).maybeSingle();
+  if (!data) throw new Error(`Lead ${lead_id} não encontrado nesta organização.`);
+}
+
+async function assertRaioXDaOrg(supabase: ReturnType<typeof createClient>, raio_x_id: number, orgId: string) {
+  const { data } = await supabase.from("raio_x").select("id")
+    .eq("id", raio_x_id).eq("organizacao_id", orgId).maybeSingle();
+  if (!data) throw new Error(`Raio-X ${raio_x_id} não encontrado nesta organização.`);
+}
+
 /** Cria/oferta um Raio-X para um lead */
 export async function ofertarRaioX(input: {
   lead_id: number;
@@ -17,11 +31,20 @@ export async function ofertarRaioX(input: {
   gratuito?: boolean;
   observacoes?: string;
 }) {
+  // Validação de input
+  if (input.preco_lista !== undefined && (!Number.isFinite(input.preco_lista) || input.preco_lista < 0 || input.preco_lista > 1_000_000)) {
+    throw new Error("Preço inválido.");
+  }
+  if (input.voucher_desconto !== undefined && (!Number.isFinite(input.voucher_desconto) || input.voucher_desconto < 0)) {
+    throw new Error("Voucher inválido.");
+  }
+
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertLeadDaOrg(supabase, input.lead_id, orgId);
 
-  await supabase.from("raio_x").insert({
+  const { error } = await supabase.from("raio_x").insert({
     organizacao_id: orgId,
     lead_id: input.lead_id,
     responsavel_id: user?.id ?? null,
@@ -31,12 +54,13 @@ export async function ofertarRaioX(input: {
     nivel: "Pendente",
     observacoes: input.observacoes ?? null,
   });
+  if (error) throw error;
 
   await supabase.from("leads").update({
     crm_stage: "Raio-X Ofertado",
     funnel_stage: "pipeline",
     proxima_acao: "Receber pagamento Raio-X",
-  }).eq("id", input.lead_id);
+  }).eq("id", input.lead_id).eq("organizacao_id", orgId);
 
   await supabase.from("lead_evento").insert({
     organizacao_id: orgId,
@@ -55,17 +79,20 @@ export async function marcarPago(raio_x_id: number, lead_id: number) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertRaioXDaOrg(supabase, raio_x_id, orgId);
+  await assertLeadDaOrg(supabase, lead_id, orgId);
   const hoje = new Date().toISOString().slice(0, 10);
 
-  await supabase.from("raio_x").update({
+  const { error } = await supabase.from("raio_x").update({
     pago: true,
     data_pagamento: hoje,
-  }).eq("id", raio_x_id);
+  }).eq("id", raio_x_id).eq("organizacao_id", orgId);
+  if (error) throw error;
 
   await supabase.from("leads").update({
     crm_stage: "Raio-X Feito",
     proxima_acao: "Agendar call de revisão",
-  }).eq("id", lead_id);
+  }).eq("id", lead_id).eq("organizacao_id", orgId);
 
   await supabase.from("lead_evento").insert({
     organizacao_id: orgId,
@@ -88,12 +115,28 @@ export async function salvarResultado(input: {
   diagnostico_pago_sugerido: string;
   observacoes?: string;
 }) {
+  // Validação rigorosa
+  if (!Number.isFinite(input.score) || input.score < 0 || input.score > 100) {
+    throw new Error("Score deve estar entre 0 e 100.");
+  }
+  if (!Number.isFinite(input.perda_anual_estimada) || input.perda_anual_estimada < 0) {
+    throw new Error("Perda anual estimada inválida.");
+  }
+  if (!NIVEIS_VALIDOS.includes(input.nivel)) {
+    throw new Error("Nível inválido.");
+  }
+  if (!input.saida_recomendada?.trim() || !input.diagnostico_pago_sugerido?.trim()) {
+    throw new Error("Saída recomendada e diagnóstico não podem ser vazios.");
+  }
+
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
+  await assertRaioXDaOrg(supabase, input.raio_x_id, orgId);
+  await assertLeadDaOrg(supabase, input.lead_id, orgId);
   const hoje = new Date().toISOString().slice(0, 10);
 
-  await supabase.from("raio_x").update({
+  const { error } = await supabase.from("raio_x").update({
     score: input.score,
     perda_anual_estimada: input.perda_anual_estimada,
     nivel: input.nivel,
@@ -102,7 +145,8 @@ export async function salvarResultado(input: {
     observacoes: input.observacoes ?? null,
     call_revisao: true,
     data_call: hoje,
-  }).eq("id", input.raio_x_id);
+  }).eq("id", input.raio_x_id).eq("organizacao_id", orgId);
+  if (error) throw error;
 
   await supabase.from("lead_evento").insert({
     organizacao_id: orgId,

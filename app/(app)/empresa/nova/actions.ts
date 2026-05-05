@@ -16,24 +16,43 @@ function slugify(s: string): string {
 }
 
 export async function criarNovaEmpresa(nome: string) {
+  const nomeT = nome.trim();
+  if (!nomeT) throw new Error("Informe o nome da empresa");
+  if (nomeT.length < 2 || nomeT.length > 120) {
+    throw new Error("Nome da empresa deve ter entre 2 e 120 caracteres.");
+  }
+  if (/[\x00-\x1F\x7F]/.test(nomeT)) {
+    throw new Error("Nome contém caracteres inválidos.");
+  }
+
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Não autenticado");
-  if (!nome.trim()) throw new Error("Informe o nome da empresa");
 
   // Tenta slug baseado no nome; fallback com timestamp se já existir
-  let slug = slugify(nome);
+  let slug = slugify(nomeT);
   const { data: existing } = await supabase.from("organizacoes")
     .select("id").eq("slug", slug).maybeSingle();
   if (existing) slug = `${slug}-${Date.now().toString(36)}`;
 
-  const { data: org, error } = await supabase.from("organizacoes").insert({
-    nome: nome.trim(),
-    slug,
-    owner_id: user.id,
-    ativa: true,
-  }).select("id").single();
-  if (error) throw error;
+  let org: { id: string } | null = null;
+  // Race-safe: se outro request inseriu o mesmo slug entre check e insert,
+  // pega unique violation (23505) e tenta com sufixo timestamp.
+  const insertPayload = { nome: nomeT, slug, owner_id: user.id, ativa: true };
+  const { data, error } = await supabase.from("organizacoes").insert(insertPayload).select("id").single();
+  if (error) {
+    if (error.code === "23505") {
+      const slugRetry = `${slug}-${Date.now().toString(36)}`;
+      const { data: d2, error: e2 } = await supabase.from("organizacoes")
+        .insert({ ...insertPayload, slug: slugRetry }).select("id").single();
+      if (e2) throw e2;
+      org = d2;
+    } else {
+      throw error;
+    }
+  } else {
+    org = data;
+  }
 
   // Adiciona o criador como gestor na nova org
   await supabase.from("membros_organizacao").insert({
