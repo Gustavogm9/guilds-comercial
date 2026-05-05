@@ -330,20 +330,27 @@ export async function transferirCarteira(
   const { data, error } = await query.select("id");
   if (error) throw error;
 
-  // Audit — um evento por lead seria pesado; grava 1 evento-meta no primeiro lead
+  // Audit: 1 evento por lead movido (em chunks pra não estourar payload).
+  // Antes gravava só 1 meta-evento no primeiro lead — agora cada lead tem registro
+  // próprio, indispensável pra rastreabilidade ("quem moveu lead X quando").
   if (data && data.length > 0) {
-    await supabase.from("lead_evento").insert({
+    const eventos = data.map((row) => ({
       organizacao_id: orgId,
-      lead_id: data[0].id,
+      lead_id: row.id,
       ator_id: user?.id ?? null,
-      tipo: "carteira_transferida",
+      tipo: "responsavel_alterado" as const,
       payload: {
         de: de_profile_id,
         para: para_profile_id,
-        total_leads: data.length,
+        origem: "transferencia_carteira",
         filtros: filtros ?? null,
       },
-    });
+    }));
+    // Chunk de 500 — Supabase aguenta payloads maiores mas evitamos timeout em carteiras gigantes
+    const CHUNK = 500;
+    for (let i = 0; i < eventos.length; i += CHUNK) {
+      await supabase.from("lead_evento").insert(eventos.slice(i, i + CHUNK));
+    }
   }
 
   revalidatePath("/equipe");

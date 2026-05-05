@@ -90,18 +90,12 @@ mas nada os dispara.
 
 ---
 
-## 5. Duplicação `lead_evento` em transferência de carteira
+## 5. ✅ RESOLVIDO — Duplicação `lead_evento` em transferência de carteira
 
 **Onde:** `app/(app)/equipe/actions.ts:transferirCarteira`
-**Sintoma:** Quando gestor transfere 200 leads, grava 1 evento-meta no primeiro lead.
-Se o cliente quiser ver "qual lead foi transferido quando", a info está espalhada
-no payload do meta-evento.
-
-**Impacto:** 🟢 Baixo — funciona, só não é amigável pra debug.
-**Esforço:** ~1h.
-
-**Plano:** Inserir 1 `lead_evento` por lead movido (batch insert numa array). Verificar
-performance pra carteiras grandes (>1000 leads) — se necessário, fazer chunks de 500.
+**Sintoma resolvido em commit posterior:** Antes gravava 1 meta-evento no primeiro lead;
+agora insere 1 `responsavel_alterado` por lead em chunks de 500.
+Rastreabilidade completa: "quem moveu lead X quando" agora aparece no histórico de cada lead.
 
 ---
 
