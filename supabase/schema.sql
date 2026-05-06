@@ -183,7 +183,7 @@ create table public.leads (
 
   crm_stage         text check (crm_stage in (
                       'Prospecção','Qualificado','Raio-X Ofertado','Raio-X Feito',
-                      'Call Marcada','Diagnóstico Pago','Proposta','Fechado','Perdido','Nutrição'
+                      'Call Marcada','Diagnóstico Pago','Proposta','Negociação','Fechado','Perdido','Nutrição'
                     )),
 
   decisor           boolean,

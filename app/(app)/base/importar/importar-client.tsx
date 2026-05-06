@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState, useTransition, useMemo } from "react";
 import { importarLeadsEmMassa, type DedupPolitica } from "../actions";
-import { Upload, CheckCircle2, AlertCircle, X, ArrowRight, ArrowLeft, Save, Layers } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, X, ArrowRight, ArrowLeft, Save, Layers, Trash2 } from "lucide-react";
 import Link from "next/link";
 import {
   parseCsv, inferirMapping, aplicarMapping, CAMPOS_LEAD,
   type CampoLead,
 } from "@/lib/utils/csv-import";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
+import { ETAPAS_CRM } from "@/lib/lists";
 
 const MAX_CSV_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -63,6 +64,7 @@ export default function ImportarCsvClient() {
   const [novoTemplateNome, setNovoTemplateNome] = useState("");
   const [page, setPage] = useState(0);
   const [edicoes, setEdicoes] = useState<Record<number, Partial<Record<string, any>>>>({});
+  const [linhasRemovidas, setLinhasRemovidas] = useState<Set<number>>(new Set());
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -100,6 +102,7 @@ export default function ImportarCsvClient() {
     setErroUpload(null);
     setPage(0);
     setEdicoes({});
+    setLinhasRemovidas(new Set());
   }
 
   function aplicarTemplate(tpl: Template) {
@@ -133,14 +136,23 @@ export default function ImportarCsvClient() {
     });
   }, [rawRows, mapping, edicoes]);
 
-  const totalSemEmpresa = rowsMapeadas.filter((r) => !r.empresa).length;
-  const totalValidos = rowsMapeadas.length - totalSemEmpresa;
+  }, [rawRows, mapping, edicoes]);
+
+  const rowsAtivas = useMemo(() => {
+    return rowsMapeadas
+      .map((r, i) => ({ ...r, _originalIndex: i }))
+      .filter((r) => !linhasRemovidas.has(r._originalIndex));
+  }, [rowsMapeadas, linhasRemovidas]);
+
+  const totalSemEmpresa = rowsAtivas.filter((r) => !r.empresa).length;
+  const totalValidos = rowsAtivas.length - totalSemEmpresa;
   const empresaMapeada = Object.values(mapping).includes("empresa");
 
   function importar() {
     start(async () => {
       try {
-        const r = await importarLeadsEmMassa(rowsMapeadas as any, politica);
+        const rowsParaImportar = rowsMapeadas.filter((_, i) => !linhasRemovidas.has(i));
+        const r = await importarLeadsEmMassa(rowsParaImportar as any, politica);
         setResultado(r);
         setStep("resultado");
       } catch (e) {
@@ -341,12 +353,14 @@ export default function ImportarCsvClient() {
                     <th className="text-left px-2 py-1.5 font-medium">{t("modais.campo_email")}</th>
                     <th className="text-left px-2 py-1.5 font-medium">{t("modais.campo_whatsapp")}</th>
                     <th className="text-left px-2 py-1.5 font-medium">{t("base.tabela_segmento")}</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Status (CRM)</th>
                     <th className="text-left px-2 py-1.5 font-medium">{t("comum.status")}</th>
+                    <th className="text-left px-2 py-1.5 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
-                  {rowsMapeadas.slice(page * 100, (page + 1) * 100).map((r, pIndex) => {
-                    const i = page * 100 + pIndex;
+                  {rowsAtivas.slice(page * 100, (page + 1) * 100).map((r, pIndex) => {
+                    const i = r._originalIndex;
                     return (
                     <tr key={i} className={!r.empresa ? "bg-urgent-500/5" : ""}>
                       <td className="px-2 py-1 text-muted-foreground">{i + 1}</td>
@@ -390,6 +404,18 @@ export default function ImportarCsvClient() {
                           className="w-full bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background rounded px-1 py-0.5 text-muted-foreground focus:text-foreground outline-none transition-colors"
                         />
                       </td>
+                      <td className="px-1 py-1">
+                        <select
+                          value={(r.crm_stage as string) || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], crm_stage: e.target.value } }))}
+                          className="w-full bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background rounded px-1 py-0.5 text-muted-foreground focus:text-foreground outline-none transition-colors appearance-none"
+                        >
+                          <option value="">Automático / Base</option>
+                          {ETAPAS_CRM.map(st => (
+                            <option key={st} value={st}>{st}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="px-2 py-1">
                         {r.empresa ? (
                           <span className="inline-flex items-center gap-1 text-success-500">
@@ -401,16 +427,31 @@ export default function ImportarCsvClient() {
                           </span>
                         )}
                       </td>
+                      <td className="px-1 py-1 text-center">
+                        <button
+                          onClick={() => {
+                            setLinhasRemovidas(prev => {
+                              const next = new Set(prev);
+                              next.add(i);
+                              return next;
+                            });
+                          }}
+                          className="p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded transition-colors"
+                          title="Remover linha"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            {rowsMapeadas.length > 100 && (
+            {rowsAtivas.length > 100 && (
               <div className="flex items-center justify-between mt-3">
                 <div className="text-[11px] text-muted-foreground">
-                  Exibindo {page * 100 + 1} a {Math.min((page + 1) * 100, rowsMapeadas.length)} de {rowsMapeadas.length} linhas
+                  Exibindo {page * 100 + 1} a {Math.min((page + 1) * 100, rowsAtivas.length)} de {rowsAtivas.length} linhas
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -421,8 +462,8 @@ export default function ImportarCsvClient() {
                     Anterior
                   </button>
                   <button
-                    onClick={() => setPage(p => Math.min(Math.ceil(rowsMapeadas.length / 100) - 1, p + 1))}
-                    disabled={(page + 1) * 100 >= rowsMapeadas.length}
+                    onClick={() => setPage(p => Math.min(Math.ceil(rowsAtivas.length / 100) - 1, p + 1))}
+                    disabled={(page + 1) * 100 >= rowsAtivas.length}
                     className="btn-secondary text-xs px-2 py-1"
                   >
                     Próxima
