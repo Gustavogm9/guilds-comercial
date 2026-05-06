@@ -24,7 +24,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
   const supabase = createClient();
   const token = params.token;
 
-  const { data: convite } = await supabase.from("convites")
+  const supabaseAdmin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: convite } = await supabaseAdmin.from("convites")
     .select("*")
     .eq("token", token)
     .maybeSingle();
@@ -47,11 +52,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
   // pra entrar — ficava travada.
   if (!user) {
     // Verifica se já existe conta nesse email (pessoa já existe em outra org)
-    const supabaseAdminCheck = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-    const { data: contaExistente } = await supabaseAdminCheck
+    const { data: contaExistente } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("email", convite.email.toLowerCase())
@@ -73,11 +74,6 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
   if (user.email?.toLowerCase() !== convite.email.toLowerCase()) {
     return NextResponse.redirect(new URL("/login?erro=email_nao_confere", req.url));
   }
-
-  const supabaseAdmin = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
 
   // Cria ou reativa membro na org
   await supabaseAdmin.from("membros_organizacao").upsert({
