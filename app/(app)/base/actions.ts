@@ -254,7 +254,10 @@ export async function importarLeadsEmMassa(
         if (r.probabilidade !== undefined) update.probabilidade = r.probabilidade;
         
         const translatedStage = traduzirCrmStage(r.crm_stage);
-        if (translatedStage) update.crm_stage = translatedStage;
+        if (translatedStage) {
+          update.crm_stage = translatedStage;
+          update.funnel_stage = ["Fechado", "Perdido", "Nutrição"].includes(translatedStage) ? "arquivado" : "pipeline";
+        }
         
         if (r.data_proposta) update.data_proposta = r.data_proposta.trim();
         if (r.link_proposta) update.link_proposta = r.link_proposta.trim();
@@ -296,7 +299,9 @@ export async function importarLeadsEmMassa(
       prioridade: r.prioridade || 'B',
       instagram: r.instagram?.trim() || null,
       responsavel_id: user?.id ?? null,
-      funnel_stage: (r.crm_stage && r.crm_stage !== "Perdido" && r.crm_stage !== "Fechado" ? "pipeline" : "base_bruta") as "base_bruta" | "pipeline",
+      funnel_stage: r.crm_stage 
+        ? (["Fechado", "Perdido", "Nutrição"].includes(r.crm_stage) ? "arquivado" : "pipeline") 
+        : "base_bruta",
     });
   }
 
