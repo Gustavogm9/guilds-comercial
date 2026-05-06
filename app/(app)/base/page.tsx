@@ -177,7 +177,7 @@ export default async function BasePage(
                   <td className="px-3 py-2 text-xs text-muted-foreground">{l.responsavel_nome ?? "—"}</td>
                   <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{fmt(l.data_entrada, locale)}</td>
                   <td className="px-3 py-2 text-right">
-                    <BaseRowActions lead={l} />
+                    <BaseRowActions lead={l} profiles={membros} />
                   </td>
                 </tr>
               ))}

@@ -205,7 +205,7 @@ function normalizarData(d?: string): string | null {
  *  - 'atualizar': faz update no lead existente com campos não-vazios do CSV
  *  - 'criar_mesmo_assim': insere mesmo com duplicata (cria lead novo)
  */
-function traduzirCrmStage(stageRaw: string | undefined): string | null {
+export function traduzirCrmStage(stageRaw: string | undefined): string | null {
   if (!stageRaw) return null;
   const s = stageRaw.toLowerCase().trim();
   if (s === "fechada" || s === "cliente ativo") return "Fechado";
@@ -537,6 +537,51 @@ export async function enriquecerLead(lead_id: number) {
     lead_id, ator_id: user?.id ?? null,
     tipo: "enriquecido_ia", payload: { dados: enrichedData },
   });
+
+  revalidatePath("/base");
+}
+
+export async function editarLeadInline(
+  lead_id: string,
+  payload: {
+    data_entrada: string | null;
+    data_fechamento: string | null;
+    responsavel_id: string | null;
+    crm_stage: string | null;
+  }
+) {
+  const supabase = createClient();
+  const orgId = await requireOrg();
+
+  const translatedCrmStage = traduzirCrmStage(payload.crm_stage || undefined);
+  
+  const updateData: any = {
+    data_entrada: payload.data_entrada || null,
+    data_fechamento: payload.data_fechamento || null,
+    responsavel_id: payload.responsavel_id || null,
+  };
+
+  if (translatedCrmStage) {
+    updateData.crm_stage = translatedCrmStage;
+    updateData.funnel_stage = ["Fechado", "Perdido", "Nutrição"].includes(translatedCrmStage)
+      ? "arquivado"
+      : "pipeline";
+  } else if (payload.crm_stage === "") {
+    // se limpou o stage
+    updateData.crm_stage = null;
+    // não volta o funnel_stage para não quebrar a lógica (ou volta pra base?)
+    // Melhor não mexer no funnel se limpou o stage manual, apenas apagar o label.
+  }
+
+  const { error } = await supabase
+    .from("leads")
+    .update(updateData)
+    .eq("id", lead_id)
+    .eq("organizacao_id", orgId);
+
+  if (error) {
+    throw new Error("Erro ao atualizar lead: " + error.message);
+  }
 
   revalidatePath("/base");
 }

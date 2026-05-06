@@ -2,9 +2,10 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { qualificarBase, promoverParaPipeline, enriquecerLead } from "@/app/(app)/base/actions";
-import type { LeadEnriched } from "@/lib/types";
-import { Check, ArrowRight, X, ChevronDown, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import type { LeadEnriched, Profile } from "@/lib/types";
+import { Check, ArrowRight, X, ChevronDown, Sparkles, Loader2, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
 import MotivoSaidaModal from "./motivo-saida-modal";
+import EditarLeadModal from "./editar-lead-modal";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 
 /**
@@ -17,11 +18,12 @@ import { getClientLocale, getT, type Locale } from "@/lib/i18n";
  *   - i18n via t()
  *   - A11y: aria-haspopup, aria-expanded, role=menu/menuitem
  */
-export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
+export default function BaseRowActions({ lead, profiles }: { lead: LeadEnriched; profiles?: Profile[] }) {
   const [pending, start] = useTransition();
   const [open, setOpen] = useState<null | "qual">(null);
   const [dor, setDor] = useState(lead.dor_principal ?? "");
   const [arquivando, setArquivando] = useState(false);
+  const [editando, setEditando] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: "sucesso" | "erro"; mensagem: string } | null>(null);
   const [enriquecendo, setEnriquecendo] = useState(false);
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -182,6 +184,14 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
           </div>
           <button
             type="button"
+            onClick={() => setEditando(true)}
+            className="btn-ghost text-xs text-muted-foreground hover:text-foreground"
+            title="Editar lead"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
             onClick={() => setArquivando(true)}
             className="btn-ghost text-xs text-muted-foreground hover:text-destructive"
             title={t("base.row_arquivar")}
@@ -204,6 +214,17 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
           modo={arquivando ? { tipo: "arquivar", lead_id: lead.id } : null}
           onClose={() => setArquivando(false)}
         />
+        {editando && profiles && (
+          <EditarLeadModal
+            lead={lead}
+            profiles={profiles}
+            onClose={() => setEditando(false)}
+            onSuccess={() => {
+              setEditando(false);
+              showSucesso("Lead atualizado com sucesso");
+            }}
+          />
+        )}
         {feedback && <FeedbackToast feedback={feedback} onClose={() => setFeedback(null)} />}
       </>
     );
@@ -211,17 +232,39 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
 
   if (lead.funnel_stage === "pipeline" || lead.funnel_stage === "arquivado") {
     return (
-      <div className="flex justify-end gap-1.5 items-center">
-        {lead.funnel_stage === "pipeline" ? (
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> No Pipeline
-          </span>
-        ) : (
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1">
-            <AlertCircle className="w-3.5 h-3.5 text-destructive" /> Arquivado
-          </span>
+      <>
+        <div className="flex justify-end gap-1.5 items-center">
+          {lead.funnel_stage === "pipeline" ? (
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> No Pipeline
+            </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5 text-destructive" /> Arquivado
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="btn-ghost text-xs text-muted-foreground hover:text-foreground ml-1"
+            title="Editar lead"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {editando && profiles && (
+          <EditarLeadModal
+            lead={lead}
+            profiles={profiles}
+            onClose={() => setEditando(false)}
+            onSuccess={() => {
+              setEditando(false);
+              showSucesso("Lead atualizado com sucesso");
+            }}
+          />
         )}
-      </div>
+        {feedback && <FeedbackToast feedback={feedback} onClose={() => setFeedback(null)} />}
+      </>
     );
   }
 
@@ -240,6 +283,14 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
         </button>
         <button
           type="button"
+          onClick={() => setEditando(true)}
+          className="btn-ghost text-xs text-muted-foreground hover:text-foreground"
+          title="Editar lead"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
           onClick={() => setArquivando(true)}
           className="btn-ghost text-xs text-muted-foreground hover:text-destructive"
           title={t("base.row_arquivar")}
@@ -252,6 +303,17 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
         modo={arquivando ? { tipo: "arquivar", lead_id: lead.id } : null}
         onClose={() => setArquivando(false)}
       />
+      {editando && profiles && (
+        <EditarLeadModal
+          lead={lead}
+          profiles={profiles}
+          onClose={() => setEditando(false)}
+          onSuccess={() => {
+            setEditando(false);
+            showSucesso("Lead atualizado com sucesso");
+          }}
+        />
+      )}
       {feedback && <FeedbackToast feedback={feedback} onClose={() => setFeedback(null)} />}
     </>
   );
