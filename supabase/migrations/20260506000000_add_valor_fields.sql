@@ -5,7 +5,8 @@ alter table public.leads
   add column link_proposta text;
 
 -- Atualizar a view enriquecida para incluir os novos campos
-create or replace view public.v_leads_enriched as
+drop view if exists public.v_leads_enriched;
+create view public.v_leads_enriched as
 select
   l.*,
   (current_date - l.data_ultimo_toque) as dias_sem_tocar,
