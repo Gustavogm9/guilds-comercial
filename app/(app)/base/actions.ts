@@ -157,6 +157,13 @@ export interface ImportRow {
   observacoes?: string;
   site?: string;
   valor_potencial?: number;
+  probabilidade?: number;
+  crm_stage?: string;
+  temperatura?: "Frio" | "Morno" | "Quente";
+  prioridade?: "A" | "B" | "C";
+  instagram?: string;
+  pais?: string;
+  link_proposta?: string;
 }
 
 /**
@@ -224,8 +231,22 @@ export async function importarLeadsEmMassa(
         if (r.segmento) update.segmento = r.segmento.trim();
         if (r.cidade_uf) update.cidade_uf = r.cidade_uf.trim();
         if (r.site) update.site = r.site.trim();
-        if (r.observacoes) update.observacoes = r.observacoes.trim();
+        
+        let obsArr = [];
+        if (r.observacoes) obsArr.push(r.observacoes.trim());
+        if (r.link_proposta) obsArr.push(`Link da Proposta: ${r.link_proposta.trim()}`);
+        if (obsArr.length > 0) update.observacoes = obsArr.join("\n\n");
+
         if (r.valor_potencial && r.valor_potencial > 0) update.valor_potencial = r.valor_potencial;
+        if (r.probabilidade !== undefined) update.probabilidade = r.probabilidade;
+        if (r.crm_stage) update.crm_stage = r.crm_stage.trim();
+        if (r.temperatura) update.temperatura = r.temperatura;
+        if (r.prioridade) update.prioridade = r.prioridade;
+        if (r.instagram) update.instagram = r.instagram.trim();
+        
+        if (r.pais) {
+          update.cidade_uf = r.cidade_uf ? `${r.cidade_uf.trim()} - ${r.pais.trim()}` : r.pais.trim();
+        }
         const { error: upErr } = await supabase.from("leads").update(update).eq("id", existenteId);
         if (upErr) erros.push(`update lead ${existenteId}: ${upErr.message}`);
         else atualizados++;
@@ -242,13 +263,18 @@ export async function importarLeadsEmMassa(
       whatsapp: r.whatsapp?.trim() || null,
       linkedin: r.linkedin?.trim() || null,
       segmento: r.segmento?.trim() || null,
-      cidade_uf: r.cidade_uf?.trim() || null,
+      cidade_uf: r.pais ? (r.cidade_uf ? `${r.cidade_uf.trim()} - ${r.pais.trim()}` : r.pais.trim()) : (r.cidade_uf?.trim() || null),
       site: r.site?.trim() || null,
       fonte: r.fonte?.trim() || "Lista fria",
-      observacoes: r.observacoes?.trim() || null,
+      observacoes: [r.observacoes?.trim(), r.link_proposta ? `Link da Proposta: ${r.link_proposta.trim()}` : null].filter(Boolean).join("\n\n") || null,
       valor_potencial: r.valor_potencial && r.valor_potencial > 0 ? r.valor_potencial : 0,
+      probabilidade: r.probabilidade ?? 0,
+      crm_stage: r.crm_stage?.trim() || null,
+      temperatura: r.temperatura || 'Frio',
+      prioridade: r.prioridade || 'B',
+      instagram: r.instagram?.trim() || null,
       responsavel_id: user?.id ?? null,
-      funnel_stage: "base_bruta" as const,
+      funnel_stage: (r.crm_stage && r.crm_stage !== "Perdido" && r.crm_stage !== "Fechado" ? "pipeline" : "base_bruta") as "base_bruta" | "pipeline",
     });
   }
 

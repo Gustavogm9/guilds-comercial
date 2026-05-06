@@ -19,7 +19,14 @@ export type CampoLead =
   | "fonte"
   | "observacoes"
   | "valor_potencial"
-  | "site";
+  | "site"
+  | "instagram"
+  | "crm_stage"
+  | "temperatura"
+  | "prioridade"
+  | "probabilidade"
+  | "pais"
+  | "link_proposta";
 
 export const CAMPOS_LEAD: { value: CampoLead; label: string }[] = [
   { value: "empresa", label: "Empresa (obrigatório)" },
@@ -33,6 +40,13 @@ export const CAMPOS_LEAD: { value: CampoLead; label: string }[] = [
   { value: "fonte", label: "Fonte" },
   { value: "site", label: "Site" },
   { value: "valor_potencial", label: "Valor potencial (R$)" },
+  { value: "probabilidade", label: "Probabilidade (0.0 a 1.0)" },
+  { value: "crm_stage", label: "Status (Fase no CRM)" },
+  { value: "temperatura", label: "Temperatura (Frio, Morno, Quente)" },
+  { value: "prioridade", label: "Prioridade (A, B, C)" },
+  { value: "instagram", label: "Instagram" },
+  { value: "pais", label: "País" },
+  { value: "link_proposta", label: "Link da Proposta" },
   { value: "observacoes", label: "Observações" },
 ];
 
@@ -107,6 +121,13 @@ const SINONIMOS: Record<CampoLead, string[]> = {
   fonte: ["fonte", "source", "origem", "lead source", "campaign"],
   site: ["site", "website", "url", "site web"],
   valor_potencial: ["valor", "deal value", "valor potencial", "ticket", "amount", "value"],
+  probabilidade: ["probabilidade", "chance", "probability", "win probability"],
+  crm_stage: ["status", "fase", "stage", "etapa", "crm_stage", "funnel stage", "pipeline stage"],
+  temperatura: ["temperatura", "temperature", "quente", "morno", "frio"],
+  prioridade: ["prioridade", "priority"],
+  instagram: ["instagram", "ig", "insta"],
+  pais: ["pais", "país", "country", "nacao"],
+  link_proposta: ["link da proposta", "link proposta", "proposta", "proposal url", "proposal link", "link_proposta"],
   observacoes: ["observações", "observacoes", "notes", "obs", "comments", "comentários"],
 };
 
@@ -202,6 +223,10 @@ export function aplicarMapping(
     if (valor === undefined || valor === "") continue;
     if (dst === "valor_potencial") {
       out[dst] = parseValorBR(valor);
+    } else if (dst === "probabilidade") {
+      let p = parseValorBR(valor);
+      if (p > 1) p = p / 100; // se veio "50" ao inves de "0.5"
+      out[dst] = Math.min(Math.max(p, 0), 1);
     } else {
       out[dst] = valor;
     }
