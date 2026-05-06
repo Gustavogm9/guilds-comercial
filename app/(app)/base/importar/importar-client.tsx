@@ -136,8 +136,6 @@ export default function ImportarCsvClient() {
     });
   }, [rawRows, mapping, edicoes]);
 
-  }, [rawRows, mapping, edicoes]);
-
   const rowsAtivas = useMemo(() => {
     return rowsMapeadas
       .map((r, i) => ({ ...r, _originalIndex: i }))
