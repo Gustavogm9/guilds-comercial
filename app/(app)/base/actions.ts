@@ -176,7 +176,8 @@ export interface ImportRow {
 function normalizarData(d?: string): string | null {
   if (!d) return null;
   const t = d.trim();
-  if (!t) return null;
+  if (!t || t === "?" || t === "-") return null;
+  
   // Checa DD/MM/YYYY ou D/M/YYYY
   const dmv = t.split("/");
   if (dmv.length === 3) {
@@ -185,7 +186,15 @@ function normalizarData(d?: string): string | null {
       return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
     }
   }
-  return t;
+  
+  // Checa YYYY-MM-DD
+  const ymd = t.split("-");
+  if (ymd.length === 3 && ymd[0].length === 4) {
+    return t;
+  }
+  
+  // Se não bate com os formatos esperados, ignora para não quebrar o banco
+  return null;
 }
 
 /**

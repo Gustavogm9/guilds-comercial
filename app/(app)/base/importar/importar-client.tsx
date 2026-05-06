@@ -428,22 +428,28 @@ export default function ImportarCsvClient({
                             <option key={p.id} value={p.id}>{p.display_name}</option>
                           ))}
                         </select>
-                        <input
-                          type="date"
-                          value={r.data_entrada || ""}
-                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], data_entrada: e.target.value } }))}
-                          className="input-base text-xs !py-1 !px-2 h-7 mt-1 block"
-                          title="Data Entrou no CRM"
-                          aria-label="Data Entrou no CRM"
-                        />
-                        <input
-                          type="date"
-                          value={r.data_fechamento || ""}
-                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], data_fechamento: e.target.value } }))}
-                          className="input-base text-xs !py-1 !px-2 h-7 mt-1 block"
-                          title="Data de Fechamento"
-                          aria-label="Data de Fechamento"
-                        />
+                        <div className="flex flex-col gap-1.5 mt-1 min-w-[130px]">
+                          <div className="flex items-center gap-1.5 bg-background/50 px-1.5 py-0.5 rounded border border-border/50 focus-within:border-primary/50 transition-colors">
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-12 shrink-0" title="Data em que o lead entrou">Entrou</span>
+                            <input
+                              type="date"
+                              value={r.data_entrada || ""}
+                              onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], data_entrada: e.target.value } }))}
+                              className="bg-transparent text-[10px] w-full outline-none text-foreground"
+                              title="Data Entrou no CRM"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5 bg-background/50 px-1.5 py-0.5 rounded border border-border/50 focus-within:border-primary/50 transition-colors">
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-12 shrink-0" title="Data de Fechamento/Ganho">Fechou</span>
+                            <input
+                              type="date"
+                              value={r.data_fechamento || ""}
+                              onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], data_fechamento: e.target.value } }))}
+                              className="bg-transparent text-[10px] w-full outline-none text-foreground"
+                              title="Data de Fechamento"
+                            />
+                          </div>
+                        </div>
                       </td>
                       <td className="px-1 py-1">
                         <select
@@ -590,7 +596,12 @@ export default function ImportarCsvClient({
               </ul>
             </div>
           )}
-          <div className="flex items-center justify-center gap-2 pt-2">
+          <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+            {resultado.erros.length > 0 && (
+               <button onClick={() => setStep("conferencia")} className="btn-ghost text-sm">
+                 <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> {t("base.import_voltar_conferencia") || "Voltar para conferência"}
+               </button>
+            )}
             <button onClick={reset} className="btn-secondary text-sm">{t("base.import_outro_arquivo")}</button>
             <Link href="/base?tab=bruta" className="btn-primary text-sm">{t("base.import_ver_base")}</Link>
           </div>
