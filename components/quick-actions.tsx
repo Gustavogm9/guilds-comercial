@@ -276,7 +276,7 @@ export default function QuickActions({ lead }: { lead: LeadEnriched }) {
         <div
           role="status"
           aria-live="polite"
-          className={`fixed bottom-6 right-6 z-[60] max-w-sm card p-3 flex items-start gap-2.5 shadow-stripe-md animate-in fade-in slide-in-from-bottom-2 ${
+          className={`fixed bottom-24 right-6 md:right-8 md:bottom-28 z-[100] max-w-sm card p-3 flex items-start gap-2.5 shadow-stripe-md animate-in fade-in slide-in-from-bottom-2 ${
             feedback.tipo === "sucesso"
               ? "border-success-500/30 bg-success-500/5"
               : "border-destructive/30 bg-destructive/5"
