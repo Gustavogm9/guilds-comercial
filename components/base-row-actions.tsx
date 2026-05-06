@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { qualificarBase, promoverParaPipeline, enriquecerLead } from "@/app/(app)/base/actions";
 import type { LeadEnriched } from "@/lib/types";
 import { Check, ArrowRight, X, ChevronDown, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
@@ -28,17 +29,32 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
   const t = getT(locale);
 
   const popRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number } | null>(null);
 
   // Click outside fecha popover
   useEffect(() => {
     if (!open) return;
     function handler(e: MouseEvent) {
-      if (popRef.current && !popRef.current.contains(e.target as Node)) {
+      if (
+        popRef.current && !popRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) {
         setOpen(null);
       }
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (open === "qual" && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPopoverCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.right + window.scrollX - 288, // w-72 = 288px
+      });
+    }
   }, [open]);
 
   // Esc fecha popover
@@ -110,8 +126,9 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
     return (
       <>
         <div className="flex flex-wrap gap-1.5 items-center">
-          <div className="relative" ref={popRef}>
+          <div className="relative">
             <button
+              ref={btnRef}
               type="button"
               onClick={() => setOpen(open === "qual" ? null : "qual")}
               className="btn-secondary text-xs"
@@ -121,10 +138,12 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
             >
               <Check className="w-3.5 h-3.5"/> {t("base.row_qualificar")} <ChevronDown className="w-3 h-3"/>
             </button>
-            {open === "qual" && (
+            {open === "qual" && popoverCoords && typeof document !== "undefined" && createPortal(
               <div
+                ref={popRef}
                 role="menu"
-                className="absolute right-0 z-20 mt-1 w-72 bg-popover text-popover-foreground border border-border rounded-md p-3 space-y-2 shadow-stripe-md dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08]"
+                style={{ top: popoverCoords.top + 4, left: popoverCoords.left }}
+                className="absolute z-[999] w-72 bg-popover text-popover-foreground border border-border rounded-md p-3 space-y-2 shadow-stripe-md dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08]"
               >
                 <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
                   {t("base.row_qualificar_titulo")}
@@ -157,7 +176,8 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
                     {t("base.row_qualificar_sem_fit")}
                   </button>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
           <button
@@ -189,10 +209,26 @@ export default function BaseRowActions({ lead }: { lead: LeadEnriched }) {
     );
   }
 
+  if (lead.funnel_stage === "pipeline" || lead.funnel_stage === "arquivado") {
+    return (
+      <div className="flex justify-end gap-1.5 items-center">
+        {lead.funnel_stage === "pipeline" ? (
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> No Pipeline
+          </span>
+        ) : (
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5 text-destructive" /> Arquivado
+          </span>
+        )}
+      </div>
+    );
+  }
+
   // base_qualificada → pode promover
   return (
     <>
-      <div className="flex flex-wrap gap-1.5 items-center">
+      <div className="flex flex-wrap gap-1.5 items-center justify-end">
         <button
           type="button"
           disabled={pending}

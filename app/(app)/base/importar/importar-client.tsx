@@ -39,7 +39,11 @@ function salvarTemplate(t: Template) {
   localStorage.setItem(TEMPLATES_LS_KEY, JSON.stringify([...atual, t]));
 }
 
-export default function ImportarCsvClient() {
+export default function ImportarCsvClient({
+  profiles = [],
+}: {
+  profiles?: { id: string; display_name: string }[];
+}) {
   const [locale, setLocale] = useState<Locale>("pt-BR");
   useEffect(() => setLocale(getClientLocale()), []);
   const t = getT(locale);
@@ -360,6 +364,7 @@ export default function ImportarCsvClient() {
                     <th className="text-left px-2 py-1.5 font-medium">{t("modais.campo_email")}</th>
                     <th className="text-left px-2 py-1.5 font-medium">{t("modais.campo_whatsapp")}</th>
                     <th className="text-left px-2 py-1.5 font-medium">{t("base.tabela_segmento")}</th>
+                    <th className="px-3 py-2 text-left font-semibold">Resp. / Datas</th>
                     <th className="text-left px-2 py-1.5 font-medium">Status (CRM)</th>
                     <th className="text-left px-2 py-1.5 font-medium">{t("comum.status")}</th>
                     <th className="text-left px-2 py-1.5 font-medium"></th>
@@ -409,6 +414,35 @@ export default function ImportarCsvClient() {
                           onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], segmento: e.target.value } }))}
                           placeholder="—"
                           className="w-full bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background rounded px-1 py-0.5 text-muted-foreground focus:text-foreground outline-none transition-colors"
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <select
+                          value={r.responsavel_id || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], responsavel_id: e.target.value } }))}
+                          className="input-base text-xs !py-1 !px-2 h-7"
+                          aria-label="Responsável"
+                        >
+                          <option value="">(Automático)</option>
+                          {profiles.map(p => (
+                            <option key={p.id} value={p.id}>{p.display_name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="date"
+                          value={r.data_entrada || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], data_entrada: e.target.value } }))}
+                          className="input-base text-xs !py-1 !px-2 h-7 mt-1 block"
+                          title="Data Entrou no CRM"
+                          aria-label="Data Entrou no CRM"
+                        />
+                        <input
+                          type="date"
+                          value={r.data_fechamento || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], data_fechamento: e.target.value } }))}
+                          className="input-base text-xs !py-1 !px-2 h-7 mt-1 block"
+                          title="Data de Fechamento"
+                          aria-label="Data de Fechamento"
                         />
                       </td>
                       <td className="px-1 py-1">

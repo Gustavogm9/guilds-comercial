@@ -29,7 +29,10 @@ export type CampoLead =
   | "link_proposta"
   | "valor_setup"
   | "valor_mensal"
-  | "data_proposta";
+  | "data_proposta"
+  | "data_entrada"
+  | "data_fechamento"
+  | "responsavel_id";
 
 export const CAMPOS_LEAD: { value: CampoLead; label: string }[] = [
   { value: "empresa", label: "Empresa (obrigatório)" },
@@ -52,7 +55,10 @@ export const CAMPOS_LEAD: { value: CampoLead; label: string }[] = [
   { value: "valor_setup", label: "Valor de Setup (R$)" },
   { value: "valor_mensal", label: "Mensalidade / MRR (R$)" },
   { value: "link_proposta", label: "Link da Proposta" },
-  { value: "data_proposta", label: "Data de Geração" },
+  { value: "data_proposta", label: "Data da Proposta" },
+  { value: "data_entrada", label: "Entrou no CRM (AAAA-MM-DD)" },
+  { value: "data_fechamento", label: "Data de Fechamento (AAAA-MM-DD)" },
+  { value: "responsavel_id", label: "ID do Responsável" },
   { value: "observacoes", label: "Observações" },
 ];
 
@@ -137,6 +143,9 @@ const SINONIMOS: Record<CampoLead, string[]> = {
   pais: ["pais", "país", "country", "nacao"],
   data_proposta: ["data geracao", "geracao", "data_geracao", "criado em"],
   link_proposta: ["link da proposta", "link proposta", "proposta", "proposal url", "proposal link", "link_proposta"],
+  data_entrada: ["data entrada", "data de entrada", "entrou", "data_entrada", "criado", "created at", "data de criacao"],
+  data_fechamento: ["data fechamento", "data de fechamento", "fechado em", "fechamento", "data_fechamento", "won date"],
+  responsavel_id: ["responsavel", "dono", "vendedor", "owner", "responsável", "id responsavel"],
   observacoes: ["observações", "observacoes", "notes", "obs", "comments", "comentários"],
 };
 

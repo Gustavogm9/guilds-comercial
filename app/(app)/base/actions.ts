@@ -167,6 +167,25 @@ export interface ImportRow {
   instagram?: string;
   pais?: string;
   link_proposta?: string;
+  responsavel_id?: string;
+  data_entrada?: string;
+  data_fechamento?: string;
+}
+
+/** Tenta normalizar "DD/MM/YYYY" para "YYYY-MM-DD", senão retorna cru */
+function normalizarData(d?: string): string | null {
+  if (!d) return null;
+  const t = d.trim();
+  if (!t) return null;
+  // Checa DD/MM/YYYY ou D/M/YYYY
+  const dmv = t.split("/");
+  if (dmv.length === 3) {
+    const [dd, mm, yyyy] = dmv;
+    if (yyyy.length === 4) {
+      return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+    }
+  }
+  return t;
 }
 
 /**
@@ -265,6 +284,13 @@ export async function importarLeadsEmMassa(
         if (r.prioridade) update.prioridade = r.prioridade;
         if (r.instagram) update.instagram = r.instagram.trim();
         
+        if (r.responsavel_id) update.responsavel_id = r.responsavel_id;
+        
+        const dataIn = normalizarData(r.data_entrada);
+        if (dataIn) update.data_entrada = dataIn;
+        const dataFec = normalizarData(r.data_fechamento);
+        if (dataFec) update.data_fechamento = dataFec;
+        
         if (r.pais) {
           update.cidade_uf = r.cidade_uf ? `${r.cidade_uf.trim()} - ${r.pais.trim()}` : r.pais.trim();
         }
@@ -298,9 +324,11 @@ export async function importarLeadsEmMassa(
       temperatura: r.temperatura || 'Frio',
       prioridade: r.prioridade || 'B',
       instagram: r.instagram?.trim() || null,
-      responsavel_id: user?.id ?? null,
-      funnel_stage: r.crm_stage 
-        ? (["Fechado", "Perdido", "Nutrição"].includes(r.crm_stage) ? "arquivado" : "pipeline") 
+      responsavel_id: r.responsavel_id || user?.id || null,
+      data_entrada: normalizarData(r.data_entrada) || new Date().toISOString().split('T')[0],
+      data_fechamento: normalizarData(r.data_fechamento) || null,
+      funnel_stage: traduzirCrmStage(r.crm_stage) 
+        ? (["Fechado", "Perdido", "Nutrição"].includes(traduzirCrmStage(r.crm_stage)!) ? "arquivado" : "pipeline") 
         : "base_bruta",
     });
   }

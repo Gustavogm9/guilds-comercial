@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function BasePage(
   props: {
-    searchParams: Promise<{ tab?: "bruta" | "qualificada"; q?: string; resp?: string }>;
+    searchParams: Promise<{ tab?: "bruta" | "qualificada" | "todos"; q?: string; resp?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -28,8 +28,8 @@ export default async function BasePage(
   const isGestor = role === "gestor";
 
   // Bug 3: validação estrita de tab (whitelist)
-  const tab: "bruta" | "qualificada" =
-    searchParams.tab === "qualificada" ? "qualificada" : "bruta";
+  const tab: "bruta" | "qualificada" | "todos" =
+    searchParams.tab === "qualificada" ? "qualificada" : searchParams.tab === "todos" ? "todos" : "bruta";
   const q = searchParams.q?.trim() ?? "";
   // Bug 1: força respFiltro = me.id pra não-gestores mesmo com ?resp= na URL
   const respFiltro = isGestor ? (searchParams.resp ?? "all") : me.id;
@@ -38,10 +38,13 @@ export default async function BasePage(
     .from("v_leads_enriched")
     .select("*")
     .eq("organizacao_id", orgId)
-    .eq("funnel_stage", tab === "bruta" ? "base_bruta" : "base_qualificada")
     .order("created_at", { ascending: false })
     // Robustez 11: paginação leve — primeiros 200 leads (resto por busca/filtro)
     .limit(200);
+
+  if (tab !== "todos") {
+    query = query.eq("funnel_stage", tab === "bruta" ? "base_bruta" : "base_qualificada");
+  }
 
   if (respFiltro !== "all") query = query.eq("responsavel_id", respFiltro);
   if (q) {
@@ -52,7 +55,7 @@ export default async function BasePage(
     }
   }
 
-  const [{ data: leads }, membros, { count: countBruta }, { count: countQual }] =
+  const [{ data: leads }, membros, { count: countBruta }, { count: countQual }, { count: countTodos }] =
     await Promise.all([
       query,
       listarMembrosDaOrg(orgId),
@@ -60,6 +63,8 @@ export default async function BasePage(
         .eq("organizacao_id", orgId).eq("funnel_stage", "base_bruta"),
       supabase.from("leads").select("id", { count: "exact", head: true })
         .eq("organizacao_id", orgId).eq("funnel_stage", "base_qualificada"),
+      supabase.from("leads").select("id", { count: "exact", head: true })
+        .eq("organizacao_id", orgId),
     ]);
 
   const all = (leads ?? []) as LeadEnriched[];
@@ -88,6 +93,8 @@ export default async function BasePage(
              icon={<Inbox className="w-3.5 h-3.5"/>} label={t("base.tab_bruta")} count={countBruta ?? 0} />
         <Tab href={`/base?tab=qualificada`} active={tab === "qualificada"}
              icon={<CheckCircle2 className="w-3.5 h-3.5"/>} label={t("base.tab_qualificada")} count={countQual ?? 0} />
+        <Tab href={`/base?tab=todos`} active={tab === "todos"}
+             icon={<Search className="w-3.5 h-3.5"/>} label={"Todos"} count={countTodos ?? 0} />
       </div>
 
       {/* Filtros */}
@@ -140,16 +147,26 @@ export default async function BasePage(
                   <td className="px-3 py-2">
                     <Link
                       href={`/pipeline/${l.id}`}
-                      className="font-medium text-foreground hover:text-primary transition-colors"
+                      className="font-medium text-foreground hover:text-primary transition-colors block"
                       style={{ letterSpacing: "-0.13px" }}
                     >
                       {l.empresa || t("base.tabela_sem_empresa")}
                     </Link>
-                    {l.is_demo && (
-                      <span className="ml-1.5 text-[10px] uppercase bg-warning-500/15 text-warning-500 border border-warning-500/25 px-1.5 py-0.5 rounded font-semibold">
-                        {t("base.tabela_demo")}
-                      </span>
-                    )}
+                    <div className="mt-0.5 flex flex-wrap gap-1">
+                      {l.is_demo && (
+                        <span className="text-[10px] uppercase bg-warning-500/15 text-warning-500 border border-warning-500/25 px-1.5 py-0.5 rounded font-semibold">
+                          {t("base.tabela_demo")}
+                        </span>
+                      )}
+                      {tab === "todos" && (
+                        <span className="text-[10px] uppercase bg-secondary text-muted-foreground border border-border px-1.5 py-0.5 rounded font-semibold">
+                          {l.funnel_stage === "pipeline" ? "Pipeline" :
+                           l.funnel_stage === "base_bruta" ? "Base Bruta" :
+                           l.funnel_stage === "base_qualificada" ? "Qualificada" :
+                           l.funnel_stage === "arquivado" ? "Arquivado" : l.funnel_stage}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {l.nome ?? "—"}
