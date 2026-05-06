@@ -61,6 +61,8 @@ export default function ImportarCsvClient() {
   // Carrega templates só no client (evita SSR/hydration mismatch com localStorage)
   useEffect(() => setTemplates(carregarTemplates()), []);
   const [novoTemplateNome, setNovoTemplateNome] = useState("");
+  const [page, setPage] = useState(0);
+  const [edicoes, setEdicoes] = useState<Record<number, Partial<Record<string, any>>>>({});
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -96,6 +98,8 @@ export default function ImportarCsvClient() {
     setMapping({});
     setResultado(null);
     setErroUpload(null);
+    setPage(0);
+    setEdicoes({});
   }
 
   function aplicarTemplate(tpl: Template) {
@@ -119,8 +123,15 @@ export default function ImportarCsvClient() {
   }
 
   const rowsMapeadas = useMemo(() => {
-    return rawRows.map((row) => aplicarMapping(row, mapping));
-  }, [rawRows, mapping]);
+    return rawRows.map((row, i) => {
+      const mapeado = aplicarMapping(row, mapping);
+      const editado = edicoes[i];
+      if (editado) {
+        return { ...mapeado, ...editado };
+      }
+      return mapeado;
+    });
+  }, [rawRows, mapping, edicoes]);
 
   const totalSemEmpresa = rowsMapeadas.filter((r) => !r.empresa).length;
   const totalValidos = rowsMapeadas.length - totalSemEmpresa;
@@ -334,14 +345,51 @@ export default function ImportarCsvClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
-                  {rowsMapeadas.slice(0, 100).map((r, i) => (
+                  {rowsMapeadas.slice(page * 100, (page + 1) * 100).map((r, pIndex) => {
+                    const i = page * 100 + pIndex;
+                    return (
                     <tr key={i} className={!r.empresa ? "bg-urgent-500/5" : ""}>
                       <td className="px-2 py-1 text-muted-foreground">{i + 1}</td>
-                      <td className="px-2 py-1 text-foreground">{(r.empresa as string) || <span className="text-muted-foreground">—</span>}</td>
-                      <td className="px-2 py-1 text-muted-foreground">{(r.nome as string) || "—"}</td>
-                      <td className="px-2 py-1 text-muted-foreground">{(r.email as string) || "—"}</td>
-                      <td className="px-2 py-1 text-muted-foreground">{(r.whatsapp as string) || "—"}</td>
-                      <td className="px-2 py-1 text-muted-foreground">{(r.segmento as string) || "—"}</td>
+                      <td className="px-1 py-1">
+                        <input
+                          value={(r.empresa as string) || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], empresa: e.target.value } }))}
+                          placeholder="—"
+                          className="w-full bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background rounded px-1 py-0.5 text-foreground outline-none transition-colors"
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <input
+                          value={(r.nome as string) || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], nome: e.target.value } }))}
+                          placeholder="—"
+                          className="w-full bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background rounded px-1 py-0.5 text-muted-foreground focus:text-foreground outline-none transition-colors"
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <input
+                          value={(r.email as string) || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], email: e.target.value } }))}
+                          placeholder="—"
+                          className="w-full bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background rounded px-1 py-0.5 text-muted-foreground focus:text-foreground outline-none transition-colors"
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <input
+                          value={(r.whatsapp as string) || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], whatsapp: e.target.value } }))}
+                          placeholder="—"
+                          className="w-full bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background rounded px-1 py-0.5 text-muted-foreground focus:text-foreground outline-none transition-colors"
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <input
+                          value={(r.segmento as string) || ""}
+                          onChange={(e) => setEdicoes(prev => ({ ...prev, [i]: { ...prev[i], segmento: e.target.value } }))}
+                          placeholder="—"
+                          className="w-full bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background rounded px-1 py-0.5 text-muted-foreground focus:text-foreground outline-none transition-colors"
+                        />
+                      </td>
                       <td className="px-2 py-1">
                         {r.empresa ? (
                           <span className="inline-flex items-center gap-1 text-success-500">
@@ -354,13 +402,32 @@ export default function ImportarCsvClient() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             {rowsMapeadas.length > 100 && (
-              <div className="text-[11px] text-muted-foreground mt-2">
-                {t("base.import_mostrando_de").replace("{{total}}", String(rowsMapeadas.length))}
+              <div className="flex items-center justify-between mt-3">
+                <div className="text-[11px] text-muted-foreground">
+                  Exibindo {page * 100 + 1} a {Math.min((page + 1) * 100, rowsMapeadas.length)} de {rowsMapeadas.length} linhas
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="btn-ghost text-xs px-2 py-1"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => setPage(p => Math.min(Math.ceil(rowsMapeadas.length / 100) - 1, p + 1))}
+                    disabled={(page + 1) * 100 >= rowsMapeadas.length}
+                    className="btn-secondary text-xs px-2 py-1"
+                  >
+                    Próxima
+                  </button>
+                </div>
               </div>
             )}
           </div>
