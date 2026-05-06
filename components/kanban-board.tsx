@@ -396,11 +396,22 @@ function Card({ lead, dragging = false, t }: {
                     </span>
                   : t("hoje.tocado_hoje")}
               </span>
-              {lead.valor_potencial > 0 && (
-                <span className="text-foreground/80 font-medium">
-                  {lead.valor_potencial.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
-                </span>
-              )}
+              {/* Valores Financeiros */}
+              <div className="flex flex-col items-end gap-0.5 text-right">
+                {lead.valor_potencial > 0 && (
+                  <span className="text-foreground/80 font-medium leading-none">
+                    {lead.valor_potencial.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+                  </span>
+                )}
+                {(lead.valor_setup > 0 || lead.valor_mensal > 0) && (
+                  <span className="text-[9px] text-muted-foreground/80 leading-none">
+                    {[
+                      lead.valor_setup > 0 && `Setup: ${lead.valor_setup.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}`,
+                      lead.valor_mensal > 0 && `MRR: ${lead.valor_mensal.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}`
+                    ].filter(Boolean).join(" | ")}
+                  </span>
+                )}
+              </div>
             </div>
           </Link>
         </div>

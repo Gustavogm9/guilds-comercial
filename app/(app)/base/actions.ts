@@ -157,8 +157,11 @@ export interface ImportRow {
   observacoes?: string;
   site?: string;
   valor_potencial?: number;
+  valor_setup?: number;
+  valor_mensal?: number;
   probabilidade?: number;
   crm_stage?: string;
+  data_proposta?: string;
   temperatura?: "Frio" | "Morno" | "Quente";
   prioridade?: "A" | "B" | "C";
   instagram?: string;
@@ -174,6 +177,17 @@ export interface ImportRow {
  *  - 'atualizar': faz update no lead existente com campos não-vazios do CSV
  *  - 'criar_mesmo_assim': insere mesmo com duplicata (cria lead novo)
  */
+function traduzirCrmStage(stageRaw: string | undefined): string | null {
+  if (!stageRaw) return null;
+  const s = stageRaw.toLowerCase().trim();
+  if (s === "fechada" || s === "cliente ativo") return "Fechado";
+  if (s === "em negociação" || s === "em negociacao") return "Negociação";
+  if (s === "enviada") return "Proposta";
+  if (s === "demo") return "Call Marcada";
+  if (s === "teste n8n" || s === "interno") return "Perdido";
+  return stageRaw.trim();
+}
+
 export async function importarLeadsEmMassa(
   rows: ImportRow[],
   politica_dedup: DedupPolitica = "ignorar"
@@ -232,14 +246,18 @@ export async function importarLeadsEmMassa(
         if (r.cidade_uf) update.cidade_uf = r.cidade_uf.trim();
         if (r.site) update.site = r.site.trim();
         
-        let obsArr = [];
-        if (r.observacoes) obsArr.push(r.observacoes.trim());
-        if (r.link_proposta) obsArr.push(`Link da Proposta: ${r.link_proposta.trim()}`);
-        if (obsArr.length > 0) update.observacoes = obsArr.join("\n\n");
+        if (r.observacoes) update.observacoes = r.observacoes.trim();
 
         if (r.valor_potencial && r.valor_potencial > 0) update.valor_potencial = r.valor_potencial;
+        if (r.valor_setup && r.valor_setup > 0) update.valor_setup = r.valor_setup;
+        if (r.valor_mensal && r.valor_mensal > 0) update.valor_mensal = r.valor_mensal;
         if (r.probabilidade !== undefined) update.probabilidade = r.probabilidade;
-        if (r.crm_stage) update.crm_stage = r.crm_stage.trim();
+        
+        const translatedStage = traduzirCrmStage(r.crm_stage);
+        if (translatedStage) update.crm_stage = translatedStage;
+        
+        if (r.data_proposta) update.data_proposta = r.data_proposta.trim();
+        if (r.link_proposta) update.link_proposta = r.link_proposta.trim();
         if (r.temperatura) update.temperatura = r.temperatura;
         if (r.prioridade) update.prioridade = r.prioridade;
         if (r.instagram) update.instagram = r.instagram.trim();
@@ -266,10 +284,14 @@ export async function importarLeadsEmMassa(
       cidade_uf: r.pais ? (r.cidade_uf ? `${r.cidade_uf.trim()} - ${r.pais.trim()}` : r.pais.trim()) : (r.cidade_uf?.trim() || null),
       site: r.site?.trim() || null,
       fonte: r.fonte?.trim() || "Lista fria",
-      observacoes: [r.observacoes?.trim(), r.link_proposta ? `Link da Proposta: ${r.link_proposta.trim()}` : null].filter(Boolean).join("\n\n") || null,
+      observacoes: r.observacoes?.trim() || null,
       valor_potencial: r.valor_potencial && r.valor_potencial > 0 ? r.valor_potencial : 0,
+      valor_setup: r.valor_setup && r.valor_setup > 0 ? r.valor_setup : 0,
+      valor_mensal: r.valor_mensal && r.valor_mensal > 0 ? r.valor_mensal : 0,
       probabilidade: r.probabilidade ?? 0,
-      crm_stage: r.crm_stage?.trim() || null,
+      crm_stage: traduzirCrmStage(r.crm_stage) || null,
+      data_proposta: r.data_proposta?.trim() || null,
+      link_proposta: r.link_proposta?.trim() || null,
       temperatura: r.temperatura || 'Frio',
       prioridade: r.prioridade || 'B',
       instagram: r.instagram?.trim() || null,

@@ -175,7 +175,28 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
             v={(lead.valor_potencial ?? 0).toLocaleString(locale, { style: "currency", currency })}
             sub={`${t("pipeline.detail_prob").replace("{{n}}", String(Math.round((lead.probabilidade ?? 0)*100)))} · ${t("pipeline.detail_ponderado").replace("{{v}}", (lead.receita_ponderada ?? 0).toLocaleString(locale, { style: "currency", currency, maximumFractionDigits: 0 }))}`}
           />
+          {lead.valor_setup > 0 && (
+            <KV
+              label="Valor de Setup"
+              v={lead.valor_setup.toLocaleString(locale, { style: "currency", currency })}
+            />
+          )}
+          {lead.valor_mensal > 0 && (
+            <KV
+              label="Mensalidade / MRR"
+              v={lead.valor_mensal.toLocaleString(locale, { style: "currency", currency })}
+            />
+          )}
         </div>
+
+        {lead.link_proposta && (
+          <div className="mt-4 border-t border-border/50 pt-4">
+            <div className="label mb-2">Proposta</div>
+            <a href={lead.link_proposta} target="_blank" rel="noreferrer" className="btn-secondary text-xs inline-flex items-center gap-1.5 px-3 py-1.5">
+              🔗 Acessar Proposta Original
+            </a>
+          </div>
+        )}
 
         {lead.dor_principal && (
           <div className="mt-4">

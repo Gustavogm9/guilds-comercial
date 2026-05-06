@@ -26,7 +26,10 @@ export type CampoLead =
   | "prioridade"
   | "probabilidade"
   | "pais"
-  | "link_proposta";
+  | "link_proposta"
+  | "valor_setup"
+  | "valor_mensal"
+  | "data_proposta";
 
 export const CAMPOS_LEAD: { value: CampoLead; label: string }[] = [
   { value: "empresa", label: "Empresa (obrigatório)" },
@@ -46,7 +49,10 @@ export const CAMPOS_LEAD: { value: CampoLead; label: string }[] = [
   { value: "prioridade", label: "Prioridade (A, B, C)" },
   { value: "instagram", label: "Instagram" },
   { value: "pais", label: "País" },
+  { value: "valor_setup", label: "Valor de Setup (R$)" },
+  { value: "valor_mensal", label: "Mensalidade / MRR (R$)" },
   { value: "link_proposta", label: "Link da Proposta" },
+  { value: "data_proposta", label: "Data de Geração" },
   { value: "observacoes", label: "Observações" },
 ];
 
@@ -120,13 +126,16 @@ const SINONIMOS: Record<CampoLead, string[]> = {
   cidade_uf: ["cidade", "city", "cidade/uf", "cidade_uf", "uf", "estado", "location", "localização"],
   fonte: ["fonte", "source", "origem", "lead source", "campaign"],
   site: ["site", "website", "url", "site web"],
-  valor_potencial: ["valor", "deal value", "valor potencial", "ticket", "amount", "value"],
+  valor_potencial: ["valor", "deal value", "valor potencial", "ticket", "amount", "value", "receita", "ano1", "valor_ano1_rs"],
+  valor_setup: ["setup", "onboarding", "implementacao", "valor_setup_rs"],
+  valor_mensal: ["mrr", "mensal", "recorrente", "mensalidade", "valor_mensal_rs"],
   probabilidade: ["probabilidade", "chance", "probability", "win probability"],
   crm_stage: ["status", "fase", "stage", "etapa", "crm_stage", "funnel stage", "pipeline stage"],
   temperatura: ["temperatura", "temperature", "quente", "morno", "frio"],
   prioridade: ["prioridade", "priority"],
   instagram: ["instagram", "ig", "insta"],
   pais: ["pais", "país", "country", "nacao"],
+  data_proposta: ["data geracao", "geracao", "data_geracao", "criado em"],
   link_proposta: ["link da proposta", "link proposta", "proposta", "proposal url", "proposal link", "link_proposta"],
   observacoes: ["observações", "observacoes", "notes", "obs", "comments", "comentários"],
 };
@@ -221,7 +230,7 @@ export function aplicarMapping(
     if (!dst) continue;
     const valor = row[src];
     if (valor === undefined || valor === "") continue;
-    if (dst === "valor_potencial") {
+    if (dst === "valor_potencial" || dst === "valor_setup" || dst === "valor_mensal") {
       out[dst] = parseValorBR(valor);
     } else if (dst === "probabilidade") {
       let p = parseValorBR(valor);

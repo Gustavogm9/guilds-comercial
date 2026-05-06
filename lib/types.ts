@@ -354,10 +354,13 @@ export interface Lead {
   data_proxima_acao: string | null;
   proxima_acao: string | null;
   valor_potencial: number;
+  valor_setup: number;
+  valor_mensal: number;
   probabilidade: number;
   receita_ponderada: number;
   data_proposta: string | null;
   data_fechamento: string | null;
+  link_proposta: string | null;
   newsletter_optin: boolean;
   motivo_perda: MotivoPerda | null;
   motivo_perda_detalhe: string | null;

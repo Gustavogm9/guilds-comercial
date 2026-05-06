@@ -199,12 +199,15 @@ create table public.leads (
   proxima_acao           text,
 
   valor_potencial   numeric(12,2) default 0,
+  valor_setup       numeric(12,2) default 0,
+  valor_mensal      numeric(12,2) default 0,
   probabilidade     numeric(5,4)  default 0 check (probabilidade between 0 and 1),
   receita_ponderada numeric(12,2) generated always as
                       (coalesce(valor_potencial,0) * coalesce(probabilidade,0)) stored,
 
   data_proposta     date,
   data_fechamento   date,
+  link_proposta     text,
 
   newsletter_optin  boolean default false,
 
