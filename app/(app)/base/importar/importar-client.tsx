@@ -334,11 +334,20 @@ export default function ImportarCsvClient() {
         <>
           <div className="card p-4">
             <div className="text-sm font-medium mb-2">{t("base.import_preview_titulo")}</div>
-            <div className="text-xs text-muted-foreground mb-3">
+            <div className="text-xs text-muted-foreground mb-4">
               {t("base.import_validas").replace("{{n}}", String(totalValidos))}
               {totalSemEmpresa > 0 && (
                 <> · {t("base.import_sem_empresa").replace("{{n}}", String(totalSemEmpresa))}</>
               )}
+            </div>
+
+            <div className="mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-foreground/80 space-y-1.5">
+              <p className="font-medium text-blue-600 dark:text-blue-400">💡 Como o Status (CRM) afeta a importação:</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li><strong className="font-medium text-foreground">Vazio / Sem status:</strong> O lead cai na <strong>Base Bruta</strong> e precisará ser qualificado manualmente.</li>
+                <li><strong className="font-medium text-foreground">Fechado, Perdido ou Nutrição:</strong> O lead é <strong>Arquivado</strong> como histórico (não pede qualificação e Fechados vão pro Kanban).</li>
+                <li><strong className="font-medium text-foreground">Qualquer outra etapa:</strong> O lead vai <strong>direto para o Pipeline</strong> do Kanban (pulando a Base).</li>
+              </ul>
             </div>
 
             <div className="overflow-x-auto max-h-[400px] overflow-y-auto border border-border/30 rounded-lg">
