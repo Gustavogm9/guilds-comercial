@@ -23,7 +23,7 @@
     "@supabase/supabase-js": "2.105.1",
     "@tailwindcss/postcss": "4.2.4",
     "clsx": "2.1.1",
-    "date-fns": "4.1.0",
+    "date-fns": "^4.1.0",
     "framer-motion": "12.38.0",
     "libphonenumber-js": "1.12.42",
     "lucide-react": "0.576.0",

@@ -14,6 +14,22 @@ import { getServerLocale, getT } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 
 // Ordem canônica das etapas do pipeline (de topo para baixo no funil)
+import { ETAPAS_PIPELINE_VISIVEL } from "@/lib/lists";
+import { startOfMonth, subMonths, startOfYear, endOfMonth } from "date-fns";
+import {
+  calcularFunilHistorico,
+  calcularTempoPorEtapa,
+  calcularValorPorEtapa,
+  calcularCohort,
+  calcularPerdas,
+  type LeadEventoLight,
+  type FunilHistRow,
+  type TempoRow,
+  type ValorRow,
+  type CohortRow,
+  type PerdaRow
+} from "@/lib/analytics";
+
 const ORDEM_ETAPAS: CrmStage[] = [
   "Prospecção",
   "Qualificado",
@@ -37,17 +53,13 @@ const CORES_ETAPA: Record<string, string> = {
   "Proposta":         "bg-fuchsia-500/85 dark:bg-fuchsia-400/70",
   "Negociação":       "bg-warning-500/85 dark:bg-warning-500/75",
   "Fechado":          "bg-success-500 dark:bg-success-500/85",
+  "Perdido":          "bg-rose-500/85 dark:bg-rose-500/75",
+  "Nutrição":         "bg-amber-500/85 dark:bg-amber-500/75",
 };
-
-type FunilRow = { crm_stage: CrmStage; qtd: number; valor_aberto: number; valor_weighted: number; responsavel_id: string | null };
-type TempoRow = { crm_stage: CrmStage; dias_media: number; dias_mediana: number; amostras: number; responsavel_id: string | null };
-type ValorRow = { crm_stage: CrmStage; leads_abertos: number; valor_aberto: number; valor_weighted: number; valor_ganho: number; valor_perdido: number; prob_media: number; responsavel_id: string | null };
-type CohortRow = { semana: string; entraram: number; ganhos: number; perdidos: number; nutricao: number; em_aberto: number; receita_ganha: number; dias_para_fechar: number | null; responsavel_id: string | null };
-type PerdaRow = { motivo: string; qtd: number; valor_perdido: number; responsavel_id: string | null };
 
 export default async function FunilPage(
   props: {
-    searchParams: Promise<{ resp?: string }>;
+    searchParams: Promise<{ resp?: string; seg?: string; periodo?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -60,32 +72,69 @@ export default async function FunilPage(
   const role = await getCurrentRole();
   const isGestor = role === "gestor";
 
-  // Filtro de responsável: gestor escolhe; vendedor vê sempre o próprio
+  // Filtros
   const respFiltro = isGestor ? (searchParams.resp ?? "all") : me.id;
+  const segFiltro = searchParams.seg ?? "all";
+  const periodoFiltro = searchParams.periodo ?? "all";
 
   const supabase = createClient();
 
-  // Helpers para aplicar filtro
-  const applyResp = <T,>(q: any): any =>
-    respFiltro === "all" ? q : q.eq("responsavel_id", respFiltro);
-
-  const [funilRes, tempoRes, valorRes, cohortRes, perdaRes, forecastRes, membros] = await Promise.all([
-    applyResp(supabase.from("v_funil_conversao").select("*").eq("organizacao_id", orgId)),
-    applyResp(supabase.from("v_tempo_por_etapa").select("*").eq("organizacao_id", orgId)),
-    applyResp(supabase.from("v_valor_por_etapa").select("*").eq("organizacao_id", orgId)),
-    applyResp(supabase.from("v_cohort_entrada").select("*").eq("organizacao_id", orgId).order("semana", { ascending: true })),
-    applyResp(supabase.from("v_motivos_perda").select("*").eq("organizacao_id", orgId)),
+  // 1. Forecast query (stays as is)
+  const applyResp = <T,>(q: any): any => respFiltro === "all" ? q : q.eq("responsavel_id", respFiltro);
+  const [forecastRes, membros, segmentosRes] = await Promise.all([
     applyResp(supabase.from("v_forecast_mes").select("*").eq("organizacao_id", orgId)),
     listarMembrosDaOrg(orgId),
+    supabase.from("leads").select("segmento").eq("organizacao_id", orgId).not("segmento", "is", null)
   ]);
 
-  const funil = (funilRes.data ?? []) as FunilRow[];
-  const tempo = (tempoRes.data ?? []) as TempoRow[];
-  const valor = (valorRes.data ?? []) as ValorRow[];
-  const cohorts = (cohortRes.data ?? []) as CohortRow[];
-  const perdas = (perdaRes.data ?? []) as PerdaRow[];
   const forecast = (forecastRes.data ?? []) as ForecastMes[];
   const profs = membros.map(m => ({ id: m.profile_id, display_name: m.display_name }));
+  const segmentosUnicos = Array.from(new Set((segmentosRes.data ?? []).map(l => l.segmento).filter(Boolean) as string[])).sort();
+
+  // 2. Fetch Leads (with filters)
+  let qLeads = supabase.from("leads")
+    .select("id, crm_stage, valor_potencial, receita_ponderada, probabilidade, funnel_stage, data_entrada, data_fechamento, responsavel_id, segmento")
+    .eq("organizacao_id", orgId)
+    .in("funnel_stage", ["pipeline", "arquivado"]);
+
+  if (respFiltro !== "all") qLeads = qLeads.eq("responsavel_id", respFiltro);
+  if (segFiltro !== "all") qLeads = qLeads.eq("segmento", segFiltro);
+
+  if (periodoFiltro !== "all") {
+    const now = new Date();
+    let startD = now;
+    if (periodoFiltro === "mes_atual") startD = startOfMonth(now);
+    else if (periodoFiltro === "mes_passado") {
+      startD = startOfMonth(subMonths(now, 1));
+      qLeads = qLeads.lt("data_entrada", startOfMonth(now).toISOString());
+    }
+    else if (periodoFiltro === "ultimos_3_meses") startD = startOfMonth(subMonths(now, 3));
+    else if (periodoFiltro === "este_ano") startD = startOfYear(now);
+    
+    qLeads = qLeads.gte("data_entrada", startD.toISOString());
+  }
+
+  const { data: leads } = await qLeads;
+  const leadsValidos = (leads ?? []) as any[];
+
+  // 3. Fetch Eventos (only for these leads)
+  // To avoid extremely long URL, fetch all events for org, then filter in TS
+  const { data: allEventos } = await supabase.from("lead_evento")
+    .select("lead_id, tipo, payload, created_at")
+    .eq("organizacao_id", orgId)
+    .in("tipo", ["etapa_alterada", "arquivado", "perdido"]);
+  
+  const leadsIds = new Set(leadsValidos.map(l => l.id));
+  const eventosValidos = ((allEventos ?? []) as LeadEventoLight[]).filter(e => leadsIds.has(e.lead_id));
+
+  // 4. Aggregations
+  const funilPorEtapa = calcularFunilHistorico(leadsValidos, eventosValidos, ORDEM_ETAPAS);
+  const tempoPorEtapa = calcularTempoPorEtapa(leadsValidos, eventosValidos, ORDEM_ETAPAS);
+  const valorPorEtapa = calcularValorPorEtapa(leadsValidos, [...ETAPAS_PIPELINE_VISIVEL]);
+  const agrupamentoCohort = (periodoFiltro === "este_ano" || periodoFiltro === "all") ? "mes" : "semana";
+  const cohortsAgregados = calcularCohort(leadsValidos, agrupamentoCohort);
+  const perdasAgregadas = calcularPerdas(leadsValidos, eventosValidos);
+  const perdidosTotal = perdasAgregadas.reduce((s, p) => s + p.qtd, 0);
 
   // Agrega forecast quando filtro = todo o time
   const forecastAgg = forecast.reduce((acc, r) => ({
@@ -96,21 +145,15 @@ export default async function FunilPage(
     leads_ativos:    acc.leads_ativos    + (r.leads_ativos ?? 0),
   }), { forecast_best: 0, forecast_likely: 0, forecast_worst: 0, leads_altos: 0, leads_ativos: 0 });
 
-  // Agrega por etapa (soma entre responsáveis quando "todo o time")
-  const funilPorEtapa = agregarPorEtapa(funil);
-  const tempoPorEtapa = agregarTempoPorEtapa(tempo);
-  const valorPorEtapa = agregarValorPorEtapa(valor);
-  const cohortsAgregados = agregarCohort(cohorts);
-  const perdasAgregadas = agregarPerdas(perdas);
-
   // Totais e métricas topline
   const topoFunil = funilPorEtapa.find(f => f.crm_stage === "Prospecção")?.qtd ?? 0;
   const ganhos = funilPorEtapa.find(f => f.crm_stage === "Fechado")?.qtd ?? 0;
-  const perdidosTotal = funil.filter(f => f.crm_stage === "Perdido").reduce((s, r) => s + (r.qtd ?? 0), 0);
   const convGlobal = topoFunil > 0 ? (ganhos / topoFunil) * 100 : 0;
+  
+  // Total weighted e bruto agora baseados na agregação TS
   const totalWeighted = valorPorEtapa.reduce((s, r) => s + Number(r.valor_weighted || 0), 0);
   const totalBruto = valorPorEtapa.reduce((s, r) => s + Number(r.valor_aberto || 0), 0);
-  const receitaGanha = valor.reduce((s, r) => s + Number(r.valor_ganho || 0), 0);
+  const receitaGanha = valorPorEtapa.find(v => v.crm_stage === "Fechado")?.valor_aberto ?? 0;
 
   // Tempo médio total no funil (somando etapa por etapa o tempo médio)
   const etapasAtivas = ORDEM_ETAPAS.filter(e => e !== "Fechado");
@@ -128,17 +171,33 @@ export default async function FunilPage(
             {t("paginas.funil_sub")}
           </p>
         </div>
-        {isGestor && (
-          <form className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground">Ver:</label>
-            <select name="resp" defaultValue={respFiltro}
-              className="input-base !text-xs w-44">
-              <option value="all">Todo o time</option>
-              {profs.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
-            </select>
-            <button type="submit" className="btn-secondary text-xs">Filtrar</button>
-          </form>
-        )}
+        <form className="flex items-center gap-2 flex-wrap justify-end">
+          <label className="text-xs text-muted-foreground hidden md:inline-block">Período:</label>
+          <select name="periodo" defaultValue={periodoFiltro} className="input-base !text-xs w-36">
+            <option value="all">Todo o período</option>
+            <option value="mes_atual">Este mês</option>
+            <option value="mes_passado">Mês passado</option>
+            <option value="ultimos_3_meses">Últimos 3 meses</option>
+            <option value="este_ano">Este ano</option>
+          </select>
+          
+          <label className="text-xs text-muted-foreground hidden md:inline-block ml-2">Segmento:</label>
+          <select name="seg" defaultValue={segFiltro} className="input-base !text-xs w-36">
+            <option value="all">Todos os setores</option>
+            {segmentosUnicos.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          {isGestor && (
+            <>
+              <label className="text-xs text-muted-foreground hidden md:inline-block ml-2">Resp:</label>
+              <select name="resp" defaultValue={respFiltro} className="input-base !text-xs w-40">
+                <option value="all">Todo o time</option>
+                {profs.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+              </select>
+            </>
+          )}
+          <button type="submit" className="btn-secondary text-xs ml-1">Filtrar</button>
+        </form>
       </header>
 
       {/* Topline */}
@@ -221,7 +280,7 @@ export default async function FunilPage(
           </div>
           <div className="flex items-center gap-3">
             <FunilSectionExport
-              data={funilPorEtapa.map(f => ({ etapa: f.crm_stage, quantidade: f.qtd, valor_aberto: f.valor_aberto, valor_weighted: f.valor_weighted }))}
+              data={funilPorEtapa.map(f => ({ etapa: f.crm_stage, quantidade: f.qtd }))}
               filename="funil_conversao"
             />
             <div className="text-xs text-muted-foreground">
@@ -308,97 +367,6 @@ export default async function FunilPage(
       </p>
     </div>
   );
-}
-
-// =============================================================
-// Agregadores — somam múltiplas linhas (quando filtro = todo o time)
-// =============================================================
-function agregarPorEtapa(rows: FunilRow[]) {
-  const map = new Map<string, { crm_stage: CrmStage; qtd: number; valor_aberto: number; valor_weighted: number }>();
-  for (const r of rows) {
-    const prev = map.get(r.crm_stage) ?? { crm_stage: r.crm_stage, qtd: 0, valor_aberto: 0, valor_weighted: 0 };
-    prev.qtd += Number(r.qtd ?? 0);
-    prev.valor_aberto += Number(r.valor_aberto ?? 0);
-    prev.valor_weighted += Number(r.valor_weighted ?? 0);
-    map.set(r.crm_stage, prev);
-  }
-  return Array.from(map.values());
-}
-
-function agregarTempoPorEtapa(rows: TempoRow[]) {
-  const map = new Map<string, { crm_stage: CrmStage; dias_media: number; amostras: number }>();
-  for (const r of rows) {
-    const prev = map.get(r.crm_stage);
-    const amostras = Number(r.amostras ?? 0);
-    const media = Number(r.dias_media ?? 0);
-    if (!prev) {
-      map.set(r.crm_stage, { crm_stage: r.crm_stage, dias_media: media, amostras });
-    } else {
-      // Média ponderada por amostras
-      const totalAmostras = prev.amostras + amostras;
-      const novaMedia = totalAmostras > 0
-        ? ((prev.dias_media * prev.amostras) + (media * amostras)) / totalAmostras
-        : 0;
-      map.set(r.crm_stage, { crm_stage: r.crm_stage, dias_media: Number(novaMedia.toFixed(1)), amostras: totalAmostras });
-    }
-  }
-  return Array.from(map.values());
-}
-
-function agregarValorPorEtapa(rows: ValorRow[]) {
-  const map = new Map<string, ValorRow>();
-  for (const r of rows) {
-    const prev = map.get(r.crm_stage);
-    if (!prev) {
-      map.set(r.crm_stage, { ...r });
-    } else {
-      map.set(r.crm_stage, {
-        crm_stage: r.crm_stage,
-        responsavel_id: null,
-        leads_abertos: prev.leads_abertos + Number(r.leads_abertos ?? 0),
-        valor_aberto: Number(prev.valor_aberto) + Number(r.valor_aberto ?? 0),
-        valor_weighted: Number(prev.valor_weighted) + Number(r.valor_weighted ?? 0),
-        valor_ganho: Number(prev.valor_ganho) + Number(r.valor_ganho ?? 0),
-        valor_perdido: Number(prev.valor_perdido) + Number(r.valor_perdido ?? 0),
-        prob_media: Number(r.prob_media ?? 0),
-      });
-    }
-  }
-  return Array.from(map.values());
-}
-
-function agregarCohort(rows: CohortRow[]) {
-  const map = new Map<string, CohortRow>();
-  for (const r of rows) {
-    const prev = map.get(r.semana);
-    if (!prev) {
-      map.set(r.semana, { ...r });
-    } else {
-      map.set(r.semana, {
-        semana: r.semana,
-        responsavel_id: null,
-        entraram: prev.entraram + r.entraram,
-        ganhos: prev.ganhos + r.ganhos,
-        perdidos: prev.perdidos + r.perdidos,
-        nutricao: prev.nutricao + r.nutricao,
-        em_aberto: prev.em_aberto + r.em_aberto,
-        receita_ganha: Number(prev.receita_ganha) + Number(r.receita_ganha),
-        dias_para_fechar: r.dias_para_fechar,
-      });
-    }
-  }
-  return Array.from(map.values()).sort((a, b) => a.semana.localeCompare(b.semana));
-}
-
-function agregarPerdas(rows: PerdaRow[]) {
-  const map = new Map<string, { motivo: string; qtd: number; valor_perdido: number }>();
-  for (const r of rows) {
-    const prev = map.get(r.motivo) ?? { motivo: r.motivo, qtd: 0, valor_perdido: 0 };
-    prev.qtd += Number(r.qtd ?? 0);
-    prev.valor_perdido += Number(r.valor_perdido ?? 0);
-    map.set(r.motivo, prev);
-  }
-  return Array.from(map.values()).sort((a, b) => b.qtd - a.qtd);
 }
 
 // =============================================================
