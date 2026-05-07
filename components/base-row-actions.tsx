@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { qualificarBase, promoverParaPipeline, enriquecerLead } from "@/app/(app)/base/actions";
-import type { LeadEnriched, Profile } from "@/lib/types";
+import type { LeadEnriched } from "@/lib/types";
 import { Check, ArrowRight, X, ChevronDown, Sparkles, Loader2, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
 import MotivoSaidaModal from "./motivo-saida-modal";
 import EditarLeadModal from "./editar-lead-modal";
@@ -18,7 +18,7 @@ import { getClientLocale, getT, type Locale } from "@/lib/i18n";
  *   - i18n via t()
  *   - A11y: aria-haspopup, aria-expanded, role=menu/menuitem
  */
-export default function BaseRowActions({ lead, profiles }: { lead: LeadEnriched; profiles?: Profile[] }) {
+export default function BaseRowActions({ lead, profiles }: { lead: LeadEnriched; profiles?: { id: string; display_name: string }[] }) {
   const [pending, start] = useTransition();
   const [open, setOpen] = useState<null | "qual">(null);
   const [dor, setDor] = useState(lead.dor_principal ?? "");

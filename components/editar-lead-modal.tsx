@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { X, Loader2, Save } from "lucide-react";
 import { editarLeadInline } from "@/app/(app)/base/actions";
-import type { LeadEnriched, Profile } from "@/lib/types";
+import type { LeadEnriched } from "@/lib/types";
 
 // Re-using ETAPAS_CRM manually or importing if available
 const ETAPAS_CRM = [
@@ -17,7 +17,7 @@ export default function EditarLeadModal({
   onSuccess
 }: {
   lead: LeadEnriched;
-  profiles: Profile[];
+  profiles: { id: string; display_name: string }[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
