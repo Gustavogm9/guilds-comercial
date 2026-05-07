@@ -4,6 +4,7 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import NovoLeadModal from "@/components/novo-lead-modal";
 import BaseRowActions from "@/components/base-row-actions";
+import EditableLeadRow from "@/components/editable-lead-row";
 import type { LeadEnriched } from "@/lib/types";
 import { Inbox, CheckCircle2, Search, Upload } from "lucide-react";
 import { getServerLocale, getT, type Locale } from "@/lib/i18n";
@@ -125,61 +126,45 @@ export default async function BasePage(
           <table className="w-full text-sm">
             <thead className="bg-secondary/60 dark:bg-white/[0.02] text-[10px] uppercase tracking-[0.12em] text-muted-foreground border-b border-border dark:border-white/[0.06]">
               <tr>
-                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_empresa")}</th>
-                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_contato")}</th>
-                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_segmento")}</th>
-                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_fonte")}</th>
-                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_resp")}</th>
-                <th className="text-left px-3 py-2.5 font-semibold">{t("base.tabela_entrou")}</th>
-                <th className="text-right px-3 py-2.5 font-semibold">{t("base.tabela_acoes")}</th>
+                <th className="text-left px-3 py-2.5 font-semibold sticky left-0 bg-secondary/60 dark:bg-[#1a1b1e] border-r border-border/40 z-20 min-w-[200px]">Empresa</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Nome</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Cargo</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[180px]">Email</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[130px]">WhatsApp</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">LinkedIn</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Instagram</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Segmento</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Cidade/UF</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Site</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Fonte</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Responsável</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[120px]">Temperatura</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[100px]">Prioridade</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Estágio CRM</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[120px]">V. Potencial</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[120px]">V. Setup</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[120px]">V. Mensal</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[100px]">Prob. (%)</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[120px]">R. Ponderada</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[140px]">Data Entrada</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[140px]">Data Proposta</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[140px]">Data Fechou</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Motivo Perda</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[150px]">Link Proposta</th>
+                <th className="text-left px-3 py-2.5 font-semibold min-w-[200px]">Observações</th>
+                <th className="text-right px-3 py-2.5 font-semibold sticky right-0 bg-secondary/60 dark:bg-[#1a1b1e] border-l border-border/40 z-20 min-w-[80px]">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60 dark:divide-white/[0.05]">
               {all.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-muted-foreground/70 italic">
+                  <td colSpan={27} className="text-center py-12 text-muted-foreground/70 italic">
                     {tab === "bruta" ? t("base.tabela_vazio_bruta") : t("base.tabela_vazio_qualificada")}
                   </td>
                 </tr>
               )}
               {all.map(l => (
-                <tr key={l.id} className="hover:bg-secondary/40 dark:hover:bg-white/[0.03] transition-colors">
-                  <td className="px-3 py-2">
-                    <Link
-                      href={`/pipeline/${l.id}`}
-                      className="font-medium text-foreground hover:text-primary transition-colors block"
-                      style={{ letterSpacing: "-0.13px" }}
-                    >
-                      {l.empresa || t("base.tabela_sem_empresa")}
-                    </Link>
-                    <div className="mt-0.5 flex flex-wrap gap-1">
-                      {l.is_demo && (
-                        <span className="text-[10px] uppercase bg-warning-500/15 text-warning-500 border border-warning-500/25 px-1.5 py-0.5 rounded font-semibold">
-                          {t("base.tabela_demo")}
-                        </span>
-                      )}
-                      {tab === "todos" && (
-                        <span className="text-[10px] uppercase bg-secondary text-muted-foreground border border-border px-1.5 py-0.5 rounded font-semibold">
-                          {l.funnel_stage === "pipeline" ? "Pipeline" :
-                           l.funnel_stage === "base_bruta" ? "Base Bruta" :
-                           l.funnel_stage === "base_qualificada" ? "Qualificada" :
-                           l.funnel_stage === "arquivado" ? "Arquivado" : l.funnel_stage}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {l.nome ?? "—"}
-                    {l.cargo && <span className="text-muted-foreground/60"> · {l.cargo}</span>}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{l.segmento ?? "—"}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{l.fonte ?? "—"}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{l.responsavel_nome ?? "—"}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{fmt(l.data_entrada, locale)}</td>
-                  <td className="px-3 py-2 text-right">
-                    <BaseRowActions lead={l} profiles={profs} />
-                  </td>
-                </tr>
+                <EditableLeadRow key={l.id} lead={l} profiles={profs} />
               ))}
             </tbody>
           </table>

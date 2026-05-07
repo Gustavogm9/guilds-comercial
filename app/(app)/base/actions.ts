@@ -543,35 +543,40 @@ export async function enriquecerLead(lead_id: number) {
 
 export async function editarLeadInline(
   lead_id: number,
-  payload: {
-    data_entrada: string | null;
-    data_fechamento: string | null;
-    responsavel_id: string | null;
-    crm_stage: string | null;
-  }
+  payload: Partial<LeadEnriched>
 ) {
   const supabase = createClient();
   const orgId = await requireOrg();
 
-  const translatedCrmStage = traduzirCrmStage(payload.crm_stage || undefined);
-  
-  const updateData: any = {
-    data_entrada: payload.data_entrada || null,
-    data_fechamento: payload.data_fechamento || null,
-    responsavel_id: payload.responsavel_id || null,
-  };
+  const updateData: any = { ...payload };
+  delete updateData.id;
+  delete updateData.organizacao_id;
+  delete updateData.created_at;
+  delete updateData.updated_at;
+  // Limpar campos de view enriquecida
+  delete updateData.display_name;
+  delete updateData.responsavel_nome;
 
-  if (translatedCrmStage) {
-    updateData.crm_stage = translatedCrmStage;
-    updateData.funnel_stage = ["Fechado", "Perdido", "Nutrição"].includes(translatedCrmStage)
-      ? "arquivado"
-      : "pipeline";
-  } else if (payload.crm_stage === "") {
-    // se limpou o stage
-    updateData.crm_stage = null;
-    // não volta o funnel_stage para não quebrar a lógica (ou volta pra base?)
-    // Melhor não mexer no funnel se limpou o stage manual, apenas apagar o label.
+  if (payload.crm_stage !== undefined) {
+    const translatedCrmStage = traduzirCrmStage(payload.crm_stage || undefined);
+    if (translatedCrmStage) {
+      updateData.crm_stage = translatedCrmStage;
+      updateData.funnel_stage = ["Fechado", "Perdido", "Nutrição"].includes(translatedCrmStage)
+        ? "arquivado"
+        : "pipeline";
+    } else if (payload.crm_stage === "" || payload.crm_stage === null) {
+      updateData.crm_stage = null;
+    }
   }
+
+  // Prevenir undefined -> null se precisar
+  for (const key in updateData) {
+    if (updateData[key] === undefined) {
+      delete updateData[key];
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) return;
 
   const { error } = await supabase
     .from("leads")
