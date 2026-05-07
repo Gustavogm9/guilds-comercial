@@ -205,7 +205,7 @@ function normalizarData(d?: string): string | null {
  *  - 'atualizar': faz update no lead existente com campos não-vazios do CSV
  *  - 'criar_mesmo_assim': insere mesmo com duplicata (cria lead novo)
  */
-export function traduzirCrmStage(stageRaw: string | undefined): string | null {
+function traduzirCrmStage(stageRaw: string | undefined): string | null {
   if (!stageRaw) return null;
   const s = stageRaw.toLowerCase().trim();
   if (s === "fechada" || s === "cliente ativo") return "Fechado";
