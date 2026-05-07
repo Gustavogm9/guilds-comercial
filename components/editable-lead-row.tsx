@@ -13,13 +13,15 @@ function EditableCell({
   onSave, 
   type = "text",
   options,
-  placeholder = "—"
+  placeholder = "—",
+  list
 }: { 
   value: string | number | null; 
   onSave: (val: any) => Promise<void>;
   type?: "text" | "number" | "date" | "select";
   options?: { value: string; label: string }[];
   placeholder?: string;
+  list?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [val, setVal] = useState<string | number>(value || "");
@@ -98,6 +100,7 @@ function EditableCell({
     <input
       type={type}
       value={val}
+      list={list}
       onChange={(e) => setVal(e.target.value)}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
@@ -131,7 +134,7 @@ export default function EditableLeadRow({
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
           </a>
           <div className="font-medium text-sm flex-1 overflow-hidden">
-            <EditableCell value={lead.empresa} onSave={(v) => handleSave("empresa", v)} />
+            <EditableCell value={lead.empresa} onSave={(v) => handleSave("empresa", v)} list="empresas-list" />
           </div>
         </div>
         <div className="flex flex-wrap gap-1 px-3">

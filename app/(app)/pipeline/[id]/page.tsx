@@ -110,6 +110,24 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
     (ligacoes ?? []).map((l: { tom_interacao: string | null }) => ({ tom_interacao: l.tom_interacao })),
   );
 
+  // Busca outras oportunidades da mesma empresa
+  let outrasOportunidades: LeadEnriched[] = [];
+  if (lead.empresa) {
+    const { data } = await supabase
+      .from("v_leads_enriched")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .eq("empresa", lead.empresa)
+      .neq("id", id)
+      .order("created_at", { ascending: false });
+    if (data) outrasOportunidades = data as LeadEnriched[];
+  }
+
+  // Helper para formatação de data curta
+  const fmt = (d: string, l: string) => {
+    return new Date(d).toLocaleDateString(l, { month: "short", day: "numeric", year: "numeric" });
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <Link href="/pipeline" className="btn-ghost text-xs mb-3">
@@ -208,6 +226,71 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
           <div className="mt-4">
             <div className="label">{t("pipeline.detail_observacoes")}</div>
             <p className="text-sm mt-1 whitespace-pre-wrap">{lead.observacoes}</p>
+          </div>
+        )}
+
+        {/* --- Potencial Agregado da Empresa --- */}
+        {outrasOportunidades.length > 0 && (
+          <div className="mt-8 border border-border/50 rounded-lg p-4 bg-secondary/20">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-primary" />
+              Histórico da Empresa: {lead.empresa}
+            </h3>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              <div>
+                <div className="text-xs text-muted-foreground">LTV Potencial (Todas)</div>
+                <div className="text-sm font-medium">
+                  {(
+                    (lead.valor_potencial ?? 0) + 
+                    outrasOportunidades.reduce((acc, curr) => acc + (curr.valor_potencial ?? 0), 0)
+                  ).toLocaleString(locale, { style: "currency", currency })}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Projetos Fechados</div>
+                <div className="text-sm font-medium">
+                  {outrasOportunidades.filter(o => o.crm_stage === "Fechado").length + (lead.crm_stage === "Fechado" ? 1 : 0)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Setup Agregado</div>
+                <div className="text-sm font-medium">
+                  {(
+                    (lead.valor_setup ?? 0) + 
+                    outrasOportunidades.reduce((acc, curr) => acc + (curr.valor_setup ?? 0), 0)
+                  ).toLocaleString(locale, { style: "currency", currency })}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">MRR Agregado</div>
+                <div className="text-sm font-medium">
+                  {(
+                    (lead.valor_mensal ?? 0) + 
+                    outrasOportunidades.reduce((acc, curr) => acc + (curr.valor_mensal ?? 0), 0)
+                  ).toLocaleString(locale, { style: "currency", currency })}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Outras Oportunidades:</div>
+              {outrasOportunidades.map(op => (
+                <Link key={op.id} href={`/pipeline/${op.id}`} className="flex items-center justify-between p-2 rounded hover:bg-secondary/40 border border-transparent hover:border-border/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${STAGE_COLORS[op.crm_stage ?? "Base"]?.bg ?? "bg-border"}`} />
+                    <div>
+                      <div className="text-sm font-medium">{op.nome} {op.cargo ? `(${op.cargo})` : ""}</div>
+                      <div className="text-xs text-muted-foreground">{op.crm_stage} · Criado em {fmt(op.created_at, locale)}</div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-right">
+                    <div>{(op.valor_potencial ?? 0).toLocaleString(locale, { style: "currency", currency })}</div>
+                    <div className="text-xs text-muted-foreground">Resp: {op.responsavel_nome ?? "—"}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </div>

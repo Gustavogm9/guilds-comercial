@@ -6,14 +6,14 @@ import NovoLeadModal from "@/components/novo-lead-modal";
 import BaseRowActions from "@/components/base-row-actions";
 import EditableLeadRow from "@/components/editable-lead-row";
 import type { LeadEnriched } from "@/lib/types";
-import { Inbox, CheckCircle2, Search, Upload } from "lucide-react";
+import { Inbox, CheckCircle2, Search, Upload, Download } from "lucide-react";
 import { getServerLocale, getT, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function BasePage(
   props: {
-    searchParams: Promise<{ tab?: "bruta" | "qualificada" | "todos"; q?: string; resp?: string }>;
+    searchParams: Promise<{ tab?: "bruta" | "qualificada" | "todos"; q?: string; resp?: string; temp?: string; prioridade?: string; stage?: string; }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -34,6 +34,9 @@ export default async function BasePage(
   const q = searchParams.q?.trim() ?? "";
   // Bug 1: força respFiltro = me.id pra não-gestores mesmo com ?resp= na URL
   const respFiltro = isGestor ? (searchParams.resp ?? "all") : me.id;
+  const tempFiltro = searchParams.temp ?? "";
+  const prioridadeFiltro = searchParams.prioridade ?? "";
+  const stageFiltro = searchParams.stage ?? "";
 
   let query = supabase
     .from("v_leads_enriched")
@@ -48,6 +51,10 @@ export default async function BasePage(
   }
 
   if (respFiltro !== "all") query = query.eq("responsavel_id", respFiltro);
+  if (tempFiltro) query = query.eq("temperatura", tempFiltro);
+  if (prioridadeFiltro) query = query.eq("prioridade", prioridadeFiltro);
+  if (stageFiltro) query = query.eq("crm_stage", stageFiltro);
+  
   if (q) {
     // Bug 2: sanitiza chars que quebram parser PostgREST .or()
     const limpo = q.replace(/[,()]/g, " ").replace(/\*/g, "_").trim();
@@ -56,7 +63,7 @@ export default async function BasePage(
     }
   }
 
-  const [{ data: leads }, membros, { count: countBruta }, { count: countQual }, { count: countTodos }] =
+  const [{ data: leads }, membros, { count: countBruta }, { count: countQual }, { count: countTodos }, { data: empresasData }] =
     await Promise.all([
       query,
       listarMembrosDaOrg(orgId),
@@ -66,13 +73,21 @@ export default async function BasePage(
         .eq("organizacao_id", orgId).eq("funnel_stage", "base_qualificada"),
       supabase.from("leads").select("id", { count: "exact", head: true })
         .eq("organizacao_id", orgId),
+      supabase.from("leads").select("empresa").eq("organizacao_id", orgId).not("empresa", "is", null)
     ]);
 
   const all = (leads ?? []) as LeadEnriched[];
   const profs = membros.map(m => ({ id: m.profile_id, display_name: m.display_name }));
+  const uniqueEmpresas = Array.from(new Set(empresasData?.map(e => e.empresa) || [])).filter(Boolean) as string[];
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <datalist id="empresas-list">
+        {uniqueEmpresas.map(empresa => (
+          <option key={empresa} value={empresa} />
+        ))}
+      </datalist>
+
       <header className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.base_titulo")}</h1>
@@ -81,6 +96,9 @@ export default async function BasePage(
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <a href={`/api/v1/leads/export?tab=${tab}&q=${encodeURIComponent(q)}&resp=${respFiltro}&temp=${tempFiltro}&prioridade=${prioridadeFiltro}&stage=${stageFiltro}`} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs inline-flex items-center gap-1.5">
+            <Download className="w-3.5 h-3.5"/> Exportar CSV
+          </a>
           <Link href="/base/importar" className="btn-secondary text-xs inline-flex items-center gap-1.5">
             <Upload className="w-3.5 h-3.5"/> {t("base.btn_importar_csv")}
           </Link>
@@ -108,15 +126,39 @@ export default async function BasePage(
             defaultValue={q}
             placeholder={t("base.filtro_buscar_placeholder")}
             aria-label={t("base.filtro_buscar_placeholder")}
-            className="input-base !pl-7 text-xs w-72"
+            className="input-base !pl-7 text-xs w-64"
           />
         </div>
         {isGestor && (
-          <select name="resp" defaultValue={respFiltro} className="input-base !text-xs w-40" aria-label={t("base.tabela_resp")}>
+          <select name="resp" defaultValue={respFiltro} className="input-base !text-xs w-36">
             <option value="all">{t("base.filtro_todo_time")}</option>
             {profs.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
           </select>
         )}
+        <select name="temp" defaultValue={tempFiltro} className="input-base !text-xs w-28">
+          <option value="">Temperatura</option>
+          <option value="Frio">Frio</option>
+          <option value="Morno">Morno</option>
+          <option value="Quente">Quente</option>
+        </select>
+        <select name="prioridade" defaultValue={prioridadeFiltro} className="input-base !text-xs w-28">
+          <option value="">Prioridade</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+        </select>
+        <select name="stage" defaultValue={stageFiltro} className="input-base !text-xs w-36">
+          <option value="">Estágio CRM</option>
+          <option value="Base">Base</option>
+          <option value="Prospecção">Prospecção</option>
+          <option value="Qualificado">Qualificado</option>
+          <option value="Raio-X Ofertado">Raio-X Ofertado</option>
+          <option value="Raio-X Feito">Raio-X Feito</option>
+          <option value="Call Marcada">Call Marcada</option>
+          <option value="Diagnóstico Pago">Diagnóstico Pago</option>
+          <option value="Proposta">Proposta</option>
+          <option value="Negociação">Negociação</option>
+        </select>
         <button type="submit" className="btn-secondary text-xs">{t("base.filtro_filtrar")}</button>
       </form>
 

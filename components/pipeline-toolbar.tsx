@@ -1,7 +1,7 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense, useTransition } from "react";
-import { Filter, Search, X, Loader2 } from "lucide-react";
+import { Filter, Search, X, Loader2, Kanban, LayoutList } from "lucide-react";
 import ExportCsvButton from "@/components/export-csv-button";
 import type { LeadEnriched } from "@/lib/types";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
@@ -14,11 +14,12 @@ interface Props {
   qFiltro: string;
   segFiltro: string;
   tempFiltro: string;
+  viewMode?: "list" | "kanban";
   leads: LeadEnriched[];
 }
 
 /**
- * Toolbar do /pipeline — busca + filtros + export CSV.
+ * Toolbar do /pipeline — busca + filtros + export CSV + toggle de visão.
  *
  * Fixes desta rodada:
  *   - Bug 4: sanitiza `q` removendo `,()*` antes de mandar pra URL
@@ -29,7 +30,7 @@ interface Props {
  *   - A11y: `aria-label` em search e selects
  */
 function PipelineToolbarInner(props: Props) {
-  const { isGestor, membros, segmentos, respFiltro, qFiltro, segFiltro, tempFiltro, leads } = props;
+  const { isGestor, membros, segmentos, respFiltro, qFiltro, segFiltro, tempFiltro, viewMode = "kanban", leads } = props;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [busca, setBusca] = useState(qFiltro);
@@ -201,8 +202,34 @@ function PipelineToolbarInner(props: Props) {
         </div>
       )}
 
-      {/* FR-CRM-08 — Export CSV */}
-      <div className="ml-auto">
+      {/* FR-CRM-08 — Export CSV & View Toggle */}
+      <div className="ml-auto flex items-center gap-2">
+        <div className="flex bg-secondary/50 rounded-md p-1 border border-border">
+          <button
+            type="button"
+            onClick={() => aplicarFiltro("view", "kanban")}
+            className={`p-1.5 rounded-sm transition-colors ${
+              viewMode === "kanban" 
+                ? "bg-background shadow-sm text-foreground" 
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-label="Ver como Kanban"
+          >
+            <Kanban className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => aplicarFiltro("view", "list")}
+            className={`p-1.5 rounded-sm transition-colors ${
+              viewMode === "list" 
+                ? "bg-background shadow-sm text-foreground" 
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-label="Ver como Lista"
+          >
+            <LayoutList className="w-4 h-4" />
+          </button>
+        </div>
         <ExportCsvButton
           data={csvData}
           filename={`pipeline_${new Date().toISOString().slice(0, 10)}`}

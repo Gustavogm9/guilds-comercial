@@ -93,7 +93,7 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
             </div>
 
             <div className="overflow-y-auto p-5 grid md:grid-cols-2 gap-3 text-sm">
-              <Field label={`${t("modais.campo_empresa")} *`} value={form.empresa} onChange={(v) => setForm({...form, empresa: v})} required />
+              <Field label={`${t("modais.campo_empresa")} *`} value={form.empresa} onChange={(v) => setForm({...form, empresa: v})} required list="empresas-list" />
               <Field label={t("modais.campo_nome")} value={form.nome} onChange={(v) => setForm({...form, nome: v})} />
               <Field label={t("modais.campo_cargo")} value={form.cargo} onChange={(v) => setForm({...form, cargo: v})} />
               <Field label={t("modais.campo_cidade_uf")} value={form.cidade_uf} onChange={(v) => setForm({...form, cidade_uf: v})} />
@@ -172,14 +172,14 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
   );
 }
 
-function Field({ label, value, onChange, type = "text", required }: {
+function Field({ label, value, onChange, type = "text", required, list }: {
   label: string; value: string; onChange: (v: string) => void;
-  type?: string; required?: boolean;
+  type?: string; required?: boolean; list?: string;
 }) {
   return (
     <div>
       <label className="label">{label}</label>
-      <input type={type} value={value} required={required}
+      <input type={type} value={value} required={required} list={list}
         onChange={(e) => onChange(e.target.value)}
         className="input-base mt-1"/>
     </div>

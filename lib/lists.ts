@@ -15,7 +15,7 @@ export const ETAPAS_CRM = [
   "Nutrição",
 ] as const;
 
-/** Colunas visíveis no Kanban do Pipeline (exclui Base, Perdido, Nutrição). */
+/** Colunas visíveis no Kanban do Pipeline (exclui apenas Base). */
 export const ETAPAS_PIPELINE_VISIVEL = [
   "Prospecção",
   "Qualificado",
@@ -26,6 +26,8 @@ export const ETAPAS_PIPELINE_VISIVEL = [
   "Proposta",
   "Negociação",
   "Fechado",
+  "Nutrição",
+  "Perdido",
 ] as const;
 
 /** Etapas que exigem motivo obrigatório ao entrar. */

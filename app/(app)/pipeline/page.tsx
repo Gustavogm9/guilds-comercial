@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import KanbanBoard from "@/components/kanban-board";
+import PipelineTable from "@/components/pipeline-table";
 import PipelineToolbar from "@/components/pipeline-toolbar";
 import type { LeadEnriched } from "@/lib/types";
 import { ETAPAS_PIPELINE_VISIVEL } from "@/lib/lists";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PipelinePage(
   props: {
-    searchParams: Promise<{ resp?: string; q?: string; seg?: string; temp?: string }>;
+    searchParams: Promise<{ resp?: string; q?: string; seg?: string; temp?: string; view?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -68,6 +69,7 @@ export default async function PipelinePage(
 
   // Extrair segmentos únicos para o filtro
   const segmentos = [...new Set((leads ?? []).map((l: any) => l.segmento).filter(Boolean))].sort() as string[];
+  const viewMode = searchParams.view === "list" ? "list" : "kanban";
 
   return (
     <div className="py-4">
@@ -89,11 +91,19 @@ export default async function PipelinePage(
           qFiltro={searchParams.q ?? ""}
           segFiltro={searchParams.seg ?? ""}
           tempFiltro={searchParams.temp ?? ""}
+          viewMode={viewMode}
           leads={(leads ?? []) as LeadEnriched[]}
         />
       </div>
 
-      <KanbanBoard leads={(leads ?? []) as LeadEnriched[]} />
+      {viewMode === "list" ? (
+        <PipelineTable 
+          leads={(leads ?? []) as LeadEnriched[]} 
+          profiles={membros.map(m => ({ id: m.profile_id, display_name: m.display_name }))} 
+        />
+      ) : (
+        <KanbanBoard leads={(leads ?? []) as LeadEnriched[]} />
+      )}
     </div>
   );
 }
