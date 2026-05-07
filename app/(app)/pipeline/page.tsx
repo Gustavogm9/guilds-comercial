@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import KanbanBoard from "@/components/kanban-board";
-import PipelineTable from "@/components/pipeline-table";
+import PipelineGrid from "@/components/pipeline-grid";
 import PipelineToolbar from "@/components/pipeline-toolbar";
 import type { LeadEnriched } from "@/lib/types";
 import { ETAPAS_PIPELINE_VISIVEL } from "@/lib/lists";
@@ -97,10 +97,7 @@ export default async function PipelinePage(
       </div>
 
       {viewMode === "list" ? (
-        <PipelineTable 
-          leads={(leads ?? []) as LeadEnriched[]} 
-          profiles={membros.map(m => ({ id: m.profile_id, display_name: m.display_name }))} 
-        />
+        <PipelineGrid leads={(leads ?? []) as LeadEnriched[]} />
       ) : (
         <KanbanBoard leads={(leads ?? []) as LeadEnriched[]} />
       )}
