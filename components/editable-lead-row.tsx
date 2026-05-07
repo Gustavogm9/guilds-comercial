@@ -5,7 +5,6 @@ import { editarLeadInline } from "@/app/(app)/base/actions";
 import type { LeadEnriched } from "@/lib/types";
 import BaseRowActions from "@/components/base-row-actions";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { CRM_STAGES_ATIVAS, MOTIVOS_PERDA } from "@/lib/types";
 
 // Helper component for cells
@@ -37,7 +36,7 @@ function EditableCell({
         await onSave(val === "" ? null : val);
         setIsEditing(false);
       } catch (err: any) {
-        toast.error("Erro ao salvar", { description: err.message });
+        alert("Erro ao salvar: " + err.message);
         setVal(value || ""); // rollback
         setIsEditing(false);
       }
@@ -82,7 +81,7 @@ function EditableCell({
              try {
                 await onSave(e.target.value === "" ? null : e.target.value);
              } catch (err: any) {
-                toast.error("Erro ao salvar", { description: err.message });
+                alert("Erro ao salvar: " + err.message);
                 setVal(value || ""); 
              }
           });

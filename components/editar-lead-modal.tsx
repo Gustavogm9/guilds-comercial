@@ -34,11 +34,11 @@ export default function EditarLeadModal({
     start(async () => {
       try {
         await editarLeadInline(lead.id, {
-          data_entrada: form.data_entrada || null,
-          data_fechamento: form.data_fechamento || null,
-          responsavel_id: form.responsavel_id || null,
+          data_entrada: form.data_entrada || undefined,
+          data_fechamento: form.data_fechamento || undefined,
+          responsavel_id: form.responsavel_id || undefined,
           crm_stage: form.crm_stage || null
-        });
+        } as Partial<LeadEnriched>);
         onSuccess();
       } catch (err: any) {
         alert(err.message || "Erro ao salvar lead.");

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { MotivoPerda } from "@/lib/types";
+import type { MotivoPerda, LeadEnriched } from "@/lib/types";
 import { MOTIVOS_PERDA } from "@/lib/types";
 import { montarCadenciaRows } from "@/lib/cadencia-templates";
 
@@ -564,7 +564,7 @@ export async function editarLeadInline(
       updateData.funnel_stage = ["Fechado", "Perdido", "Nutrição"].includes(translatedCrmStage)
         ? "arquivado"
         : "pipeline";
-    } else if (payload.crm_stage === "" || payload.crm_stage === null) {
+    } else if (payload.crm_stage === null) {
       updateData.crm_stage = null;
     }
   }
