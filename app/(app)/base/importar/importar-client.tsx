@@ -598,7 +598,7 @@ export default function ImportarCsvClient({
           )}
           <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
             {resultado.erros.length > 0 && (
-               <button onClick={() => setStep("conferencia")} className="btn-ghost text-sm">
+               <button onClick={() => setStep("preview")} className="btn-ghost text-sm">
                  <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> {t("base.import_voltar_conferencia") || "Voltar para conferência"}
                </button>
             )}

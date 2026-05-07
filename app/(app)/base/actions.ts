@@ -328,7 +328,7 @@ export async function importarLeadsEmMassa(
       valor_mensal: r.valor_mensal && r.valor_mensal > 0 ? r.valor_mensal : 0,
       probabilidade: r.probabilidade ?? 0,
       crm_stage: traduzirCrmStage(r.crm_stage) || null,
-      data_proposta: r.data_proposta?.trim() || null,
+      data_proposta: normalizarData(r.data_proposta) || null,
       link_proposta: r.link_proposta?.trim() || null,
       temperatura: r.temperatura || 'Frio',
       prioridade: r.prioridade || 'B',
