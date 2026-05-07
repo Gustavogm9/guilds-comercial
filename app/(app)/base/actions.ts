@@ -542,7 +542,7 @@ export async function enriquecerLead(lead_id: number) {
 }
 
 export async function editarLeadInline(
-  lead_id: string,
+  lead_id: number,
   payload: {
     data_entrada: string | null;
     data_fechamento: string | null;
