@@ -1,29 +1,45 @@
 "use client";
 
 /**
- * ProspeccaoHub — orquestrador principal do motor de prospecção.
+ * ProspeccaoHub v2 — Sprint 5
  *
- * 2 modos:
- *   - "url":   vendedor cola um site → Firecrawl extrai o lead
- *   - "nicho": vendedor digita critérios → Tavily busca empresas
+ * 3 modos:
+ *   - "url":       enriquecer um site específico (Firecrawl)
+ *   - "nicho":     buscar por critérios (Tavily)
+ *   - "lookalike": busca automática baseada nos clientes ganhos (Fingerprint ICP)
  *
- * Fluxo:
- *   1. Descoberta/Enriquecimento (API route)
- *   2. Revisão e seleção
- *   3. Ativação → POST /api/prospeccao/ativar
+ * Filtros avançados na fila de leads:
+ *   - Confiança IA, dados obrigatórios, cargo, segmento, scores mínimos
+ *
+ * Score integrado por lead:
+ *   - _similaridade (0-100): fit com ICP da org
+ *   - _completude (0-100): qualidade dos dados disponíveis
  */
 
-import { useState } from "react";
-import { Globe, Search, Zap, Check, ArrowRight, Loader2, AlertTriangle, CheckCircle2, X, Plus } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Globe, Search, Target, Zap, Check, ArrowRight, Loader2, AlertTriangle, CheckCircle2, X, Plus, SlidersHorizontal } from "lucide-react";
 import TabEnriquecer from "./tab-enriquecer";
 import TabBuscar from "./tab-buscar";
-import type { EmpresaEnriquecida, EmpresaBuscada } from "@/lib/prospeccao";
+import TabLookalike from "./tab-lookalike";
+import FiltrosProspeccaoPanel from "./filtros-prospeccao";
+import { CompletudeBadge } from "./badge-similaridade";
+import BadgeSimilaridade from "./badge-similaridade";
+import {
+  aplicarFiltros,
+  calcularCompletude,
+  scoreSimilaridade,
+} from "@/lib/prospeccao-lookalike";
+import type { EmpresaEnriquecida } from "@/lib/prospeccao";
+import type { FiltrosProspeccao, FingerprintICP } from "@/lib/prospeccao-lookalike";
 
-type Modo = "url" | "nicho";
+type Modo = "url" | "nicho" | "lookalike";
 
 type LeadParaAtivar = EmpresaEnriquecida & {
   _selecionado: boolean;
   _job_id?: number;
+  _similaridade: number;
+  _completude: number;
+  instagram?: string | null;
 };
 
 type Props = {
@@ -31,20 +47,47 @@ type Props = {
   icp: { segmento?: string | null; cargo_decisor?: string | null } | null;
 };
 
+const MODOS = [
+  { key: "url"      as Modo, icon: Globe,  label: "Por Site" },
+  { key: "nicho"    as Modo, icon: Search, label: "Por Nicho" },
+  { key: "lookalike"as Modo, icon: Target, label: "Look-alike IA" },
+];
+
 export default function ProspeccaoHub({ orgId, icp }: Props) {
   const [modo, setModo] = useState<Modo>("url");
   const [leads, setLeads] = useState<LeadParaAtivar[]>([]);
+  const [fingerprint, setFingerprint] = useState<FingerprintICP | null>(null);
+  const [filtros, setFiltros] = useState<FiltrosProspeccao>({});
   const [ativando, setAtivando] = useState(false);
   const [resultado, setResultado] = useState<{ criados: number; ignorados: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
   function adicionarLead(empresa: EmpresaEnriquecida, jobId?: number) {
     setLeads(prev => {
-      // Evita duplicata por site
       if (prev.some(l => l.site === empresa.site)) return prev;
-      return [...prev, { ...empresa, _selecionado: true, _job_id: jobId }];
+      const sim = fingerprint ? scoreSimilaridade(empresa, fingerprint) : 0;
+      const comp = calcularCompletude(empresa);
+      return [...prev, {
+        ...empresa,
+        _selecionado: true,
+        _job_id: jobId,
+        _similaridade: sim,
+        _completude: comp,
+      }];
     });
   }
+
+  // Segmentos únicos da fila para o painel de filtros
+  const segmentosDisponiveis = useMemo(() =>
+    [...new Set(leads.map(l => l.segmento).filter(Boolean) as string[])],
+    [leads]
+  );
+
+  // Aplica filtros sobre a fila
+  const leadsFiltrados = useMemo(() => aplicarFiltros(leads, filtros), [leads, filtros]);
+  const selecionados = leadsFiltrados.filter(l => l._selecionado).length;
+  const totalSelecionados = leads.filter(l => l._selecionado).length;
 
   function toggleSelecionado(site: string | null) {
     setLeads(prev => prev.map(l =>
@@ -75,7 +118,6 @@ export default function ProspeccaoHub({ orgId, icp }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.erro);
       setResultado({ criados: data.criados, ignorados: data.ignorados });
-      // Remove leads ativados da fila
       const sitesAtivados = new Set(selecionados.map(l => l.site));
       setLeads(prev => prev.filter(l => !sitesAtivados.has(l.site)));
     } catch (err: any) {
@@ -85,16 +127,11 @@ export default function ProspeccaoHub({ orgId, icp }: Props) {
     }
   }
 
-  const selecionados = leads.filter(l => l._selecionado).length;
-
   return (
     <div className="space-y-6">
       {/* Seletor de modo */}
-      <div className="flex gap-2 p-1 bg-secondary/40 rounded-xl w-fit">
-        {([
-          { key: "url",   icon: Globe,   label: "Enriquecer por Site" },
-          { key: "nicho", icon: Search,  label: "Buscar por Nicho" },
-        ] as { key: Modo; icon: typeof Globe; label: string }[]).map(({ key, icon: Icon, label }) => (
+      <div className="flex gap-1.5 p-1 bg-secondary/40 rounded-xl w-fit">
+        {MODOS.map(({ key, icon: Icon, label }) => (
           <button
             key={key}
             onClick={() => setModo(key)}
@@ -106,53 +143,87 @@ export default function ProspeccaoHub({ orgId, icp }: Props) {
           >
             <Icon className="w-4 h-4" />
             {label}
+            {key === "lookalike" && (
+              <span className="text-[9px] bg-primary text-primary-foreground px-1 py-0.5 rounded uppercase font-bold tracking-wide">IA</span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Conteúdo do modo */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          {modo === "url" && (
-            <TabEnriquecer onEmpresaEnriquecida={adicionarLead} icp={icp} />
-          )}
-          {modo === "nicho" && (
-            <TabBuscar onEmpresaEnriquecida={adicionarLead} icp={icp} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Coluna esquerda: modo ativo */}
+        <div className="space-y-4">
+          {modo === "url" && <TabEnriquecer onEmpresaEnriquecida={adicionarLead} icp={icp} />}
+          {modo === "nicho" && <TabBuscar onEmpresaEnriquecida={adicionarLead} icp={icp} />}
+          {modo === "lookalike" && (
+            <TabLookalike
+              onEmpresaEnriquecida={adicionarLead}
+              orgId={orgId}
+            />
           )}
         </div>
 
-        {/* Painel de leads coletados */}
+        {/* Coluna direita: fila de ativação */}
         <div className="space-y-3">
+          {/* Header da fila */}
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground" style={{ letterSpacing: "-0.13px" }}>
               Fila de ativação
               {leads.length > 0 && (
                 <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  {selecionados}/{leads.length} selecionados
+                  {totalSelecionados}/{leads.length}
+                  {Object.keys(filtros).length > 0 ? ` (${leadsFiltrados.length} visíveis)` : ""}
                 </span>
               )}
             </h3>
-            {leads.length > 0 && (
-              <button
-                onClick={() => setLeads([])}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-              >
-                Limpar tudo
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {leads.length > 0 && (
+                <>
+                  <button
+                    onClick={() => setMostrarFiltros(v => !v)}
+                    className={`btn-ghost !py-1 !px-2 text-xs gap-1 ${mostrarFiltros ? "text-primary" : "text-muted-foreground"}`}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    Filtros
+                    {Object.values(filtros).filter(Boolean).length > 0 && (
+                      <span className="bg-primary text-primary-foreground text-[9px] px-1 rounded-full">
+                        {Object.values(filtros).filter(v => v !== undefined && v !== false && (!Array.isArray(v) || v.length > 0)).length}
+                      </span>
+                    )}
+                  </button>
+                  <button onClick={() => setLeads([])} className="text-xs text-muted-foreground hover:text-destructive">
+                    Limpar
+                  </button>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Painel de filtros */}
+          {mostrarFiltros && leads.length > 0 && (
+            <FiltrosProspeccaoPanel
+              filtros={filtros}
+              onChange={setFiltros}
+              segmentosDisponiveis={segmentosDisponiveis}
+              regioes={[]}
+            />
+          )}
 
           {/* Resultado de ativação */}
           {resultado && (
             <div className="card p-3 bg-success-500/5 border-success-500/20 flex items-center gap-3 animate-in fade-in">
               <CheckCircle2 className="w-5 h-5 text-success-500 shrink-0" />
-              <div>
-                <div className="text-sm font-semibold">{resultado.criados} lead{resultado.criados !== 1 ? "s" : ""} adicionado{resultado.criados !== 1 ? "s" : ""} à base!</div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold">
+                  {resultado.criados} lead{resultado.criados !== 1 ? "s" : ""} adicionado{resultado.criados !== 1 ? "s" : ""}!
+                </div>
                 {resultado.ignorados > 0 && (
-                  <div className="text-xs text-muted-foreground">{resultado.ignorados} ignorado{resultado.ignorados !== 1 ? "s" : ""} (já existiam)</div>
+                  <div className="text-xs text-muted-foreground">
+                    {resultado.ignorados} ignorado{resultado.ignorados !== 1 ? "s" : ""} (já existiam)
+                  </div>
                 )}
               </div>
-              <button onClick={() => setResultado(null)} className="ml-auto text-muted-foreground"><X className="w-4 h-4" /></button>
+              <button onClick={() => setResultado(null)} className="text-muted-foreground"><X className="w-4 h-4" /></button>
             </div>
           )}
 
@@ -164,53 +235,56 @@ export default function ProspeccaoHub({ orgId, icp }: Props) {
             </div>
           )}
 
-          {/* Lista de leads */}
+          {/* Lista vazia */}
           {leads.length === 0 ? (
             <div className="card p-8 text-center border-dashed">
               <Plus className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Enriqueça um site ou busque por nicho para adicionar leads aqui.
+              <p className="text-sm text-muted-foreground mb-1">Nenhum lead na fila.</p>
+              <p className="text-xs text-muted-foreground">
+                Use um dos modos à esquerda para adicionar empresas.
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {leads.map(lead => (
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+              {leadsFiltrados.map(lead => (
                 <div
                   key={lead.site}
                   className={`card p-3 transition-all cursor-pointer ${
                     lead._selecionado
-                      ? "border-primary/30 bg-primary/3"
+                      ? "border-primary/30 bg-primary/[0.02]"
                       : "opacity-60"
                   }`}
                   onClick={() => toggleSelecionado(lead.site)}
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className={`w-5 h-5 rounded border-2 grid place-items-center shrink-0 mt-0.5 transition-colors ${
-                      lead._selecionado ? "bg-primary border-primary" : "border-muted-foreground/40"
-                    }`}>
-                      {lead._selecionado && <Check className="w-3 h-3 text-primary-foreground" />}
-                    </div>
+                    {/* Score de similaridade */}
+                    <BadgeSimilaridade score={lead._similaridade} />
+
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground truncate">
-                        {lead.empresa || lead.nome || lead.site}
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <div className={`w-4 h-4 rounded border-2 grid place-items-center shrink-0 transition-colors ${
+                          lead._selecionado ? "bg-primary border-primary" : "border-muted-foreground/40"
+                        }`}>
+                          {lead._selecionado && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                        </div>
+                        <div className="text-sm font-medium text-foreground truncate">
+                          {lead.empresa || lead.nome || lead.site}
+                        </div>
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {lead.cargo && `${lead.cargo} · `}
                         {lead.cidade_uf || lead.segmento || "—"}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
+                      {/* Badges de dados */}
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         {lead.email && <span className="text-[10px] bg-sky-500/10 text-sky-600 px-1.5 py-0.5 rounded">email</span>}
                         {lead.whatsapp && <span className="text-[10px] bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded">WhatsApp</span>}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          lead._confianca === "alta" ? "bg-green-500/10 text-green-600" :
-                          lead._confianca === "media" ? "bg-amber-500/10 text-amber-600" :
-                          "bg-muted text-muted-foreground"
-                        }`}>
-                          {lead._confianca === "alta" ? "✓ Alta confiança" :
-                           lead._confianca === "media" ? "~ Média" : "? Baixa"}
-                        </span>
+                        {lead.linkedin && <span className="text-[10px] bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded">LinkedIn</span>}
+                        {lead.instagram && <span className="text-[10px] bg-pink-500/10 text-pink-600 px-1.5 py-0.5 rounded">Instagram</span>}
+                        <CompletudeBadge score={lead._completude} />
                       </div>
                     </div>
+
                     <button
                       onClick={e => { e.stopPropagation(); removerLead(lead.site); }}
                       className="text-muted-foreground hover:text-destructive shrink-0"
@@ -220,27 +294,26 @@ export default function ProspeccaoHub({ orgId, icp }: Props) {
                   </div>
                 </div>
               ))}
+
+              {leadsFiltrados.length === 0 && leads.length > 0 && (
+                <div className="text-center py-4 text-xs text-muted-foreground">
+                  Nenhum lead passa pelos filtros ativos.{" "}
+                  <button onClick={() => setFiltros({})} className="text-primary underline">Limpar filtros</button>
+                </div>
+              )}
             </div>
           )}
 
           {/* Botões de ativação */}
-          {selecionados > 0 && (
-            <div className="space-y-2 pt-2">
-              <button
-                onClick={() => ativar(false)}
-                disabled={ativando}
-                className="btn-secondary w-full text-sm justify-center"
-              >
+          {totalSelecionados > 0 && (
+            <div className="space-y-2 pt-1 border-t border-border/40">
+              <button onClick={() => ativar(false)} disabled={ativando} className="btn-secondary w-full text-sm justify-center">
                 {ativando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Adicionar {selecionados} lead{selecionados !== 1 ? "s" : ""} à base
+                Salvar {totalSelecionados} lead{totalSelecionados !== 1 ? "s" : ""} na base
               </button>
-              <button
-                onClick={() => ativar(true)}
-                disabled={ativando}
-                className="btn-primary w-full text-sm justify-center"
-              >
+              <button onClick={() => ativar(true)} disabled={ativando} className="btn-primary w-full text-sm justify-center">
                 {ativando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                Adicionar + iniciar cadência D0
+                Salvar + iniciar cadência D0
               </button>
             </div>
           )}
