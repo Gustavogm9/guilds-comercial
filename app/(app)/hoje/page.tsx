@@ -6,6 +6,7 @@ import { ETAPAS_PIPELINE_VISIVEL, STAGE_COLORS, getUrgenciaLabel } from "@/lib/l
 import QuickActions from "@/components/quick-actions";
 import ActivationChecklist from "@/components/activation-checklist";
 import FollowupProposalAlert from "@/components/followup-proposal-alert";
+import PedidosIndicacaoAlert, { type PedidoPendenteHoje } from "@/components/pedidos-indicacao-alert";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp, Upload, UserPlus, Kanban, X } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
@@ -80,9 +81,35 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     .limit(5);
   if (!isGestor || !verTodos) qTop = qTop.eq("responsavel_id", me.id);
 
-  const [{ data: leads }, { data: topData }] = await Promise.all([q, qTop]);
+  // Pedidos de indicação pendentes (lado direito do funil borboleta).
+  // Só do user autenticado (mesmo gestor — pedido é responsabilidade individual,
+  // ele vê os do time só quando entra em /indicacoes).
+  let qPedidos = supabase
+    .from("v_pedidos_pendentes")
+    .select("pedido_id, lead_id, lead_empresa, lead_nome, data_pedido, dias_pendente, lead_responsavel_id")
+    .eq("organizacao_id", orgId)
+    .order("data_pedido", { ascending: true })
+    .limit(20);
+  if (!isGestor || !verTodos) qPedidos = qPedidos.eq("lead_responsavel_id", me.id);
+
+  const [{ data: leads }, { data: topData }, { data: pedidosData }] = await Promise.all([q, qTop, qPedidos]);
   const all = (leads ?? []) as LeadEnriched[];
   const top = (topData ?? []) as TopOportunidade[];
+  const pedidosIndicacao = ((pedidosData ?? []) as Array<{
+    pedido_id: number;
+    lead_id: number;
+    lead_empresa: string | null;
+    lead_nome: string | null;
+    data_pedido: string;
+    dias_pendente: number;
+  }>).map<PedidoPendenteHoje>((p) => ({
+    pedido_id: p.pedido_id,
+    lead_id: p.lead_id,
+    lead_empresa: p.lead_empresa,
+    lead_nome: p.lead_nome,
+    data_pedido: p.data_pedido,
+    dias_pendente: p.dias_pendente,
+  }));
 
   // --------------------------------------------------------
   // Dados de ativação por role — para o ActivationChecklist
@@ -198,6 +225,9 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
         currency={currency}
         locale={locale}
       />
+
+      {/* Pedidos de indicação pendentes — lado direito do funil borboleta */}
+      <PedidosIndicacaoAlert pedidos={pedidosIndicacao} />
 
       {/* Banner de boas-vindas para colaboradores recém-convidados */}
       {isWelcome && (

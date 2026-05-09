@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import FunilSectionExport from "@/components/funil-section-export";
-import type { CrmStage, ForecastMes } from "@/lib/types";
+import AdvocacySection from "@/components/advocacy-section";
+import type { CrmStage, ForecastMes, AdvocacyKpis, TopEmbaixador } from "@/lib/types";
 import {
   TrendingDown, TrendingUp, Clock, DollarSign,
   Users, AlertTriangle, Target, Percent, Sparkles, Gauge
@@ -81,15 +82,24 @@ export default async function FunilPage(
 
   // 1. Forecast query (stays as is)
   const applyResp = <T,>(q: any): any => respFiltro === "all" ? q : q.eq("responsavel_id", respFiltro);
-  const [forecastRes, membros, segmentosRes] = await Promise.all([
+  const [forecastRes, membros, segmentosRes, advocacyKpisRes, topEmbaixadoresRes] = await Promise.all([
     applyResp(supabase.from("v_forecast_mes").select("*").eq("organizacao_id", orgId)),
     listarMembrosDaOrg(orgId),
-    supabase.from("leads").select("segmento").eq("organizacao_id", orgId).not("segmento", "is", null)
+    supabase.from("leads").select("segmento").eq("organizacao_id", orgId).not("segmento", "is", null),
+    // Advocacy KPIs (lado direito do funil borboleta).
+    // Try/catch implícito: se a view ainda não foi aplicada, retorna null e a UI mostra estado vazio.
+    supabase.from("v_advocacy_kpis").select("*").eq("organizacao_id", orgId).maybeSingle(),
+    supabase.from("v_top_embaixadores").select("*")
+      .eq("organizacao_id", orgId)
+      .order("receita_gerada", { ascending: false })
+      .limit(10),
   ]);
 
   const forecast = (forecastRes.data ?? []) as ForecastMes[];
   const profs = membros.map(m => ({ id: m.profile_id, display_name: m.display_name }));
   const segmentosUnicos = Array.from(new Set((segmentosRes.data ?? []).map(l => l.segmento).filter(Boolean) as string[])).sort();
+  const advocacyKpis = (advocacyKpisRes.data ?? null) as AdvocacyKpis | null;
+  const topEmbaixadores = (topEmbaixadoresRes.data ?? []) as TopEmbaixador[];
 
   // 2. Fetch Leads (with filters)
   let qLeads = supabase.from("leads")
@@ -360,6 +370,13 @@ export default async function FunilPage(
           <PerdasLista perdas={perdasAgregadas} total={perdidosTotal} />
         </div>
       </section>
+
+      {/* Lado direito do funil borboleta — advocacy / indicações */}
+      <AdvocacySection
+        kpis={advocacyKpis}
+        topEmbaixadores={topEmbaixadores}
+        currency="BRL"
+      />
 
       <p className="text-xs text-muted-foreground/70 mt-6 text-center">
         Tempo em cada etapa é calculado a partir do histórico <code>lead_evento</code>.
