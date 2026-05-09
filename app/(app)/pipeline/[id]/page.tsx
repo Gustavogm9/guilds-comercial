@@ -5,6 +5,7 @@ import { getCurrentOrgId } from "@/lib/supabase/org";
 import LeadDetailActions from "@/components/lead-detail-actions";
 import LeadScoreCard from "@/components/lead-score-card";
 import CadenciaPassoCard from "@/components/cadencia-passo-card";
+import NextActionCard from "@/components/next-action-card";
 import { STAGE_COLORS } from "@/lib/lists";
 import type { LeadEnriched, LeadScore } from "@/lib/types";
 import { ChevronLeft, MessageSquare, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin } from "lucide-react";
@@ -161,6 +162,8 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
         <div className="mt-4">
           <LeadDetailActions lead={lead} vendedor={me.display_name} />
+          {/* Card de próxima ação recomendada por etapa — orienta o vendedor */}
+          <NextActionCard crmStage={lead.crm_stage} leadId={lead.id} />
         </div>
 
         {/* Dados do lead */}

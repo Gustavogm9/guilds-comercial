@@ -4,6 +4,7 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { ETAPAS_PIPELINE_VISIVEL, STAGE_COLORS, getUrgenciaLabel } from "@/lib/lists";
 import QuickActions from "@/components/quick-actions";
+import ActivationChecklist from "@/components/activation-checklist";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp, Upload, UserPlus, Kanban, X } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
@@ -82,6 +83,66 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
   const all = (leads ?? []) as LeadEnriched[];
   const top = (topData ?? []) as TopOportunidade[];
 
+  // --------------------------------------------------------
+  // Dados de ativação por role — para o ActivationChecklist
+  // Queries leves: COUNT + EXISTS. Falhas silenciosas (catch).
+  // --------------------------------------------------------
+  const [activationLeads, activationMembros, activationCadencia, activationLigacoes, activationRespostas] =
+    await Promise.allSettled([
+      // 1. Leads criados pelo usuário ou qualificados (proxy de "1º lead no pipeline")
+      supabase.from("leads").select("id", { count: "exact", head: true })
+        .eq("organizacao_id", orgId).eq("responsavel_id", me.id),
+      // 2. Membros convidados (gestor: enviou convites)
+      supabase.from("convites").select("id", { count: "exact", head: true })
+        .eq("organizacao_id", orgId),
+      // 3. Cadência iniciada (qualquer passo registrado)
+      supabase.from("cadencia").select("id", { count: "exact", head: true })
+        .eq("organizacao_id", orgId),
+      // 4. Ligações registradas pelo usuário
+      supabase.from("ligacoes").select("id", { count: "exact", head: true })
+        .eq("organizacao_id", orgId).eq("responsavel_id", me.id),
+      // 5. Passos de cadência respondidos
+      supabase.from("cadencia").select("id", { count: "exact", head: true })
+        .eq("organizacao_id", orgId).eq("status", "respondido"),
+    ]);
+
+  const countLeads = activationLeads.status === "fulfilled" ? (activationLeads.value.count ?? 0) : 0;
+  const countMembros = activationMembros.status === "fulfilled" ? (activationMembros.value.count ?? 0) : 0;
+  const countCadencia = activationCadencia.status === "fulfilled" ? (activationCadencia.value.count ?? 0) : 0;
+  const countLigacoes = activationLigacoes.status === "fulfilled" ? (activationLigacoes.value.count ?? 0) : 0;
+  const countRespostas = activationRespostas.status === "fulfilled" ? (activationRespostas.value.count ?? 0) : 0;
+
+  // Leads qualificados (crm_stage avançou de Prospecção)
+  const leadsQualificados = all.filter(
+    l => l.responsavel_id === me.id &&
+    !["Prospecção", "Base"].includes(l.crm_stage ?? "")
+  ).length;
+
+  // Monta marcos por role
+  type Marco = { id: string; label: string; feito: boolean; href?: string; hrefLabel?: string };
+  let marcos: Marco[] = [];
+
+  if (role === "gestor") {
+    marcos = [
+      { id: "lead", label: "Adicionar o 1º lead ao pipeline", feito: countLeads > 0, href: "/base", hrefLabel: "Ir para a base →" },
+      { id: "membro", label: "Convidar 1 membro do time", feito: countMembros > 1, href: "/equipe", hrefLabel: "Ir para equipe →" },
+      { id: "cadencia", label: "Iniciar 1 cadência de outreach", feito: countCadencia > 0, href: "/cadencia", hrefLabel: "Ver cadência →" },
+    ];
+  } else if (role === "comercial") {
+    marcos = [
+      { id: "lead", label: "Registrar 1º lead como responsável", feito: countLeads > 0, href: "/base", hrefLabel: "Ir para a base →" },
+      { id: "qualificado", label: "Qualificar 1 lead (mover no pipeline)", feito: leadsQualificados > 0, href: "/pipeline", hrefLabel: "Ver pipeline →" },
+      { id: "ligacao", label: "Registrar 1ª ligação ou interação", feito: countLigacoes > 0, href: "/ligacoes", hrefLabel: "Registrar ligação →" },
+    ];
+  } else {
+    // sdr
+    marcos = [
+      { id: "lead", label: "Prospectar 1º lead na base", feito: countLeads > 0, href: "/base", hrefLabel: "Ir para a base →" },
+      { id: "qualificado", label: "Qualificar 1 lead com o comercial", feito: leadsQualificados > 0, href: "/pipeline", hrefLabel: "Ver pipeline →" },
+      { id: "resposta", label: "Registrar 1ª resposta na cadência", feito: countRespostas > 0, href: "/cadencia", hrefLabel: "Ver cadência →" },
+    ];
+  }
+
   const vencidas = all.filter(l => l.urgencia === "vencida");
   const hoje     = all.filter(l => l.urgencia === "hoje");
   const amanha   = all.filter(l => l.urgencia === "amanha");
@@ -111,6 +172,9 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
           </Link>
         )}
       </div>
+
+      {/* Checklist de ativação por role — some quando tudo concluído ou dispensado */}
+      <ActivationChecklist role={role as "gestor" | "comercial" | "sdr"} marcos={marcos} userId={me.id} />
 
       {/* Banner de boas-vindas para colaboradores recém-convidados */}
       {isWelcome && (
