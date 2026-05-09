@@ -80,7 +80,7 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
         <Plus className={variant === "fab" ? "w-5 h-5" : "w-3.5 h-3.5"}/> {triggerLabel}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+        <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4"
              onClick={() => setOpen(false)}>
           <form onSubmit={submit}
             className="bg-card text-foreground border border-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"

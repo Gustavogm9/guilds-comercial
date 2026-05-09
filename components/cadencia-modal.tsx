@@ -27,7 +27,7 @@ export default function CadenciaModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-card text-foreground border border-border rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
            onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">

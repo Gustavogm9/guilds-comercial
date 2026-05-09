@@ -168,7 +168,7 @@ export default function KanbanBoard({ leads }: { leads: LeadEnriched[] }) {
       {/* Modal de confirmação Fechado */}
       {confirmFechar && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4"
           onClick={() => setConfirmFechar(null)}
         >
           <div

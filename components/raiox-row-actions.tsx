@@ -208,7 +208,7 @@ export default function RaioXRowActions({
 
       {/* Modal de resultado (mantido) */}
       {open === "result" && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+        <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4"
              onClick={() => setOpen(null)}>
           <form onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => { e.preventDefault(); start(async () => {

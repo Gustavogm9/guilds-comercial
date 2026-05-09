@@ -139,7 +139,7 @@ export default function IniciarCadenciaModal() {
       {/* Modal principal */}
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4"
           onClick={() => !pending && !confirmando && setOpen(false)}
         >
           <div

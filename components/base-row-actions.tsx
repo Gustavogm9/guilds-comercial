@@ -132,7 +132,7 @@ export default function BaseRowActions({ lead, profiles }: { lead: LeadEnriched;
             <button
               ref={btnRef}
               type="button"
-              onClick={() => setOpen(open === "qual" ? null : "qual")}
+              onClick={(e) => { e.stopPropagation(); setOpen(open === "qual" ? null : "qual"); }}
               className="btn-secondary text-xs"
               aria-haspopup="menu"
               aria-expanded={open === "qual"}
@@ -145,7 +145,7 @@ export default function BaseRowActions({ lead, profiles }: { lead: LeadEnriched;
                 ref={popRef}
                 role="menu"
                 style={{ top: popoverCoords.top + 4, left: popoverCoords.left }}
-                className="absolute z-[999] w-72 bg-popover text-popover-foreground border border-border rounded-md p-3 space-y-2 shadow-stripe-md dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08]"
+                className="fixed z-[999] w-72 bg-popover text-popover-foreground border border-border rounded-md p-3 space-y-2 shadow-stripe-md dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08]"
               >
                 <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
                   {t("base.row_qualificar_titulo")}

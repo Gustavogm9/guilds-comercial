@@ -64,10 +64,13 @@ export default function InstallPrompt() {
   const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
-    if (inCooldown()) return;
-
+    // Handler verifica cooldown internamente pois o browser pode re-disparar
+    // `beforeinstallprompt` após ações do usuário (ex: submit de formulário).
     const handler = (e: Event) => {
       e.preventDefault();
+      // Guard duplo: re-checa cooldown no momento do disparo para evitar
+      // que o banner reapareça após já ter sido exibido nesta sessão.
+      if (inCooldown()) return;
       setEvt(e as BeforeInstallPromptEvent);
       setHidden(false);
       markShownSession();
@@ -79,7 +82,7 @@ export default function InstallPrompt() {
     const isIOS = /iPhone|iPad|iPod/.test(ua) && !/CriOS|FxiOS/.test(ua);
     const isStandalone = (navigator as any).standalone === true ||
       window.matchMedia("(display-mode: standalone)").matches;
-    if (isIOS && !isStandalone) {
+    if (isIOS && !isStandalone && !inCooldown()) {
       setIosHint(true);
       setHidden(false);
       markShownSession();

@@ -110,7 +110,7 @@ export default function MotivoSaidaModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
