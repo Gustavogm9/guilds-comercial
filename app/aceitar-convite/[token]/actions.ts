@@ -138,7 +138,7 @@ export async function aceitarConviteSignup(input: {
     maxAge: 60 * 60 * 24 * 365,
   });
 
-  return { ok: true, redirect: "/hoje?welcome=1" };
+  return { ok: true, redirect: "/boas-vindas" };
 }
 
 /**

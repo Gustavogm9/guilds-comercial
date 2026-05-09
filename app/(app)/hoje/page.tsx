@@ -5,6 +5,7 @@ import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { ETAPAS_PIPELINE_VISIVEL, STAGE_COLORS, getUrgenciaLabel } from "@/lib/lists";
 import QuickActions from "@/components/quick-actions";
 import ActivationChecklist from "@/components/activation-checklist";
+import FollowupProposalAlert from "@/components/followup-proposal-alert";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp, Upload, UserPlus, Kanban, X } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
@@ -157,6 +158,20 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     propostas: all.filter(l => l.crm_stage === "Proposta").length,
   };
 
+  // Propostas paradas: crm_stage=Proposta, dias_sem_tocar >= 3, sem ação futura
+  const hoje_str = new Date().toISOString().slice(0, 10);
+  const propostasParadas = all.filter(l =>
+    l.crm_stage === "Proposta" &&
+    (l.dias_sem_tocar ?? 0) >= 3 &&
+    (!l.data_proxima_acao || l.data_proxima_acao < hoje_str)
+  ).map(l => ({
+    id: l.id,
+    empresa: l.empresa,
+    nome: l.nome,
+    dias_sem_tocar: l.dias_sem_tocar ?? 0,
+    valor_potencial: l.valor_potencial ?? 0,
+  }));
+
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <div className="flex items-baseline justify-between mb-2">
@@ -175,6 +190,14 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
 
       {/* Checklist de ativação por role — some quando tudo concluído ou dispensado */}
       <ActivationChecklist role={role as "gestor" | "comercial" | "sdr"} marcos={marcos} userId={me.id} />
+
+      {/* Alerta de propostas paradas há 3+ dias */}
+      <FollowupProposalAlert
+        leads={propostasParadas}
+        userId={me.id}
+        currency={currency}
+        locale={locale}
+      />
 
       {/* Banner de boas-vindas para colaboradores recém-convidados */}
       {isWelcome && (

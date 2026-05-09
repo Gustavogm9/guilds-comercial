@@ -15,6 +15,7 @@ type Tab = {
 const TABS: Tab[] = [
   { i18nKey: "configuracoes.perfil", href: "/configuracoes/perfil" },
   { i18nKey: "configuracoes.organizacao", href: "/configuracoes/organizacao", gestorOnly: true },
+  { i18nKey: "configuracoes.cadencia", href: "/configuracoes/cadencia", gestorOnly: true },
   { i18nKey: "configuracoes.api_webhooks", href: "/configuracoes/desenvolvedores", gestorOnly: true },
   { i18nKey: "configuracoes.billing", href: "/configuracoes/billing", gestorOnly: true },
 ];
