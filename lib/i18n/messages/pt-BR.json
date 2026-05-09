@@ -25,7 +25,7 @@
     "comunicacao": "ComunicaÃ§Ã£o",
     "equipe": "Equipe",
     "sistema": "Sistema",
-    "hoje": "Hoje",
+    "hoje": "Hoje","prospeccao": "Prospec\u00e7\u00e3o",
     "pipeline": "Pipeline",
     "base_leads": "Base de Leads",
     "funil_vendas": "Funil de Vendas",
@@ -383,7 +383,7 @@
   },
   "urgencia": {
     "vencida": "Vencida",
-    "hoje": "Hoje",
+    "hoje": "Hoje","prospeccao": "Prospec\u00e7\u00e3o",
     "amanha": "AmanhÃ£",
     "esta_semana": "Esta semana",
     "futuro": "Futuro",
@@ -452,7 +452,7 @@
     "trocar_minimo_chars": "Senha precisa ter no mÃ­nimo {{n}} caracteres."
   },
   "mobile_nav": {
-    "hoje": "Hoje",
+    "hoje": "Hoje","prospeccao": "Prospec\u00e7\u00e3o",
     "pipeline": "Pipeline",
     "funil": "Funil",
     "base": "Base",
@@ -594,4 +594,5 @@
     "detalhamento_feature": "Detalhamento por feature"
   }
 }
+
 
