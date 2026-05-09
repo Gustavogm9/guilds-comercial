@@ -587,7 +587,21 @@ export interface PedidoIndicacao {
   updated_at: string;
 }
 
-export interface PedidoIndicacaoEnriched extends PedidoIndicacao {
+/**
+ * View `v_pedidos_pendentes` aliasa o PK como `pedido_id` para evitar colisão
+ * com `lead.id` quando enriquecido. Por isso NÃO estende `PedidoIndicacao`
+ * (que tem `id`) — declara só os campos retornados pela view.
+ */
+export interface PedidoIndicacaoEnriched {
+  pedido_id: number;
+  organizacao_id: string;
+  lead_id: number;
+  solicitado_por: string | null;
+  momento: MomentoPedidoIndicacao;
+  canal: CanalPedidoIndicacao | null;
+  status: StatusPedidoIndicacao;
+  data_pedido: string;
+  observacoes: string | null;
   lead_empresa: string | null;
   lead_nome: string | null;
   lead_responsavel_id: string | null;
