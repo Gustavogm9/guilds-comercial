@@ -25,7 +25,7 @@
     "comunicacao": "Communication",
     "equipe": "Team",
     "sistema": "System",
-    "hoje": "Today","prospeccao": "Prospecting",
+    "hoje": "Today","prospeccao": "Prospecting","portfolio": "Portfolio & ICP",
     "pipeline": "Pipeline",
     "base_leads": "Lead Base",
     "funil_vendas": "Sales Funnel",
@@ -383,7 +383,7 @@
   },
   "urgencia": {
     "vencida": "Overdue",
-    "hoje": "Today","prospeccao": "Prospecting",
+    "hoje": "Today","prospeccao": "Prospecting","portfolio": "Portfolio & ICP",
     "amanha": "Tomorrow",
     "esta_semana": "This week",
     "futuro": "Future",
@@ -452,7 +452,7 @@
     "trocar_minimo_chars": "Password must be at least {{n}} characters."
   },
   "mobile_nav": {
-    "hoje": "Today","prospeccao": "Prospecting",
+    "hoje": "Today","prospeccao": "Prospecting","portfolio": "Portfolio & ICP",
     "pipeline": "Pipeline",
     "funil": "Funnel",
     "base": "Base",
@@ -594,5 +594,6 @@
     "detalhamento_feature": "Breakdown by feature"
   }
 }
+
 
 

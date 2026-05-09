@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home, Kanban, Users, Search, Activity, Mail, PhoneCall, LogOut, UserCog,
-  Radio, User, BarChart3, Bot, Settings, ShieldCheck, Repeat, Telescope,
+  Radio, User, BarChart3, Bot, Settings, ShieldCheck, Repeat, Telescope, BookOpen,
 } from "lucide-react";
 import clsx from "clsx";
 import OrgSwitcher from "./org-switcher";
@@ -30,6 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/hoje",        i18nKey: "sidebar.hoje",        icon: Home },
       { href: "/prospeccao",  i18nKey: "sidebar.prospeccao",  icon: Telescope },
+      { href: "/portfolio",   i18nKey: "sidebar.portfolio",   icon: BookOpen },
       { href: "/pipeline",    i18nKey: "sidebar.pipeline",    icon: Kanban },
       { href: "/base",        i18nKey: "sidebar.base_leads",  icon: Search },
     ],
