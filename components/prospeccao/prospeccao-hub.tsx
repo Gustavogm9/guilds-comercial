@@ -1,31 +1,31 @@
 "use client";
 
 /**
- * ProspeccaoHub v3 — Sprint 7
+ * ProspeccaoHub v4 — Sprint 8
  *
- * 4 modos:
+ * 5 modos:
  *   - "url":       enriquecer site (Firecrawl)
  *   - "cnpj":      buscar por CNPJ (BrasilAPI — gratuito)
  *   - "nicho":     buscar por critérios (Tavily)
  *   - "lookalike": busca automática baseada em ICP (Fingerprint)
+ *   - "campanhas": campanhas em lote com execução automática
  *
- * Sprint 7:
- *   - Recebe hipoteseId e hipotesePre do servidor
- *   - TabLookalike pré-carrega com critérios da hipótese
- *   - Ativação passa hipotese_id → incrementa métricas no ICP Lab
- *   - Deduplicação fuzzy: exibe leads rejeitados com motivo
- *   - Score de similaridade e completude por lead na fila
+ * Sprint 8:
+ *   - Aba Campanhas: cria e executa campanhas de prospecção em lote
+ *   - Métricas ICP auto-incrementadas via triggers de pipeline e proposta
+ *   - Edge Function periódica: supabase/functions/prospeccao-engine
  */
 
 import { useState, useMemo } from "react";
 import {
   Globe, Search, Target, Hash, Zap, Check, Loader2,
-  AlertTriangle, CheckCircle2, X, Plus, SlidersHorizontal, Copy,
+  AlertTriangle, CheckCircle2, X, Plus, SlidersHorizontal, Rocket,
 } from "lucide-react";
 import TabEnriquecer from "./tab-enriquecer";
 import TabBuscar from "./tab-buscar";
 import TabLookalike from "./tab-lookalike";
 import TabCnpj from "./tab-cnpj";
+import TabCampanhas from "./tab-campanhas";
 import FiltrosProspeccaoPanel from "./filtros-prospeccao";
 import { CompletudeBadge } from "./badge-similaridade";
 import BadgeSimilaridade from "./badge-similaridade";
@@ -37,7 +37,7 @@ import {
 import type { EmpresaEnriquecida } from "@/lib/prospeccao";
 import type { FiltrosProspeccao, FingerprintICP } from "@/lib/prospeccao-lookalike";
 
-type Modo = "url" | "cnpj" | "nicho" | "lookalike";
+type Modo = "url" | "cnpj" | "nicho" | "lookalike" | "campanhas";
 
 type LeadParaAtivar = EmpresaEnriquecida & {
   _selecionado: boolean;
@@ -63,6 +63,8 @@ type Props = {
     segmentos?: string[]; cidades?: string[]; cargos?: string[];
     produto_id?: number | null;
   } | null;
+  hipoteses?: { id: number; nome: string; cor?: string; segmentos?: string[]; cidades?: string[]; cargos?: string[] }[];
+  produtos?: { id: number; nome: string }[];
 };
 
 const MODOS: { key: Modo; icon: typeof Globe; label: string; badge?: string }[] = [
@@ -70,9 +72,10 @@ const MODOS: { key: Modo; icon: typeof Globe; label: string; badge?: string }[] 
   { key: "cnpj",      icon: Hash,    label: "Por CNPJ",    badge: "Grátis" },
   { key: "nicho",     icon: Search,  label: "Por Nicho" },
   { key: "lookalike", icon: Target,  label: "Look-alike",  badge: "IA" },
+  { key: "campanhas", icon: Rocket,  label: "Campanhas",   badge: "Auto" },
 ];
 
-export default function ProspeccaoHub({ orgId, icp, hipoteseId, hipotesePre }: Props) {
+export default function ProspeccaoHub({ orgId, icp, hipoteseId, hipotesePre, hipoteses = [], produtos = [] }: Props) {
   // Se veio do ICP Lab, abre direto no look-alike
   const [modo, setModo] = useState<Modo>(hipoteseId ? "lookalike" : "url");
   const [leads, setLeads] = useState<LeadParaAtivar[]>([]);
@@ -178,6 +181,13 @@ export default function ProspeccaoHub({ orgId, icp, hipoteseId, hipotesePre }: P
             />
           )}
         </div>
+
+        {/* Campanhas: tela cheia, gerencia próprios leads */}
+        {modo === "campanhas" && (
+          <div className="lg:col-span-2">
+            <TabCampanhas hipoteses={hipoteses} produtos={produtos} />
+          </div>
+        )}
 
         {/* Coluna direita: fila */}
         <div className="space-y-3">

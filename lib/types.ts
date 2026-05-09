@@ -365,6 +365,8 @@ export interface Lead {
   motivo_perda: MotivoPerda | null;
   motivo_perda_detalhe: string | null;
   percepcao_vendedor: PercepcaoVendedor | null;
+  /** Liga o lead à indicação que o originou (NULL = lead não veio de indicação). */
+  indicacao_id: number | null;
   created_at: string;
   updated_at: string;
 }

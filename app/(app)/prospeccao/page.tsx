@@ -22,34 +22,36 @@ export default async function ProspeccaoPage({ searchParams }: Props) {
 
   const supabase = createClient();
 
-  // Carrega dados da hipótese se vier do ICP Lab
-  let hipotesePre: {
-    id: number; nome: string; segmentos?: string[]; cidades?: string[];
-    cargos?: string[]; produto_id?: number | null; produtos?: { nome: string } | null;
-  } | null = null;
+  // Carrega tudo em paralelo
+  const [hipotesePre_loaded, jobs, hipoteses, produtos] = await Promise.all([
+    // Hipótese da URL
+    (async () => {
+      if (!hipoteseId || isNaN(hipoteseId)) return null;
+      const { data: hip } = await supabase
+        .from("icp_hipoteses")
+        .select("id, nome, segmentos, cidades, cargos, produto_id, produtos(nome)")
+        .eq("id", hipoteseId).eq("organizacao_id", orgId).maybeSingle();
+      if (!hip) return null;
+      return { ...hip, produtos: Array.isArray(hip.produtos) ? (hip.produtos[0] ?? null) : (hip.produtos ?? null) };
+    })(),
+    // Histórico de jobs
+    supabase.from("prospeccao_jobs")
+      .select("id, tipo, status, leads_criados, created_at, input")
+      .eq("organizacao_id", orgId).order("created_at", { ascending: false }).limit(5)
+      .then(r => r.data),
+    // Hipóteses ativas para campanhas
+    supabase.from("icp_hipoteses")
+      .select("id, nome, cor, segmentos, cidades, cargos")
+      .eq("organizacao_id", orgId).eq("status", "ativa")
+      .then(r => r.data ?? []),
+    // Produtos ativos para campanhas
+    supabase.from("produtos")
+      .select("id, nome")
+      .eq("organizacao_id", orgId).eq("ativo", true).order("ordem")
+      .then(r => r.data ?? []),
+  ]);
 
-  if (hipoteseId && !isNaN(hipoteseId)) {
-    const { data: hip } = await supabase
-      .from("icp_hipoteses")
-      .select("id, nome, segmentos, cidades, cargos, produto_id, produtos(nome)")
-      .eq("id", hipoteseId)
-      .eq("organizacao_id", orgId)
-      .maybeSingle();
-    if (hip) {
-      hipotesePre = {
-        ...hip,
-        produtos: Array.isArray(hip.produtos) ? (hip.produtos[0] ?? null) : (hip.produtos ?? null),
-      };
-    }
-  }
-
-  // Histórico de jobs
-  const { data: jobs } = await supabase
-    .from("prospeccao_jobs")
-    .select("id, tipo, status, leads_criados, created_at, input")
-    .eq("organizacao_id", orgId)
-    .order("created_at", { ascending: false })
-    .limit(5);
+  const hipotesePre = hipotesePre_loaded;
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
@@ -104,6 +106,8 @@ export default async function ProspeccaoPage({ searchParams }: Props) {
         icp={null}
         hipoteseId={hipoteseId}
         hipotesePre={hipotesePre}
+        hipoteses={hipoteses as any[]}
+        produtos={produtos as any[]}
       />
 
       {/* Histórico */}

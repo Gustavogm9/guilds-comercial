@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, Kanban, Users, Search, Activity, Mail, PhoneCall, LogOut, UserCog,
   Radio, User, BarChart3, Bot, Settings, ShieldCheck, Repeat, Telescope, BookOpen,
+  Sparkles,
 } from "lucide-react";
 import clsx from "clsx";
 import OrgSwitcher from "./org-switcher";
@@ -45,10 +46,11 @@ const NAV_GROUPS: NavGroup[] = [
   {
     titleKey: "sidebar.comunicacao",
     items: [
-      { href: "/cadencia",   i18nKey: "sidebar.cadencia",   icon: Repeat },
-      { href: "/ligacoes",   i18nKey: "sidebar.ligacoes",   icon: PhoneCall },
-      { href: "/canais",     i18nKey: "sidebar.canais",     icon: Radio,    gestorOnly: true },
-      { href: "/newsletter", i18nKey: "sidebar.newsletter", icon: Mail },
+      { href: "/cadencia",    i18nKey: "sidebar.cadencia",    icon: Repeat },
+      { href: "/ligacoes",    i18nKey: "sidebar.ligacoes",    icon: PhoneCall },
+      { href: "/indicacoes",  i18nKey: "sidebar.indicacoes",  icon: Sparkles },
+      { href: "/canais",      i18nKey: "sidebar.canais",      icon: Radio,    gestorOnly: true },
+      { href: "/newsletter",  i18nKey: "sidebar.newsletter",  icon: Mail },
     ],
   },
   {

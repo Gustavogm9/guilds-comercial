@@ -6,6 +6,7 @@ import LeadDetailActions from "@/components/lead-detail-actions";
 import LeadScoreCard from "@/components/lead-score-card";
 import CadenciaPassoCard from "@/components/cadencia-passo-card";
 import NextActionCard from "@/components/next-action-card";
+import PedidoIndicacaoBanner from "@/components/pedido-indicacao-banner";
 import { STAGE_COLORS } from "@/lib/lists";
 import type { LeadEnriched, LeadScore } from "@/lib/types";
 import { ChevronLeft, MessageSquare, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin } from "lucide-react";
@@ -87,15 +88,29 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
   const currency = ((orgRow as any)?.moeda_padrao as string) || "BRL";
 
   // Robustez 11: limit(50) em ligações pra não estourar payload em leads com muitas calls
-  const [{ data: leadRow }, { data: ligacoes }, { data: cadencia }, { data: raiox }, { data: eventos }, { data: scoreRow }] =
-    await Promise.all([
-      supabase.from("v_leads_enriched").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
-      supabase.from("ligacoes").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("data_hora", { ascending: false }).limit(50),
-      supabase.from("cadencia").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("passo"),
-      supabase.from("raio_x").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }).limit(10),
-      supabase.from("lead_evento").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }).limit(50),
-      supabase.from("v_lead_score").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
-    ]);
+  const [
+    { data: leadRow },
+    { data: ligacoes },
+    { data: cadencia },
+    { data: raiox },
+    { data: eventos },
+    { data: scoreRow },
+    { data: pedidosIndicacaoPendentes },
+  ] = await Promise.all([
+    supabase.from("v_leads_enriched").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
+    supabase.from("ligacoes").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("data_hora", { ascending: false }).limit(50),
+    supabase.from("cadencia").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("passo"),
+    supabase.from("raio_x").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }).limit(10),
+    supabase.from("lead_evento").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }).limit(50),
+    supabase.from("v_lead_score").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
+    supabase
+      .from("pedidos_indicacao")
+      .select("id, data_pedido, momento, observacoes")
+      .eq("organizacao_id", orgId)
+      .eq("lead_id", id)
+      .eq("status", "pendente")
+      .order("data_pedido", { ascending: true }),
+  ]);
 
   if (!leadRow) notFound();
   const lead = leadRow as LeadEnriched;
@@ -162,6 +177,25 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
         <div className="mt-4">
           <LeadDetailActions lead={lead} vendedor={me.display_name} />
+          {/* Banner de pedido de indicação pendente — só aparece se houver. */}
+          {pedidosIndicacaoPendentes && pedidosIndicacaoPendentes.length > 0 && (
+            <div className="mt-3">
+              <PedidoIndicacaoBanner
+                pedidos={(pedidosIndicacaoPendentes as Array<{
+                  id: number;
+                  data_pedido: string;
+                  momento: string;
+                  observacoes: string | null;
+                }>).map((p) => ({
+                  pedido_id: p.id,
+                  data_pedido: p.data_pedido,
+                  momento: p.momento,
+                  observacoes: p.observacoes,
+                }))}
+                empresaLead={lead.empresa}
+              />
+            </div>
+          )}
           {/* Card de próxima ação recomendada por etapa — orienta o vendedor */}
           <NextActionCard crmStage={lead.crm_stage} leadId={lead.id} />
         </div>
