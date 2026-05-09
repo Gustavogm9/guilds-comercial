@@ -81,6 +81,14 @@ export async function marcarPassoCadencia(
     update.observacoes = observacoes.trim();
   }
 
+  // Busca o lead_id antes de atualizar (usado na sugestão de qualificação)
+  const { data: cadenciaRow } = await supabase
+    .from("cadencia")
+    .select("lead_id")
+    .eq("id", cadenciaId)
+    .eq("organizacao_id", orgId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("cadencia")
     .update(update)
@@ -92,7 +100,14 @@ export async function marcarPassoCadencia(
   revalidatePath("/cadencia");
   revalidatePath("/hoje");
   revalidatePath("/pipeline");
-  return { ok: true };
+
+  // Quando o lead responde, sugerimos qualificação imediata
+  // O componente frontend usa esse flag para exibir um popover contextual
+  if (novoStatus === "respondido" && cadenciaRow?.lead_id) {
+    return { ok: true, sugerirQualificacao: true, leadId: cadenciaRow.lead_id };
+  }
+
+  return { ok: true, sugerirQualificacao: false, leadId: null };
 }
 
 /**

@@ -34,7 +34,7 @@ export default async function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-guild-50 via-white to-guild-100 flex items-center justify-center p-4">
-      <OnboardingWizard nome={nome} empresa={empresa} />
+      <OnboardingWizard nome={nome} empresa={empresa} userId={user.id} />
     </div>
   );
 }

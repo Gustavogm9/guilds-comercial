@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Bot, Mail, Plus, Trash2 } from "lucide-react";
 import { finalizarOnboarding } from "@/app/onboarding/actions";
@@ -14,8 +14,11 @@ type InviteDraft = {
   role: Role;
 };
 
-export default function OnboardingWizard({ nome, empresa }: { nome: string; empresa: string }) {
+export default function OnboardingWizard({ nome, empresa, userId }: { nome: string; empresa: string; userId: string }) {
   const router = useRouter();
+  const STORAGE_KEY = `guilds-onboarding-${userId}`;
+  const restored = useRef(false);
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -33,6 +36,38 @@ export default function OnboardingWizard({ nome, empresa }: { nome: string; empr
   const [convites, setConvites] = useState<InviteDraft[]>([{ email: "", role: "comercial" }]);
   const [habilitarIA, setHabilitarIA] = useState(true);
   const [gerarDemo, setGerarDemo] = useState(true);
+
+  // Restaura progresso salvo ao montar (única vez)
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved.step) setStep(saved.step);
+      if (saved.pais) setPais(saved.pais);
+      if (saved.segmento) setSegmento(saved.segmento);
+      if (saved.razaoSocial) setRazaoSocial(saved.razaoSocial);
+      if (saved.taxId) setTaxId(saved.taxId);
+      if (saved.dor) setDor(saved.dor);
+      if (saved.cargo) setCargo(saved.cargo);
+      if (saved.convites) setConvites(saved.convites);
+      if (saved.habilitarIA !== undefined) setHabilitarIA(saved.habilitarIA);
+      if (saved.gerarDemo !== undefined) setGerarDemo(saved.gerarDemo);
+    } catch { /* ignora dados corrompidos */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persiste progresso a cada mudança de step ou campo relevante
+  useEffect(() => {
+    if (!restored.current) return; // aguarda restauração antes de persistir
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        step, pais, segmento, razaoSocial, taxId, dor, cargo, convites, habilitarIA, gerarDemo,
+      }));
+    } catch { /* ignora erro de quota */ }
+  }, [step, pais, segmento, razaoSocial, taxId, dor, cargo, convites, habilitarIA, gerarDemo, STORAGE_KEY]);
 
   // Validação delegada por país: BR valida CNPJ por DV, outros aceitam livre.
   const taxIdValido = useMemo(() => validarTaxId(taxId, pais), [taxId, pais]);
@@ -63,6 +98,8 @@ export default function OnboardingWizard({ nome, empresa }: { nome: string; empr
         habilitarIA,
         gerarDemo,
       });
+      // Limpa progresso salvo após conclusão bem-sucedida
+      try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignora */ }
       router.push("/hoje");
       router.refresh();
     } catch (e: any) {

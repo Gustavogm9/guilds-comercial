@@ -470,6 +470,135 @@ export function getTemplatesByLocale(locale: Locale = "pt-BR"): TemplateCadencia
   return TEMPLATES_PT_BR;
 }
 
+// ============================================================
+// TEMPLATES POR SEGMENTO (PT-BR)
+// Substitui a dor genérica por problemas específicos do nicho.
+// Mantém a mesma estrutura D0→D30 mas com copy contextualizado.
+// ============================================================
+
+type SegmentoKey =
+  | "Seguros"
+  | "Imobiliario"
+  | "SaaS / Tecnologia"
+  | "Saude / Clinicas"
+  | "Servicos B2B"
+  | string; // fallback para genérico
+
+const TEMPLATES_SEGUROS: TemplateCadencia[] = [
+  {
+    passo: "D0", canal: "WhatsApp", objetivo: "Contexto / dor", idioma: "pt-BR",
+    corpo: `Olá {{nome}}, aqui é o {{vendedor}} da Guilds.
+
+Estou mapeando como corretoras como a {{empresa}} estão lidando com a renovação de carteira e retenção de clientes — vi que esse ponto costuma vazar mais receita do que parece (clientes que somem na renovação, carteira envelhecida, custo de aquisição crescendo).
+
+Posso te mandar em 1 minuto o que identificamos no setor de seguros? Sem proposta, só insight.`
+  },
+  {
+    passo: "D0", canal: "Email", objetivo: "Contexto / dor", idioma: "pt-BR",
+    assunto: "{{empresa}} — uma observação sobre retenção de carteira",
+    corpo: `Olá {{nome}},
+
+Estou mapeando como corretoras estão lidando com renovação e retenção de carteira. O que aparece com frequência: clientes que somem na renovação, carteira envelhecida e CAC crescendo sem contrapartida de LTV.
+
+Quer que eu mande um resumo de 2 minutos com o que vejo no setor? Por aqui ou pelo WhatsApp — você escolhe.
+
+Abraço,
+{{vendedor}} — Guilds`
+  },
+  {
+    passo: "D3", canal: "WhatsApp", objetivo: "Impacto / custo invisível", idioma: "pt-BR",
+    corpo: `{{nome}}, voltando rápido.
+
+Fiz uma conta com 3 corretoras de porte parecido com a {{empresa}}: o custo de carteira perdida na renovação variou de R$90k a R$250k/ano — e boa parte era recuperável com processo de régua ativa.
+
+Posso te mostrar como fazemos esse diagnóstico? Raio-X de Operação Comercial, 12 perguntas, R$97. Relatório com número real de perda anual e onde atacar primeiro.`
+  },
+  {
+    passo: "D3", canal: "Email", objetivo: "Impacto / custo invisível", idioma: "pt-BR",
+    assunto: "Re: {{empresa}} — quanto está saindo pela renovação?",
+    corpo: `{{nome}},
+
+Em corretoras similares, perda de carteira na renovação variou de R$90k a R$250k/ano — boa parte recuperável com régua de relacionamento ativa.
+
+Temos um diagnóstico estruturado pra medir isso na {{empresa}}: Raio-X Comercial, 12 perguntas, R$97, com relatório de perda real e plano de ação.
+
+Quer o link?
+
+{{vendedor}}`
+  },
+  // D7, D11, D16, D30 herdam os genéricos (suficientemente contextualizados)
+  ...TEMPLATES_PT_BR.filter(t => ["D7", "D11", "D16", "D30"].includes(t.passo)),
+];
+
+const TEMPLATES_IMOVEIS: TemplateCadencia[] = [
+  {
+    passo: "D0", canal: "WhatsApp", objetivo: "Contexto / dor", idioma: "pt-BR",
+    corpo: `Olá {{nome}}, tudo bem? Aqui é o {{vendedor}} da Guilds.
+
+Estou estudando como imobiliárias como a {{empresa}} estão gerenciando o follow-up de leads de portais e o ciclo de venda — vi que a perda entre lead gerado e visita marcada é onde mais dinheiro escapa (tempo de resposta, qualificação manual, follow-up inconsistente).
+
+Posso te mandar o que identificamos no setor? Sem proposta, só insight.`
+  },
+  {
+    passo: "D0", canal: "Email", objetivo: "Contexto / dor", idioma: "pt-BR",
+    assunto: "{{empresa}} — uma observação sobre conversão de leads de portal",
+    corpo: `Olá {{nome}},
+
+Estou mapeando como imobiliárias gerenciam o ciclo lead → visita → proposta. O padrão que aparece: tempo de resposta alto, qualificação manual e follow-up inconsistente corroem a conversão em 30–60%.
+
+Quer que eu mande um resumo de 2 minutos do que vejo no setor?
+
+Abraço,
+{{vendedor}} — Guilds`
+  },
+  {
+    passo: "D3", canal: "WhatsApp", objetivo: "Impacto / custo invisível", idioma: "pt-BR",
+    corpo: `{{nome}}, voltando rápido.
+
+Com 3 imobiliárias de porte parecido com a {{empresa}}, calculamos: perda de lead qualificado por follow-up tardio ou inconsistente variou de R$120k a R$400k/ano em comissão não realizada.
+
+Posso te mostrar nosso Raio-X Comercial? 12 perguntas, R$97, relatório com número real de oportunidade perdida e onde atacar.`
+  },
+  {
+    passo: "D3", canal: "Email", objetivo: "Impacto / custo invisível", idioma: "pt-BR",
+    assunto: "Re: {{empresa}} — quanto em comissão está escapando?",
+    corpo: `{{nome}},
+
+Em imobiliárias similares, follow-up tardio ou inconsistente custou entre R$120k e R$400k/ano em comissão não realizada.
+
+Temos um diagnóstico pra medir isso na {{empresa}}: Raio-X Comercial, 12 perguntas, R$97.
+
+Quer o link?
+
+{{vendedor}}`
+  },
+  ...TEMPLATES_PT_BR.filter(t => ["D7", "D11", "D16", "D30"].includes(t.passo)),
+];
+
+/**
+ * Retorna os templates de cadência adaptados ao segmento da organização.
+ * Fallback para templates genéricos pt-BR se o segmento não tiver
+ * templates específicos ainda.
+ *
+ * @param segmento - valor de organizacoes.segmento ou leads.segmento
+ * @param locale   - idioma da org (default pt-BR)
+ */
+export function getTemplatesBySegmento(
+  segmento: SegmentoKey = "",
+  locale: Locale = "pt-BR"
+): TemplateCadencia[] {
+  // Templates en-US ainda não têm variações por segmento — usa genérico
+  if (locale === "en-US") return TEMPLATES_EN_US;
+
+  const s = segmento.toLowerCase();
+  if (s.includes("seguro") || s.includes("corretora")) return TEMPLATES_SEGUROS;
+  if (s.includes("imob") || s.includes("imobi") || s.includes("imóvel")) return TEMPLATES_IMOVEIS;
+
+  // SaaS, Saúde, Indústria, Educação, Serviços B2B → genérico por enquanto
+  // (expansão futura: adicionar TEMPLATES_SAAS, TEMPLATES_SAUDE, etc.)
+  return TEMPLATES_PT_BR;
+}
+
 // Aplica variáveis num template (i18n: fallbacks adaptados ao idioma)
 export function aplicarTemplate(
   tpl: TemplateCadencia,

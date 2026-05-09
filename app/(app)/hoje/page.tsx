@@ -5,7 +5,7 @@ import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { ETAPAS_PIPELINE_VISIVEL, STAGE_COLORS, getUrgenciaLabel } from "@/lib/lists";
 import QuickActions from "@/components/quick-actions";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
-import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp } from "lucide-react";
+import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp, Upload, UserPlus, Kanban, X } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
 import { getServerLocale, getT, type Locale } from "@/lib/i18n";
 
@@ -24,8 +24,9 @@ export const dynamic = "force-dynamic";
  *   - Issues 8-10: i18n via getUrgenciaLabel + t() pra stages e "dias sem tocar".
  *   - Issue 13: Currency lê de organizacoes.moeda_padrao em vez de hardcoded BRL.
  */
-export default async function HojePage(props: { searchParams: Promise<{ todos?: string }> }) {
+export default async function HojePage(props: { searchParams: Promise<{ todos?: string; welcome?: string }> }) {
   const searchParams = await props.searchParams;
+  const isWelcome = searchParams.welcome === "1";
   const supabase = createClient();
   const locale = await getServerLocale();
   const t = getT(locale);
@@ -111,6 +112,29 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
         )}
       </div>
 
+      {/* Banner de boas-vindas para colaboradores recém-convidados */}
+      {isWelcome && (
+        <div className="mb-6 p-4 rounded-xl bg-primary/8 border border-primary/20 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="w-9 h-9 rounded-lg bg-primary grid place-items-center shrink-0">
+            <Sparkles className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-foreground text-sm" style={{ letterSpacing: "-0.13px" }}>
+              Seja bem-vindo(a) ao Guilds Comercial, {me.display_name.split(" ")[0]}! 🎉
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Você acaba de entrar como <span className="font-medium text-foreground capitalize">{role}</span>. Comece explorando
+              {" "}<Link href="/hoje" className="text-primary hover:underline">seu cockpit diário</Link>,
+              {" "}<Link href="/base" className="text-primary hover:underline">a base de leads</Link> ou
+              {" "}<Link href="/pipeline" className="text-primary hover:underline">o pipeline</Link>.
+            </p>
+          </div>
+          <Link href="/hoje" replace className="text-muted-foreground hover:text-foreground shrink-0" aria-label="Fechar">
+            <X className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-6">
         <KPI title={t("hoje.kpi_pendentes")} value={kpis.pendentes} tone={kpis.pendentes > 0 ? "urgent" : "neutral"} icon={<AlertTriangle className="w-4 h-4"/>} />
@@ -142,8 +166,35 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
       )}
 
       {all.length === 0 && (
-        <div className="card p-12 text-center text-muted-foreground">
-          {t("hoje.vazio_msg")} <Link href="/pipeline" className="text-primary underline">{t("hoje.abrir_pipeline")}</Link>.
+        <div className="card p-10 text-center space-y-6">
+          {/* Ícone animado */}
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 grid place-items-center mx-auto">
+            <Sparkles className="w-8 h-8 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-foreground" style={{ letterSpacing: "-0.24px" }}>
+              {t("hoje.vazio_titulo") || "Tudo pronto para começar"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+              {t("hoje.vazio_msg_novo") || "Seu pipeline está vazio. Adicione seus primeiros leads e comece a trabalhar as oportunidades."}
+            </p>
+          </div>
+          {/* Ações primárias */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link href="/base/importar" className="btn-primary text-sm inline-flex items-center gap-2">
+              <Upload className="w-4 h-4" /> Importar lista (CSV)
+            </Link>
+            <Link href="/base" className="btn-secondary text-sm inline-flex items-center gap-2">
+              <UserPlus className="w-4 h-4" /> Cadastrar lead
+            </Link>
+            <Link href="/pipeline" className="btn-ghost text-sm inline-flex items-center gap-2">
+              <Kanban className="w-4 h-4" /> Ver pipeline
+            </Link>
+          </div>
+          {/* Dica contextual */}
+          <p className="text-xs text-muted-foreground">
+            💡 Dica: comece importando sua lista atual de prospects no formato CSV — leva menos de 2 minutos.
+          </p>
         </div>
       )}
     </div>
