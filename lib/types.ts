@@ -500,3 +500,166 @@ export interface Newsletter {
   observacoes: string | null;
   created_at: string;
 }
+
+// =============================================================================
+// Indicações / Advocacy (lado direito do funil borboleta)
+// =============================================================================
+
+export type MomentoPedidoIndicacao =
+  | "pos_fechamento"
+  | "pos_raio_x"
+  | "pos_resultado"
+  | "renovacao"
+  | "outro";
+
+export const MOMENTOS_PEDIDO_INDICACAO: MomentoPedidoIndicacao[] = [
+  "pos_fechamento",
+  "pos_raio_x",
+  "pos_resultado",
+  "renovacao",
+  "outro",
+];
+
+export type CanalPedidoIndicacao = "call" | "whatsapp" | "email" | "pessoalmente" | "outro";
+
+export const CANAIS_PEDIDO_INDICACAO: CanalPedidoIndicacao[] = [
+  "call",
+  "whatsapp",
+  "email",
+  "pessoalmente",
+  "outro",
+];
+
+export type StatusPedidoIndicacao =
+  | "pendente"
+  | "respondido"
+  | "negado"
+  | "ignorado"
+  | "agendado";
+
+export const STATUS_PEDIDO_INDICACAO: StatusPedidoIndicacao[] = [
+  "pendente",
+  "respondido",
+  "negado",
+  "ignorado",
+  "agendado",
+];
+
+export type StatusIndicacao =
+  | "recebida"
+  | "contactado"
+  | "virou_lead"
+  | "fechado"
+  | "perdido"
+  | "descartado";
+
+export const STATUS_INDICACAO: StatusIndicacao[] = [
+  "recebida",
+  "contactado",
+  "virou_lead",
+  "fechado",
+  "perdido",
+  "descartado",
+];
+
+export type RecompensaTipo =
+  | "desconto_renovacao"
+  | "credito"
+  | "produto"
+  | "dinheiro"
+  | "nenhum";
+
+export interface PedidoIndicacao {
+  id: number;
+  organizacao_id: string;
+  lead_id: number;
+  solicitado_por: string | null;
+  momento: MomentoPedidoIndicacao;
+  canal: CanalPedidoIndicacao | null;
+  status: StatusPedidoIndicacao;
+  qtd_indicacoes_recebidas: number;
+  data_pedido: string;
+  data_resposta: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PedidoIndicacaoEnriched extends PedidoIndicacao {
+  lead_empresa: string | null;
+  lead_nome: string | null;
+  lead_responsavel_id: string | null;
+  lead_crm_stage: CrmStage | null;
+  solicitado_por_nome: string | null;
+  dias_pendente: number;
+}
+
+export interface Indicacao {
+  id: number;
+  organizacao_id: string;
+
+  embaixador_lead_id: number | null;
+  embaixador_externo_nome: string | null;
+
+  pedido_id: number | null;
+  solicitado_por: string | null;
+
+  indicado_nome: string;
+  indicado_empresa: string | null;
+  indicado_cargo: string | null;
+  indicado_email: string | null;
+  indicado_whatsapp: string | null;
+  indicado_linkedin: string | null;
+  contexto: string | null;
+
+  lead_convertido_id: number | null;
+  status: StatusIndicacao;
+
+  data_recebida: string;
+  data_contactado: string | null;
+  data_convertido: string | null;
+  data_fechado: string | null;
+  data_perdido: string | null;
+
+  recompensa_tipo: RecompensaTipo | null;
+  recompensa_valor: number | null;
+  recompensa_paga: boolean;
+  recompensa_paga_em: string | null;
+
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IndicacaoEnriched extends Indicacao {
+  embaixador_empresa: string | null;
+  embaixador_nome: string | null;
+  lead_convertido_empresa: string | null;
+  lead_convertido_crm_stage: CrmStage | null;
+  lead_convertido_valor: number | null;
+  solicitado_por_nome: string | null;
+}
+
+export interface AdvocacyKpis {
+  organizacao_id: string;
+  clientes_fechados: number;
+  indicacoes_viraram_lead: number;
+  clientes_que_indicaram: number;
+  k_factor: number;
+  dias_media_p_responder: number | null;
+  receita_via_indicacao: number;
+}
+
+export interface TopEmbaixador {
+  organizacao_id: string;
+  embaixador_lead_id: number;
+  embaixador_empresa: string | null;
+  embaixador_nome: string | null;
+  embaixador_responsavel_id: string | null;
+  qtd_indicacoes: number;
+  qtd_viraram_lead: number;
+  qtd_fecharam: number;
+  receita_gerada: number;
+  taxa_conversao_pct: number;
+  ultima_indicacao_em: string;
+}

@@ -27,6 +27,11 @@ type ResultadoLookalike = EmpresaBuscada & {
 type Props = {
   onEmpresaEnriquecida: (empresa: any, jobId?: number) => void;
   orgId: string;
+  hipoteseId?: number;
+  hipotesePre?: {
+    id: number; nome: string;
+    segmentos?: string[]; cidades?: string[]; cargos?: string[];
+  } | null;
 };
 
 const ESTADOS_BR = [
@@ -35,13 +40,18 @@ const ESTADOS_BR = [
   "RS","SC","SE","SP","TO",
 ];
 
-export default function TabLookalike({ onEmpresaEnriquecida, orgId }: Props) {
+export default function TabLookalike({ onEmpresaEnriquecida, orgId, hipoteseId, hipotesePre }: Props) {
   const [fingerprint, setFingerprint] = useState<FingerprintICP | null>(null);
   const [fpLoading, setFpLoading] = useState(true);
   const [fpExpanded, setFpExpanded] = useState(false);
 
-  const [regioesSelecionadas, setRegioesSelecionadas] = useState<string[]>([]);
-  const [segmentosSelecionados, setSegmentosSelecionados] = useState<string[]>([]);
+  // Pré-popula com critérios da hipótese se vier do ICP Lab
+  const [regioesSelecionadas, setRegioesSelecionadas] = useState<string[]>(
+    hipotesePre?.cidades?.flatMap(c => c.match(/\b([A-Z]{2})\b/g) ?? []) ?? []
+  );
+  const [segmentosSelecionados, setSegmentosSelecionados] = useState<string[]>(
+    hipotesePre?.segmentos ?? []
+  );
   const [maxQueries, setMaxQueries] = useState(4);
 
   const [pending, start] = useTransition();
@@ -84,6 +94,8 @@ export default function TabLookalike({ onEmpresaEnriquecida, orgId }: Props) {
           body: JSON.stringify({
             regioes: regioesSelecionadas,
             segmentos: segmentosSelecionados,
+            cargos: hipotesePre?.cargos ?? [],
+            hipotese_id: hipoteseId ?? null,
             maxQueries,
             maxResultadosPorQuery: 5,
           }),
@@ -122,6 +134,16 @@ export default function TabLookalike({ onEmpresaEnriquecida, orgId }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Banner hipótese ativa */}
+      {hipotesePre && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/[0.05] border border-primary/20 text-xs">
+          <Target className="w-3.5 h-3.5 text-primary shrink-0" />
+          <span className="font-medium">Hipótese: {hipotesePre.nome}</span>
+          {hipotesePre.segmentos?.length ? (
+            <span className="text-muted-foreground">· {hipotesePre.segmentos.join(", ")}</span>
+          ) : null}
+        </div>
+      )}
       {/* Fingerprint ICP */}
       <div className="card p-4 border-primary/20 bg-primary/[0.02]">
         <div className="flex items-center justify-between">
