@@ -19,7 +19,11 @@ import {
   adiarPedidoIndicacao,
   type NovaIndicacaoInput,
 } from "./actions";
+import {
+  configurarRecompensas, marcarRecompensaPaga, reverterRecompensaPaga,
+} from "./recompensa-actions";
 import EmbaixadorTokenManager from "@/components/embaixador-token-manager";
+import type { OrgRecompensaConfig, RecompensasResumo, RecompensaTipo } from "@/lib/types";
 
 type Tab = "pendentes" | "indicacoes" | "embaixadores" | "recompensas";
 type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
@@ -49,6 +53,8 @@ export default function IndicacoesClient({
   kpis,
   tokensEmbaixador,
   baseUrl,
+  recompensaConfig,
+  recompensasResumo,
 }: {
   meId: string;
   isGestor: boolean;
@@ -58,6 +64,8 @@ export default function IndicacoesClient({
   kpis: AdvocacyKpis | null;
   tokensEmbaixador: import("@/lib/types").EmbaixadorToken[];
   baseUrl: string;
+  recompensaConfig: OrgRecompensaConfig | null;
+  recompensasResumo: RecompensasResumo | null;
 }) {
   const [tab, setTab] = useState<Tab>("pendentes");
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -115,7 +123,19 @@ export default function IndicacoesClient({
           locale={locale}
         />
       )}
-      {tab === "recompensas" && <RecompensasTab recompensas={recompensasPendentes} t={t} locale={locale} />}
+      {tab === "recompensas" && (
+        <RecompensasTab
+          recompensas={recompensasPendentes}
+          historicoPagas={indicacoes.filter((i) => i.recompensa_paga === true)}
+          isGestor={isGestor}
+          config={recompensaConfig}
+          resumo={recompensasResumo}
+          t={t}
+          locale={locale}
+          onSucesso={(m) => setFeedback({ tipo: "sucesso", mensagem: m })}
+          onErro={(e) => setFeedback({ tipo: "erro", mensagem: e instanceof Error ? e.message : "Erro." })}
+        />
+      )}
 
       {feedback && <FeedbackToast feedback={feedback} onClose={() => setFeedback(null)} />}
     </div>
@@ -675,62 +695,372 @@ function EmbaixadoresTab({ embaixadores, tokensEmbaixador, baseUrl, t, locale }:
   );
 }
 
-// ================== Tab: Recompensas (placeholder fase 2) ==================
-function RecompensasTab({ recompensas, t, locale }: {
-  recompensas: IndicacaoEnriched[]; t: T; locale: Locale;
+// ================== Tab: Recompensas ==================
+function RecompensasTab({ recompensas, historicoPagas, isGestor, config, resumo, t, locale, onSucesso, onErro }: {
+  recompensas: IndicacaoEnriched[];
+  historicoPagas: IndicacaoEnriched[];
+  isGestor: boolean;
+  config: OrgRecompensaConfig | null;
+  resumo: RecompensasResumo | null;
+  t: T;
+  locale: Locale;
+  onSucesso: (m: string) => void;
+  onErro: (e: unknown) => void;
 }) {
-  if (recompensas.length === 0) {
-    return (
-      <div className="card p-12 text-center">
-        <Gift className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">Sem recompensas pendentes.</p>
-        <p className="text-xs text-muted-foreground/70 mt-1">
-          Indicações que viraram clientes aparecerão aqui aguardando pagamento.
-        </p>
+  const [pending, startTransition] = useTransition();
+  const [showConfig, setShowConfig] = useState(false);
+
+  function handlePagar(id: number) {
+    if (!confirm("Marcar recompensa como paga? Use isso só depois de efetivar o pagamento.")) return;
+    startTransition(async () => {
+      try {
+        await marcarRecompensaPaga({ indicacao_id: id });
+        onSucesso(t("indicacoes.toast_recompensa_paga"));
+      } catch (e) { onErro(e); }
+    });
+  }
+
+  function handleReverter(id: number) {
+    if (!confirm("Reverter pagamento? Só faça isso se foi engano.")) return;
+    startTransition(async () => {
+      try {
+        await reverterRecompensaPaga(id);
+        onSucesso("Pagamento revertido.");
+      } catch (e) { onErro(e); }
+    });
+  }
+
+  // KPI bar
+  return (
+    <div className="space-y-4">
+      {/* KPIs */}
+      {resumo && resumo.total_com_recompensa > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <RecompensaKpi
+            label="A pagar"
+            value={formatBRL(resumo.total_valor_pendente)}
+            sub={`${resumo.total_pendentes} indicações`}
+            tone="warning"
+          />
+          <RecompensaKpi
+            label="Pago total"
+            value={formatBRL(resumo.total_valor_pago)}
+            sub={`${resumo.total_pagas} já pagas`}
+            tone="success"
+          />
+          <RecompensaKpi
+            label="% pago"
+            value={
+              resumo.total_com_recompensa > 0
+                ? `${Math.round((resumo.total_pagas * 100) / resumo.total_com_recompensa)}%`
+                : "—"
+            }
+            sub="das que devem"
+          />
+          <RecompensaKpi
+            label="Programa"
+            value={config?.ativo ? "Ativo" : "Manual"}
+            sub={config?.ativo ? "valor automático" : "valor manual por indicação"}
+            tone={config?.ativo ? "success" : "default"}
+          />
+        </div>
+      )}
+
+      {/* Config (só gestor) */}
+      {isGestor && (
+        <div className="card p-4 border-primary/20 bg-primary/[0.02]">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <div className="font-semibold text-sm flex items-center gap-2">
+                <Gift className="w-4 h-4 text-primary" aria-hidden="true" />
+                Configuração do programa
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {config?.ativo
+                  ? `Ativo · ${formatBRL(config.valor_virou_lead)} por lead · ${formatBRL(config.valor_fechado)} por fechamento`
+                  : "Sem programa automático. Recompensas registradas manualmente caso a caso."}
+              </p>
+            </div>
+            <button onClick={() => setShowConfig(!showConfig)} className="btn-secondary text-xs">
+              {showConfig ? "Fechar" : config ? "Editar" : "Configurar"}
+            </button>
+          </div>
+
+          {showConfig && (
+            <ConfigRecompensasForm
+              config={config}
+              onClose={() => setShowConfig(false)}
+              onSucesso={(m) => { setShowConfig(false); onSucesso(m); }}
+              onErro={onErro}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Lista de pendentes */}
+      <div>
+        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">
+          Pendentes de pagamento ({recompensas.length})
+        </div>
+        {recompensas.length === 0 ? (
+          <div className="card p-8 text-center">
+            <Gift className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" aria-hidden="true" />
+            <p className="text-sm text-muted-foreground">Sem recompensas pendentes.</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Indicações que viraram clientes aparecem aqui quando há valor a pagar.
+            </p>
+          </div>
+        ) : (
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                <tr>
+                  <th className="text-left px-3 py-2 font-semibold">Embaixador</th>
+                  <th className="text-left px-3 py-2 font-semibold">Cliente fechado</th>
+                  <th className="text-left px-3 py-2 font-semibold">Tipo</th>
+                  <th className="text-right px-3 py-2 font-semibold">Valor a pagar</th>
+                  <th className="text-right px-3 py-2 font-semibold">Fechou em</th>
+                  <th className="text-right px-3 py-2 font-semibold">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {recompensas.map((r) => (
+                  <tr key={r.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
+                    <td className="px-3 py-2 text-xs">
+                      {r.embaixador_lead_id ? (
+                        <Link href={`/pipeline/${r.embaixador_lead_id}`} className="hover:text-primary">
+                          {r.embaixador_empresa ?? r.embaixador_nome}
+                        </Link>
+                      ) : (
+                        <span className="italic">{r.embaixador_externo_nome}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {r.lead_convertido_id ? (
+                        <Link href={`/pipeline/${r.lead_convertido_id}`} className="hover:text-primary">
+                          {r.lead_convertido_empresa ?? r.indicado_nome}
+                        </Link>
+                      ) : (
+                        r.indicado_nome
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                      {r.recompensa_tipo ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-warning-500">
+                      {r.recompensa_valor != null ? formatBRL(r.recompensa_valor) : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs text-muted-foreground tabular-nums">
+                      {r.data_fechado ? fmtData(r.data_fechado, locale) : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        onClick={() => handlePagar(r.id)}
+                        disabled={pending || !r.recompensa_valor}
+                        className="btn-primary text-xs"
+                      >
+                        Marcar como paga
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-    );
+
+      {/* Histórico (collapse) */}
+      {historicoPagas.length > 0 && (
+        <details className="card p-3">
+          <summary className="text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none font-medium">
+            Histórico de pagas ({historicoPagas.length})
+          </summary>
+          <table className="w-full text-xs mt-2">
+            <thead className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/70">
+              <tr>
+                <th className="text-left py-1">Embaixador</th>
+                <th className="text-left py-1">Cliente</th>
+                <th className="text-right py-1">Valor</th>
+                <th className="text-right py-1">Pago em</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {historicoPagas.slice(0, 50).map((r) => (
+                <tr key={r.id}>
+                  <td className="py-1 text-muted-foreground">{r.embaixador_empresa ?? r.embaixador_nome ?? "—"}</td>
+                  <td className="py-1 text-muted-foreground">{r.lead_convertido_empresa ?? r.indicado_nome}</td>
+                  <td className="py-1 text-right text-success-500 font-semibold tabular-nums">
+                    {r.recompensa_valor != null ? formatBRL(r.recompensa_valor) : "—"}
+                  </td>
+                  <td className="py-1 text-right text-muted-foreground tabular-nums">
+                    {r.recompensa_paga_em ? fmtData(r.recompensa_paga_em, locale) : "—"}
+                  </td>
+                  <td className="py-1 text-right">
+                    {isGestor && (
+                      <button
+                        onClick={() => handleReverter(r.id)}
+                        disabled={pending}
+                        className="text-[10px] text-muted-foreground hover:text-destructive"
+                      >
+                        Reverter
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function RecompensaKpi({ label, value, sub, tone }: {
+  label: string;
+  value: string;
+  sub: string;
+  tone?: "success" | "warning" | "default";
+}) {
+  const cls =
+    tone === "success" ? "text-success-500" :
+    tone === "warning" ? "text-warning-500" :
+    "text-foreground";
+  return (
+    <div className="card p-3">
+      <div className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground">{label}</div>
+      <div className={`text-xl font-semibold tabular-nums mt-0.5 ${cls}`}>{value}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>
+    </div>
+  );
+}
+
+function ConfigRecompensasForm({ config, onClose, onSucesso, onErro }: {
+  config: OrgRecompensaConfig | null;
+  onClose: () => void;
+  onSucesso: (m: string) => void;
+  onErro: (e: unknown) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [form, setForm] = useState({
+    ativo: config?.ativo ?? false,
+    valor_virou_lead: config?.valor_virou_lead ?? 0,
+    valor_fechado: config?.valor_fechado ?? 0,
+    tipo_default: (config?.tipo_default ?? "credito") as RecompensaTipo,
+    mensagem_recompensa: config?.mensagem_recompensa ?? "",
+    limite_mensal: config?.limite_mensal_por_embaixador ?? "",
+  });
+
+  function handleSalvar() {
+    startTransition(async () => {
+      try {
+        await configurarRecompensas({
+          ativo: form.ativo,
+          valor_virou_lead: Number(form.valor_virou_lead) || 0,
+          valor_fechado: Number(form.valor_fechado) || 0,
+          tipo_default: form.tipo_default,
+          mensagem_recompensa: form.mensagem_recompensa || null,
+          limite_mensal_por_embaixador:
+            form.limite_mensal !== "" ? Number(form.limite_mensal) : null,
+        });
+        onSucesso("Programa atualizado.");
+      } catch (e) { onErro(e); }
+    });
   }
 
   return (
-    <div className="card overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-          <tr>
-            <th className="text-left px-3 py-2 font-semibold">Embaixador</th>
-            <th className="text-left px-3 py-2 font-semibold">Cliente fechado</th>
-            <th className="text-right px-3 py-2 font-semibold">Valor</th>
-            <th className="text-right px-3 py-2 font-semibold">Data fech.</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {recompensas.map((r) => (
-            <tr key={r.id}>
-              <td className="px-3 py-2 text-xs">
-                {r.embaixador_lead_id ? (
-                  <Link href={`/pipeline/${r.embaixador_lead_id}`} className="hover:text-primary">
-                    {r.embaixador_empresa ?? r.embaixador_nome}
-                  </Link>
-                ) : (
-                  <span className="italic">{r.embaixador_externo_nome}</span>
-                )}
-              </td>
-              <td className="px-3 py-2 text-xs">
-                <Link href={`/pipeline/${r.lead_convertido_id}`} className="hover:text-primary">
-                  {r.lead_convertido_empresa ?? r.indicado_nome}
-                </Link>
-              </td>
-              <td className="px-3 py-2 text-right text-sm tabular-nums">
-                {formatBRL(r.lead_convertido_valor ?? 0)}
-              </td>
-              <td className="px-3 py-2 text-right text-xs text-muted-foreground tabular-nums">
-                {r.data_fechado ? fmtData(r.data_fechado, locale) : "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="p-3 border-t border-border text-[11px] text-muted-foreground italic text-center">
-        UI de pagamento de recompensa virá na fase 2.
+    <div className="mt-4 pt-4 border-t border-border space-y-3">
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.ativo}
+          onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
+        />
+        <span>
+          <strong>Programa ativo</strong>
+          <span className="text-xs text-muted-foreground ml-2">
+            (valores são preenchidos automaticamente em indicações que viram lead/fechado)
+          </span>
+        </span>
+      </label>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="label text-xs">Valor por lead novo (R$)</label>
+          <input
+            type="number"
+            min={0}
+            value={form.valor_virou_lead}
+            onChange={(e) => setForm({ ...form, valor_virou_lead: parseFloat(e.target.value || "0") })}
+            className="input-base text-sm mt-1"
+            aria-label="Valor por lead novo"
+          />
+        </div>
+        <div>
+          <label className="label text-xs">Valor por fechamento (R$)</label>
+          <input
+            type="number"
+            min={0}
+            value={form.valor_fechado}
+            onChange={(e) => setForm({ ...form, valor_fechado: parseFloat(e.target.value || "0") })}
+            className="input-base text-sm mt-1"
+            aria-label="Valor por fechamento"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="label text-xs">Tipo de recompensa</label>
+          <select
+            value={form.tipo_default}
+            onChange={(e) => setForm({ ...form, tipo_default: e.target.value as RecompensaTipo })}
+            className="input-base !text-sm mt-1"
+            aria-label="Tipo de recompensa"
+          >
+            <option value="credito">Crédito (em conta)</option>
+            <option value="desconto_renovacao">Desconto na renovação</option>
+            <option value="produto">Produto/serviço</option>
+            <option value="dinheiro">Dinheiro / Pix</option>
+            <option value="nenhum">Sem recompensa</option>
+          </select>
+        </div>
+        <div>
+          <label className="label text-xs">Limite mensal por embaixador (opcional)</label>
+          <input
+            type="number"
+            min={0}
+            placeholder="(sem limite)"
+            value={form.limite_mensal}
+            onChange={(e) => setForm({ ...form, limite_mensal: e.target.value })}
+            className="input-base text-sm mt-1"
+            aria-label="Limite mensal"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="label text-xs">
+          Mensagem do programa (aparece no portal /indicar/{`{token}`})
+        </label>
+        <textarea
+          value={form.mensagem_recompensa}
+          onChange={(e) => setForm({ ...form, mensagem_recompensa: e.target.value })}
+          maxLength={500}
+          placeholder="Ex: 'A cada cliente que fecha por sua indicação, você ganha R$ 500 de crédito na próxima renovação.'"
+          className="input-base mt-1 min-h-[60px] text-sm"
+          aria-label="Mensagem do programa"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        <button onClick={onClose} className="btn-ghost text-sm">Cancelar</button>
+        <button onClick={handleSalvar} disabled={pending} className="btn-primary text-sm">
+          {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
+          Salvar configuração
+        </button>
       </div>
     </div>
   );

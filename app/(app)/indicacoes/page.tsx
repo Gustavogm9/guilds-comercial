@@ -9,6 +9,8 @@ import type {
   AdvocacyKpis,
   TopEmbaixador,
   EmbaixadorToken,
+  OrgRecompensaConfig,
+  RecompensasResumo,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +54,10 @@ export default async function IndicacoesPage(props: {
     ? indicacoesBase
     : indicacoesBase.eq("solicitado_por", respFiltro);
 
-  const [pendentesRes, indicacoesRes, embaixadoresRes, kpisRes, tokensRes] = await Promise.all([
+  const [
+    pendentesRes, indicacoesRes, embaixadoresRes, kpisRes, tokensRes,
+    recompensaConfigRes, recompensasResumoRes,
+  ] = await Promise.all([
     pendentesQuery,
     indicacoesQuery,
     supabase.from("v_top_embaixadores")
@@ -64,11 +69,19 @@ export default async function IndicacoesPage(props: {
       .select("*")
       .eq("organizacao_id", orgId)
       .maybeSingle(),
-    // P6: tokens de portal embaixador (pra cada embaixador, mostra "Gerar link" ou link existente)
     supabase.from("v_embaixador_tokens")
       .select("*")
       .eq("organizacao_id", orgId)
       .limit(200),
+    // Item 5: config de recompensas + KPIs
+    supabase.from("org_recompensa_config")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .maybeSingle(),
+    supabase.from("v_recompensas_resumo")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .maybeSingle(),
   ]);
 
   // baseUrl pra montar links públicos do portal /indicar/{token}
@@ -84,6 +97,8 @@ export default async function IndicacoesPage(props: {
       kpis={(kpisRes.data ?? null) as AdvocacyKpis | null}
       tokensEmbaixador={(tokensRes.data ?? []) as EmbaixadorToken[]}
       baseUrl={baseUrl}
+      recompensaConfig={(recompensaConfigRes.data ?? null) as OrgRecompensaConfig | null}
+      recompensasResumo={(recompensasResumoRes.data ?? null) as RecompensasResumo | null}
     />
   );
 }

@@ -1023,3 +1023,33 @@ export interface EmbaixadorPortalContext {
   qtd_minhas_indicacoes: number;
   qtd_minhas_que_fecharam: number;
 }
+
+// Programa de recompensas (item 5 do polish)
+export interface OrgRecompensaConfig {
+  organizacao_id: string;
+  ativo: boolean;
+  valor_virou_lead: number;
+  valor_fechado: number;
+  tipo_default: RecompensaTipo;
+  mensagem_recompensa: string | null;
+  limite_mensal_por_embaixador: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecompensasResumo {
+  organizacao_id: string;
+  total_com_recompensa: number;
+  total_pagas: number;
+  total_pendentes: number;
+  total_valor_pago: number;
+  total_valor_pendente: number;
+}
+
+export interface ProgramaRecompensaPortal {
+  programa_ativo: boolean;
+  valor_virou_lead: number;
+  valor_fechado: number;
+  tipo_default: RecompensaTipo;
+  mensagem_recompensa: string | null;
+}
