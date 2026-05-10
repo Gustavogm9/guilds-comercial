@@ -87,10 +87,12 @@ export default async function PipelinePage(
           isGestor={isGestor}
           membros={membros}
           segmentos={segmentos}
+          produtos={[]}
           respFiltro={respFiltro}
           qFiltro={searchParams.q ?? ""}
           segFiltro={searchParams.seg ?? ""}
           tempFiltro={searchParams.temp ?? ""}
+          prodFiltro={(searchParams as any).prod ?? ""}
           viewMode={viewMode}
           leads={(leads ?? []) as LeadEnriched[]}
         />
