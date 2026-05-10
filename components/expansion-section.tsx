@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Rocket, TrendingUp, DollarSign, Target, ArrowRight } from "lucide-react";
+import { Rocket, TrendingUp, DollarSign, Target, ArrowRight, Repeat, AlertTriangle } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
-import type { ExpansoesResumo, HealthResumo } from "@/lib/types";
+import type { ExpansoesResumo, HealthResumo, RenovacoesResumo } from "@/lib/types";
 
 /**
  * Seção "Expansão / NRR" do /funil — KPIs do P4 do flywheel.
@@ -18,10 +18,12 @@ import type { ExpansoesResumo, HealthResumo } from "@/lib/types";
 export default function ExpansionSection({
   resumo,
   healthResumo,
+  renovacoesResumo,
   currency = "BRL",
 }: {
   resumo: ExpansoesResumo | null;
   healthResumo: HealthResumo | null;
+  renovacoesResumo?: RenovacoesResumo | null;
   currency?: string;
 }) {
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -107,6 +109,48 @@ export default function ExpansionSection({
             sub={`${resumo?.dias_medio_fechar ? Math.round(resumo.dias_medio_fechar) + "d" : "—"} médio fechar`}
             icon={<Target className="w-4 h-4" />}
           />
+        </div>
+      )}
+
+      {/* Sub-bloco renovações — só aparece se tem dados de renovação */}
+      {renovacoesResumo && renovacoesResumo.total_clientes_recorrentes > 0 && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Repeat className="w-3 h-3" aria-hidden="true" /> Renovações
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <KpiCard
+              label="Recorrentes"
+              value={renovacoesResumo.total_clientes_recorrentes.toString()}
+              sub="clientes com data setada"
+              icon={<Repeat className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Próximas 30d"
+              value={renovacoesResumo.renovacoes_proximas_30d.toString()}
+              sub={`${renovacoesResumo.renovacoes_proximas_90d} em 90d`}
+              icon={<Target className="w-4 h-4" />}
+              tone={renovacoesResumo.renovacoes_proximas_30d > 0 ? "primary" : "default"}
+            />
+            <KpiCard
+              label="ARR em renovação"
+              value={fmt(renovacoesResumo.arr_em_renovacao_90d)}
+              sub="próximos 90d"
+              icon={<DollarSign className="w-4 h-4" />}
+              tone="success"
+            />
+            <KpiCard
+              label="Taxa renovação"
+              value={renovacoesResumo.taxa_renovacao_pct != null ? `${renovacoesResumo.taxa_renovacao_pct}%` : "—"}
+              sub={
+                renovacoesResumo.renovacoes_vencidas > 0
+                  ? `${renovacoesResumo.renovacoes_vencidas} vencida(s)`
+                  : "últimos 12 meses"
+              }
+              icon={<AlertTriangle className="w-4 h-4" />}
+              tone={renovacoesResumo.renovacoes_vencidas > 0 ? "primary" : "success"}
+            />
+          </div>
         </div>
       )}
     </section>

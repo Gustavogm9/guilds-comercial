@@ -10,7 +10,8 @@ import PedidosIndicacaoAlert, { type PedidoPendenteHoje } from "@/components/ped
 import NpsPendenteAlert, { type NpsPendenteHoje } from "@/components/nps-pendente-alert";
 import HealthEmRiscoAlert, { type HealthEmRiscoHoje } from "@/components/health-em-risco-alert";
 import ExpansoesAtrasadasAlert, { type ExpansaoAtrasadaHoje } from "@/components/expansoes-atrasadas-alert";
-import type { LeadEnriched, TopOportunidade } from "@/lib/types";
+import RenovacoesProximasAlert, { type RenovacaoProximaHoje } from "@/components/renovacoes-proximas-alert";
+import type { LeadEnriched, TopOportunidade, UrgenciaRenovacao } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp, Upload, UserPlus, Kanban, X } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
 import { getServerLocale, getT, type Locale } from "@/lib/i18n";
@@ -123,6 +124,16 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     .limit(20);
   if (!isGestor || !verTodos) qExpansoesAtrasadas = qExpansoesAtrasadas.eq("responsavel_id", me.id);
 
+  // Renovações urgentes (vencidas, críticas <=7d, urgentes <=30d). 30-90d ficam só em /pos-venda
+  let qRenovacoes = supabase
+    .from("v_renovacoes_proximas")
+    .select("lead_id, cliente_empresa, cliente_nome, data_renovacao, dias_ate_renovacao, urgencia, valor_previsto, tem_expansao_ativa, responsavel_id")
+    .eq("organizacao_id", orgId)
+    .in("urgencia", ["vencida", "critica", "urgente"])
+    .order("dias_ate_renovacao", { ascending: true })
+    .limit(20);
+  if (!isGestor || !verTodos) qRenovacoes = qRenovacoes.eq("responsavel_id", me.id);
+
   const [
     { data: leads },
     { data: topData },
@@ -130,7 +141,8 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     { data: npsData },
     { data: healthData },
     { data: expansoesData },
-  ] = await Promise.all([q, qTop, qPedidos, qNpsPendentes, qHealthRisco, qExpansoesAtrasadas]);
+    { data: renovacoesData },
+  ] = await Promise.all([q, qTop, qPedidos, qNpsPendentes, qHealthRisco, qExpansoesAtrasadas, qRenovacoes]);
   const all = (leads ?? []) as LeadEnriched[];
   const top = (topData ?? []) as TopOportunidade[];
   const pedidosIndicacao = ((pedidosData ?? []) as Array<{
@@ -196,6 +208,25 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     dias_atrasada: e.dias_atrasada,
     valor_potencial: e.valor_potencial,
     estagio: e.estagio,
+  }));
+  const renovacoesProximas = ((renovacoesData ?? []) as Array<{
+    lead_id: number;
+    cliente_empresa: string | null;
+    cliente_nome: string | null;
+    data_renovacao: string;
+    dias_ate_renovacao: number;
+    urgencia: UrgenciaRenovacao;
+    valor_previsto: number;
+    tem_expansao_ativa: boolean;
+  }>).map<RenovacaoProximaHoje>((r) => ({
+    lead_id: r.lead_id,
+    cliente_empresa: r.cliente_empresa,
+    cliente_nome: r.cliente_nome,
+    data_renovacao: r.data_renovacao,
+    dias_ate_renovacao: r.dias_ate_renovacao,
+    urgencia: r.urgencia,
+    valor_previsto: r.valor_previsto,
+    tem_expansao_ativa: r.tem_expansao_ativa,
   }));
 
   // --------------------------------------------------------
@@ -324,6 +355,9 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
 
       {/* Expansões com próxima ação atrasada — pipeline pós-venda parado */}
       <ExpansoesAtrasadasAlert expansoes={expansoesAtrasadas} />
+
+      {/* Renovações iminentes (vencida, ≤7d, ≤30d) — receita garantida no horizonte curto */}
+      <RenovacoesProximasAlert renovacoes={renovacoesProximas} />
 
       {/* Banner de boas-vindas para colaboradores recém-convidados */}
       {isWelcome && (

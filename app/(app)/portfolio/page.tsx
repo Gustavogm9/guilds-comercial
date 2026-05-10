@@ -3,7 +3,12 @@ import { getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import { BookOpen } from "lucide-react";
 import PortfolioClient from "./portfolio-client";
-import { listarProdutos, listarCases, listarHipoteses, listarPropostas } from "./actions";
+import {
+  listarProdutos, listarCases, listarHipoteses, listarPropostas,
+} from "./actions";
+import {
+  listarMetricasProdutos, listarProjetosProprios,
+} from "./actions-sprint10";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +20,13 @@ export default async function PortfolioPage() {
   if (!orgId) redirect("/hoje");
 
   // Carrega tudo em paralelo
-  const [produtos, cases, hipoteses, propostas] = await Promise.all([
+  const [produtos, cases, hipoteses, propostas, metricas, projetos] = await Promise.all([
     listarProdutos(),
     listarCases(),
     listarHipoteses(),
     listarPropostas(),
+    listarMetricasProdutos(),
+    listarProjetosProprios(),
   ]);
 
   return (
@@ -32,7 +39,7 @@ export default async function PortfolioPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Portfolio & ICP Lab</h1>
           <p className="text-sm text-muted-foreground">
-            Gerencie seus produtos, cases e teste hipóteses de ICP para descobrir o melhor perfil de cliente.
+            Produtos, projetos, cases, hipóteses de ICP, métricas de conversão e propostas — tudo num só lugar.
           </p>
         </div>
       </div>
@@ -42,6 +49,8 @@ export default async function PortfolioPage() {
         cases={cases}
         hipoteses={hipoteses}
         propostas={propostas}
+        metricas={metricas}
+        projetos={projetos}
       />
     </div>
   );

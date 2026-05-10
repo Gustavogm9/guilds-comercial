@@ -5,7 +5,7 @@ import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supab
 import FunilSectionExport from "@/components/funil-section-export";
 import AdvocacySection from "@/components/advocacy-section";
 import ExpansionSection from "@/components/expansion-section";
-import type { CrmStage, ForecastMes, AdvocacyKpis, TopEmbaixador, ExpansoesResumo, HealthResumo } from "@/lib/types";
+import type { CrmStage, ForecastMes, AdvocacyKpis, TopEmbaixador, ExpansoesResumo, HealthResumo, RenovacoesResumo } from "@/lib/types";
 import {
   TrendingDown, TrendingUp, Clock, DollarSign,
   Users, AlertTriangle, Target, Percent, Sparkles, Gauge
@@ -102,6 +102,8 @@ export default async function FunilPage(
     supabase.from("v_expansoes_resumo").select("*").eq("organizacao_id", orgId).maybeSingle(),
     // P3: usado pra contar clientes ativos (denominador do NRR proxy)
     supabase.from("v_health_resumo").select("*").eq("organizacao_id", orgId).maybeSingle(),
+    // P5: KPIs de renovação automática
+    supabase.from("v_renovacoes_resumo").select("*").eq("organizacao_id", orgId).maybeSingle(),
   ]);
 
   const forecast = (forecastRes.data ?? []) as ForecastMes[];

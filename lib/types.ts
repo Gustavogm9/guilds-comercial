@@ -368,6 +368,12 @@ export interface Lead {
   percepcao_vendedor: PercepcaoVendedor | null;
   /** Liga o lead à indicação que o originou (NULL = lead não veio de indicação). */
   indicacao_id: number | null;
+  /** Data de vencimento do contrato. Cron diário cria expansão tipo='renovacao' quando <= 90d. */
+  data_renovacao: string | null;
+  /** Ciclo recorrente em meses. Quando renovação fecha, data_renovacao avança automaticamente. */
+  ciclo_renovacao_meses: number | null;
+  /** Valor previsto da próxima renovação (default = valor_potencial). */
+  valor_renovacao: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -942,4 +948,41 @@ export interface ExpansaoAtrasada {
   cliente_empresa: string | null;
   cliente_nome: string | null;
   dias_atrasada: number;
+}
+
+// =============================================================================
+// Renovações automáticas (P5 do flywheel)
+// =============================================================================
+
+export type UrgenciaRenovacao =
+  | "vencida"
+  | "critica"   // <= 7 dias
+  | "urgente"   // <= 30 dias
+  | "proxima"   // <= 60 dias
+  | "futura"    // <= 90 dias
+  | "distante"; // > 90 dias
+
+export interface RenovacaoProxima {
+  lead_id: number;
+  organizacao_id: string;
+  cliente_empresa: string | null;
+  cliente_nome: string | null;
+  responsavel_id: string | null;
+  data_renovacao: string;
+  ciclo_renovacao_meses: number | null;
+  valor_previsto: number;
+  dias_ate_renovacao: number;
+  urgencia: UrgenciaRenovacao;
+  tem_expansao_ativa: boolean;
+  responsavel_nome: string | null;
+}
+
+export interface RenovacoesResumo {
+  organizacao_id: string;
+  total_clientes_recorrentes: number;
+  renovacoes_proximas_90d: number;
+  renovacoes_proximas_30d: number;
+  renovacoes_vencidas: number;
+  taxa_renovacao_pct: number | null;
+  arr_em_renovacao_90d: number;
 }

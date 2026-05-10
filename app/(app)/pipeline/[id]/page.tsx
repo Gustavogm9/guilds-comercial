@@ -7,6 +7,7 @@ import LeadScoreCard from "@/components/lead-score-card";
 import CadenciaPassoCard from "@/components/cadencia-passo-card";
 import NextActionCard from "@/components/next-action-card";
 import PedidoIndicacaoBanner from "@/components/pedido-indicacao-banner";
+import RenovacaoConfigCard from "@/components/renovacao-config-card";
 import LeadTimeline360 from "@/components/lead-timeline-360";
 import type { TimelineEvento } from "@/components/lead-timeline-360";
 import { STAGE_COLORS } from "@/lib/lists";
@@ -208,6 +209,18 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
           )}
           {/* Card de próxima ação recomendada por etapa — orienta o vendedor */}
           <NextActionCard crmStage={lead.crm_stage} leadId={lead.id} />
+
+          {/* P5: Configuração de renovação automática (só aparece em Fechado) */}
+          <RenovacaoConfigCard
+            lead={{
+              lead_id: lead.id,
+              crm_stage: lead.crm_stage,
+              data_renovacao: (lead as any).data_renovacao ?? null,
+              ciclo_renovacao_meses: (lead as any).ciclo_renovacao_meses ?? null,
+              valor_renovacao: (lead as any).valor_renovacao ?? null,
+              valor_potencial: lead.valor_potencial ?? null,
+            }}
+          />
         </div>
 
         {/* Dados do lead */}
