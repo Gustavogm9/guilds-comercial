@@ -117,9 +117,11 @@ async function callMaestro(history: any[], lastUserMessage: any[]) {
   
 ESPECIALISTAS DISPONÍVEIS:
 - AGENT_CRM: Lida com pipeline de vendas, criação de leads, agendamento de tarefas/cadência e timeline.
-- AGENT_PROSPECCAO: Lida com disparo de campanhas em massa (motor de inteligência lookalike).
-- AGENT_FLYWHEEL: Lida com indicações e embaixadores.
-- AGENT_UNIVERSAL: Assuntos genéricos ou cruzados.
+- AGENT_PROSPECCAO: Lida com campanhas em massa (motor de inteligência lookalike).
+- AGENT_PORTFOLIO: Lida com listar produtos, gerenciar propostas e ICP.
+- AGENT_FLYWHEEL: Lida com indicações, embaixadores e recompensas.
+- AGENT_ADMINISTRATIVO: Lida com webhooks, chaves de API, health score e convites.
+- AGENT_UNIVERSAL: Assuntos genéricos ou comandos que cruzam domínios de forma inseparável.
 
 SEU PAPEL:
 Pense silenciosamente sobre TODOS os passos. Formate ESTRITAMENTE como JSON, sem marcações markdown:
