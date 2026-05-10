@@ -27,10 +27,11 @@ export async function POST(req: NextRequest) {
     const orgId = await getCurrentOrgId();
     if (!orgId) return NextResponse.json({ erro: "Sem organização ativa." }, { status: 403 });
 
-    const { leads, job_id, hipotese_id, iniciar_cadencia = false } = await req.json() as {
+    const { leads, job_id, hipotese_id, produto_id, iniciar_cadencia = false } = await req.json() as {
       leads: EmpresaEnriquecida[];
       job_id?: number;
       hipotese_id?: number;
+      produto_id?: number;
       iniciar_cadencia?: boolean;
     };
 
@@ -108,6 +109,17 @@ export async function POST(req: NextRequest) {
             objetivo:       "Primeiro contato",
             data_prevista:  agora.slice(0, 10),
             status:         "pendente",
+          });
+        }
+
+        // Vincula ao pipeline do produto se campanha for de produto
+        if (produto_id) {
+          await supabase.from("lead_produtos").insert({
+            lead_id: novo.id,
+            produto_id: produto_id,
+            status: "ativo",
+            atribuido_em: agora,
+            atribuido_por: me.id,
           });
         }
       }

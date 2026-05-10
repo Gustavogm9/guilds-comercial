@@ -1,6 +1,7 @@
 "use server";
 
 import { invokeAI } from "@/lib/ai/dispatcher";
+import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 
 /**
  * Processa transcrição de ligação via IA (feature `extrair_ligacao`, JSON mode).
@@ -40,4 +41,32 @@ export async function processarLigacaoAIAcion(orgId: string, transcricaoBruta: s
   } catch (err: any) {
     return { error: err.message || "Erro ao processar ligação com IA." };
   }
+}
+
+/**
+ * Salva a extração da IA como um evento na timeline do lead.
+ */
+export async function salvarLigacaoIA(orgId: string, leadId: string, transcricao: string, resultado: any) {
+  const me = await getCurrentProfile();
+  if (!me) return { error: "Não autenticado." };
+  
+  const supabase = createClient();
+  
+  const { error } = await supabase.from("lead_timeline").insert({
+    organizacao_id: orgId,
+    lead_id: leadId,
+    tipo: "ligacao_ai_extracao",
+    titulo: `Copiloto de Ligação (${resultado.sentimento.toUpperCase()})`,
+    conteudo: resultado.resumo,
+    metadata: {
+      transcricao,
+      probabilidade_fechamento: resultado.probabilidade_fechamento,
+      objecoes: resultado.objecoes,
+      proximos_passos: resultado.proximos_passos
+    },
+    criado_por: me.id
+  });
+
+  if (error) return { error: error.message };
+  return { ok: true };
 }

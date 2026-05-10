@@ -304,3 +304,22 @@ export function aplicarFiltros<T extends LeadParaScore & {
     return true;
   });
 }
+
+/**
+ * Mapeia um ICP extraído via IA (JSON) para o formato FingerprintICP
+ */
+export function mapIcpToFingerprint(icp: any, totalGanhos: number): FingerprintICP {
+  const segs = typeof icp.segmento === "string" ? icp.segmento.split(/[,/]+/).map((s: string) => s.trim()) : [];
+  const cargos = Array.isArray(icp.cargos_decisores) ? icp.cargos_decisores : [];
+  
+  return {
+    segmentos_top: segs.map((s: string) => ({ valor: s, frequencia: 1, percentual: 100 })),
+    cidades_top: [], // ICP do produto geralmente foca em nicho/cargo
+    cargos_top: cargos.map((c: string) => ({ valor: c, frequencia: 1, percentual: 100 })),
+    valor_medio_brl: 0,
+    completude: { tem_email: 0, tem_whatsapp: 0, tem_linkedin: 0, tem_site: 0 },
+    total_base: 0,
+    total_ganhos: totalGanhos,
+    calculado_em: icp.ultimo_calculo || new Date().toISOString()
+  };
+}

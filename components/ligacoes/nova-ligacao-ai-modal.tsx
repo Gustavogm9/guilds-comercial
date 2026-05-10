@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Bot, FileText, PhoneCall, Save, X } from "lucide-react";
-import { processarLigacaoAIAcion } from "./actions";
+import { processarLigacaoAIAcion, salvarLigacaoIA } from "./actions";
 import AiOutputActions from "@/components/ai/ai-output-actions";
 import clsx from "clsx";
 
@@ -59,9 +59,16 @@ export default function NovaLigacaoAIModal({ orgId, leadId, onClose, onSaved }: 
   }
 
   async function handleSalvar() {
-    // Apenas simulação do salvar para o MVP
+    if (!leadId || !resultado) return;
     setLoading(true);
-    // await salvarNoBanco(resultado);
+    const res = await salvarLigacaoIA(orgId, leadId, transcricao, resultado);
+    if (res.error) {
+      alert(res.error);
+      setLoading(false);
+      return;
+    }
+    
+    // Sucesso
     setTimeout(() => {
       onSaved();
       onClose();

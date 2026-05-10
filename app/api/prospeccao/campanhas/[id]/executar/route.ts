@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
-import { computarFingerprint, gerarQueriesLookalike } from "@/lib/prospeccao-lookalike";
+import { computarFingerprint, gerarQueriesLookalike, mapIcpToFingerprint } from "@/lib/prospeccao-lookalike";
 import { buscarEmpresasPorNicho, estimarCusto } from "@/lib/prospeccao";
 
 export const runtime = "nodejs";
@@ -85,6 +85,19 @@ export async function POST(
         segmentos: cfg.segmentos ?? [],
         maxQueries,
       });
+    } else if (campanha.produto_id) {
+      // Busca o ICP do produto para usar no look-alike
+      const { data: p } = await supabase.from("produtos").select("icp_extraido").eq("id", campanha.produto_id).single();
+      if (p?.icp_extraido) {
+        fingerprint = mapIcpToFingerprint(p.icp_extraido, p.icp_extraido.amostras_usadas || 0);
+      } else {
+        fingerprint = await computarFingerprint(orgId);
+      }
+      queries = gerarQueriesLookalike(fingerprint, {
+        regioes:   cfg.regioes   ?? [],
+        segmentos: cfg.segmentos ?? [],
+        maxQueries,
+      });
     } else {
       fingerprint = await computarFingerprint(orgId);
       queries = gerarQueriesLookalike(fingerprint, {
@@ -147,6 +160,7 @@ export async function POST(
           })),
           job_id: null,
           hipotese_id: campanha.hipotese_id ?? null,
+          produto_id: campanha.produto_id ?? null,
           iniciar_cadencia: iniciarCadencia,
         }),
       }

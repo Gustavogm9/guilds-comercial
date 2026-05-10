@@ -131,13 +131,15 @@ export async function marcarRecompensaPaga(input: {
   if (error) throw error;
 
   // Audit no embaixador
+  // Audit no embaixador
   if (ind.embaixador_lead_id) {
-    await supabase.from("lead_evento").insert({
+    await supabase.from("lead_timeline").insert({
       organizacao_id: orgId,
       lead_id: ind.embaixador_lead_id,
-      ator_id: user?.id ?? null,
+      criado_por: user?.id ?? null,
       tipo: "recompensa_paga",
-      payload: {
+      titulo: `Recompensa paga (Indicação #${input.indicacao_id})`,
+      metadata: {
         indicacao_id: input.indicacao_id,
         valor: input.override_valor,
         tipo: input.override_tipo,

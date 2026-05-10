@@ -1,1 +1,1 @@
-﻿{"query": "alter table public.produtos add column if not exists icp_extraido jsonb;"}
+﻿{"query": "INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('20260506180000'), ('20260506190000'), ('20260506200000'), ('20260506210000'), ('20260506220000'), ('20260506230000'), ('20260510000000'), ('20260510000001'), ('20260510000002'), ('20260510000003'), ('20260510000004'), ('20260510000005'), ('20260510000006'), ('20260510000007'), ('20260510000008') ON CONFLICT DO NOTHING;"}
