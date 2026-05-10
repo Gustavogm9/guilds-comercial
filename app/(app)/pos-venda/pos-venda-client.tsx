@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   ListChecks, Star, Layers, Plus, X, ArrowRight,
   CheckCircle2, AlertCircle, Loader2, TrendingUp, Users,
-  AlertTriangle, MessageSquare,
+  AlertTriangle, MessageSquare, Heart,
 } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import type {
@@ -14,13 +14,16 @@ import type {
   NpsResponse,
   NpsResumo,
   CategoriaNps,
+  HealthScore,
+  HealthResumo,
+  CategoriaHealth,
 } from "@/lib/types";
 import {
   responderNps, descartarNpsPendente,
   criarTemplateOnboarding, adicionarItemTemplate, removerItemTemplate,
 } from "./actions";
 
-type Tab = "onboarding" | "nps" | "templates";
+type Tab = "onboarding" | "nps" | "saude" | "templates";
 type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
 type T = (key: string) => string;
 
@@ -40,6 +43,8 @@ export default function PosVendaClient({
   templateItens,
   npsResponses,
   npsResumo,
+  healthScores,
+  healthResumo,
 }: {
   meId: string;
   isGestor: boolean;
@@ -48,6 +53,8 @@ export default function PosVendaClient({
   templateItens: OnboardingTemplateItem[];
   npsResponses: NpsResponse[];
   npsResumo: NpsResumo | null;
+  healthScores: HealthScore[];
+  healthResumo: HealthResumo | null;
 }) {
   const [tab, setTab] = useState<Tab>("onboarding");
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -85,6 +92,9 @@ export default function PosVendaClient({
         <TabBtn v="nps" cur={tab} set={setTab}
           icon={<Star className="w-3.5 h-3.5" />}
           label={t("pos_venda.tab_nps")} />
+        <TabBtn v="saude" cur={tab} set={setTab}
+          icon={<Heart className="w-3.5 h-3.5" />}
+          label={`Saúde${healthResumo && healthResumo.em_risco > 0 ? ` (${healthResumo.em_risco})` : ""}`} />
         {isGestor && (
           <TabBtn v="templates" cur={tab} set={setTab}
             icon={<Layers className="w-3.5 h-3.5" />}
@@ -94,6 +104,7 @@ export default function PosVendaClient({
 
       {tab === "onboarding" && <OnboardingTab onboardings={onboardings} t={t} locale={locale} />}
       {tab === "nps" && <NpsTab responses={npsResponses} t={t} locale={locale} onSucesso={onSucesso} onErro={onErro} />}
+      {tab === "saude" && <SaudeTab scores={healthScores} resumo={healthResumo} t={t} locale={locale} />}
       {tab === "templates" && isGestor && (
         <TemplatesTab
           templates={templates}
@@ -807,6 +818,149 @@ function FeedbackToast({ feedback, onClose }: { feedback: Feedback; onClose: () 
         <X className="w-4 h-4" />
       </button>
     </div>
+  );
+}
+
+// ======================== Tab Saúde (Health Score) ========================
+function SaudeTab({ scores, resumo, t, locale }: {
+  scores: HealthScore[];
+  resumo: HealthResumo | null;
+  t: T;
+  locale: Locale;
+}) {
+  if (!resumo || resumo.total_fechados === 0) {
+    return (
+      <div className="card p-12 text-center">
+        <Heart className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">
+          Sem clientes fechados ainda. O health score aparece aqui depois do primeiro fechamento.
+        </p>
+      </div>
+    );
+  }
+
+  const fmtBRL = (v: number) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <KpiCard
+          label="Score médio"
+          value={resumo.score_medio != null ? `${resumo.score_medio}` : "—"}
+          sub={`/100 · ${resumo.total_fechados} clientes`}
+          icon={<Heart className="w-4 h-4" />}
+          tone={
+            resumo.score_medio != null && resumo.score_medio >= 70 ? "success" :
+            "primary"
+          }
+        />
+        <KpiCard
+          label="Saudáveis"
+          value={resumo.saudaveis.toString()}
+          sub="score ≥ 70"
+          icon={<TrendingUp className="w-4 h-4" />}
+          tone="success"
+        />
+        <KpiCard
+          label="Atenção"
+          value={resumo.atencao.toString()}
+          sub="score 40-69"
+          icon={<AlertTriangle className="w-4 h-4" />}
+        />
+        <KpiCard
+          label="Em risco"
+          value={resumo.em_risco.toString()}
+          sub={`${fmtBRL(resumo.arr_em_risco)} ARR em risco`}
+          icon={<AlertCircle className="w-4 h-4" />}
+          tone="primary"
+        />
+      </div>
+
+      <div className="card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+            <tr>
+              <th className="text-left px-3 py-2 font-semibold">Cliente</th>
+              <th className="text-left px-3 py-2 font-semibold">Score</th>
+              <th className="text-left px-3 py-2 font-semibold">Categoria</th>
+              <th className="text-right px-3 py-2 font-semibold">Sem contato</th>
+              <th className="text-right px-3 py-2 font-semibold">NPS</th>
+              <th className="text-right px-3 py-2 font-semibold">Indicações</th>
+              <th className="text-right px-3 py-2 font-semibold">Valor</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {scores.map((s) => (
+              <tr key={s.lead_id} className={`hover:bg-secondary/60 dark:hover:bg-white/[0.04] ${s.categoria === "em_risco" ? "bg-destructive/[0.03]" : ""}`}>
+                <td className="px-3 py-2 font-medium">
+                  <Link href={`/pipeline/${s.lead_id}`} className="hover:text-primary transition-colors">
+                    {s.lead_empresa ?? s.lead_nome ?? `Lead #${s.lead_id}`}
+                  </Link>
+                </td>
+                <td className="px-3 py-2">
+                  <ScoreBar score={s.health_score} categoria={s.categoria} />
+                </td>
+                <td className="px-3 py-2">
+                  <CategoriaHealthBadge cat={s.categoria} />
+                </td>
+                <td className="px-3 py-2 text-right text-xs tabular-nums">
+                  <span className={s.dias_sem_interacao > 30 ? "text-destructive font-semibold" : "text-muted-foreground"}>
+                    {s.dias_sem_interacao}d
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-right text-xs tabular-nums">
+                  {s.ultimo_nps_score != null ? s.ultimo_nps_score : <span className="text-muted-foreground/60">—</span>}
+                </td>
+                <td className="px-3 py-2 text-right text-xs tabular-nums">
+                  {s.indicacoes_dadas > 0 ? (
+                    <span className="text-success-500 font-semibold">{s.indicacoes_dadas}</span>
+                  ) : (
+                    <span className="text-muted-foreground/60">0</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+                  {fmtBRL(s.valor_potencial ?? 0)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function ScoreBar({ score, categoria }: { score: number; categoria: CategoriaHealth }) {
+  const color =
+    categoria === "saudavel" ? "bg-success-500" :
+    categoria === "atencao" ? "bg-warning-500" :
+    "bg-destructive";
+  return (
+    <div className="flex items-center gap-2 min-w-[120px]">
+      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden max-w-24">
+        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${Math.max(2, score)}%` }} />
+      </div>
+      <span className="text-xs tabular-nums font-semibold w-8 text-right">{score}</span>
+    </div>
+  );
+}
+
+function CategoriaHealthBadge({ cat }: { cat: CategoriaHealth }) {
+  const cls = {
+    saudavel: "bg-success-500/15 text-success-500 border border-success-500/30",
+    atencao: "bg-warning-500/15 text-warning-500 border border-warning-500/30",
+    em_risco: "bg-destructive/15 text-destructive border border-destructive/30",
+  }[cat];
+  const label = {
+    saudavel: "Saudável",
+    atencao: "Atenção",
+    em_risco: "Em risco",
+  }[cat];
+  return (
+    <span className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-1.5 py-0.5 rounded ${cls}`}>
+      {label}
+    </span>
   );
 }
 

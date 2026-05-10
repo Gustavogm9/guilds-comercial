@@ -8,6 +8,7 @@ import ActivationChecklist from "@/components/activation-checklist";
 import FollowupProposalAlert from "@/components/followup-proposal-alert";
 import PedidosIndicacaoAlert, { type PedidoPendenteHoje } from "@/components/pedidos-indicacao-alert";
 import NpsPendenteAlert, { type NpsPendenteHoje } from "@/components/nps-pendente-alert";
+import HealthEmRiscoAlert, { type HealthEmRiscoHoje } from "@/components/health-em-risco-alert";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp, Upload, UserPlus, Kanban, X } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
@@ -102,9 +103,23 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     .limit(20);
   if (!isGestor || !verTodos) qNpsPendentes = qNpsPendentes.eq("lead_responsavel_id", me.id);
 
-  const [{ data: leads }, { data: topData }, { data: pedidosData }, { data: npsData }] = await Promise.all([
-    q, qTop, qPedidos, qNpsPendentes,
-  ]);
+  // Clientes em risco de churn (health_score < 40)
+  let qHealthRisco = supabase
+    .from("v_health_score")
+    .select("lead_id, lead_empresa, lead_nome, health_score, dias_sem_interacao, lead_responsavel_id")
+    .eq("organizacao_id", orgId)
+    .eq("categoria", "em_risco")
+    .order("health_score", { ascending: true })
+    .limit(20);
+  if (!isGestor || !verTodos) qHealthRisco = qHealthRisco.eq("lead_responsavel_id", me.id);
+
+  const [
+    { data: leads },
+    { data: topData },
+    { data: pedidosData },
+    { data: npsData },
+    { data: healthData },
+  ] = await Promise.all([q, qTop, qPedidos, qNpsPendentes, qHealthRisco]);
   const all = (leads ?? []) as LeadEnriched[];
   const top = (topData ?? []) as TopOportunidade[];
   const pedidosIndicacao = ((pedidosData ?? []) as Array<{
@@ -136,6 +151,19 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     lead_nome: n.lead_nome,
     solicitado_em: n.solicitado_em,
     dias_pendente: n.dias_pendente,
+  }));
+  const healthRisco = ((healthData ?? []) as Array<{
+    lead_id: number;
+    lead_empresa: string | null;
+    lead_nome: string | null;
+    health_score: number;
+    dias_sem_interacao: number;
+  }>).map<HealthEmRiscoHoje>((h) => ({
+    lead_id: h.lead_id,
+    lead_empresa: h.lead_empresa,
+    lead_nome: h.lead_nome,
+    health_score: h.health_score,
+    dias_sem_interacao: h.dias_sem_interacao,
   }));
 
   // --------------------------------------------------------
@@ -258,6 +286,9 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
 
       {/* NPS pendente de coleta — fecha o ciclo do funil borboleta */}
       <NpsPendenteAlert npsList={npsPendentes} />
+
+      {/* Clientes em risco de churn — alerta vermelho pra reativar antes do não-renew */}
+      <HealthEmRiscoAlert leads={healthRisco} />
 
       {/* Banner de boas-vindas para colaboradores recém-convidados */}
       {isWelcome && (

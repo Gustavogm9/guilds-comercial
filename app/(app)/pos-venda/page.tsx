@@ -8,6 +8,8 @@ import type {
   OnboardingTemplateItem,
   NpsResponse,
   NpsResumo,
+  HealthScore,
+  HealthResumo,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +32,8 @@ export default async function PosVendaPage() {
     templateItensRes,
     npsResponsesRes,
     npsResumoRes,
+    healthScoresRes,
+    healthResumoRes,
   ] = await Promise.all([
     supabase
       .from("v_onboarding_pendente")
@@ -60,6 +64,17 @@ export default async function PosVendaPage() {
       .select("*")
       .eq("organizacao_id", orgId)
       .maybeSingle(),
+    supabase
+      .from("v_health_score")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .order("health_score", { ascending: true })
+      .limit(200),
+    supabase
+      .from("v_health_resumo")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .maybeSingle(),
   ]);
 
   return (
@@ -71,6 +86,8 @@ export default async function PosVendaPage() {
       templateItens={(templateItensRes.data ?? []) as OnboardingTemplateItem[]}
       npsResponses={(npsResponsesRes.data ?? []) as NpsResponse[]}
       npsResumo={(npsResumoRes.data ?? null) as NpsResumo | null}
+      healthScores={(healthScoresRes.data ?? []) as HealthScore[]}
+      healthResumo={(healthResumoRes.data ?? null) as HealthResumo | null}
     />
   );
 }

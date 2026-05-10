@@ -794,3 +794,38 @@ export interface NpsPendenteResponder {
   lead_responsavel_id: string | null;
   dias_pendente: number;
 }
+
+// =============================================================================
+// Health Score (P3 do flywheel)
+// =============================================================================
+
+export type CategoriaHealth = "saudavel" | "atencao" | "em_risco";
+
+export interface HealthScore {
+  organizacao_id: string;
+  lead_id: number;
+  lead_empresa: string | null;
+  lead_nome: string | null;
+  lead_responsavel_id: string | null;
+  data_fechamento: string | null;
+  valor_potencial: number;
+  dias_sem_interacao: number;
+  pts_recencia: number;
+  pts_nps: number;
+  pts_onboarding: number;
+  pts_indicacao: number;
+  ultimo_nps_score: number | null;
+  indicacoes_dadas: number;
+  health_score: number;
+  categoria: CategoriaHealth;
+}
+
+export interface HealthResumo {
+  organizacao_id: string;
+  total_fechados: number;
+  saudaveis: number;
+  atencao: number;
+  em_risco: number;
+  score_medio: number | null;
+  arr_em_risco: number;
+}
