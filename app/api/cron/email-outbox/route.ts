@@ -1,0 +1,249 @@
+/**
+ * Cron: processa email_outbox a cada 5 min.
+ *
+ * Acionado por pg_cron `email-outbox-process` (definido em
+ * 20260506250000_email_outbox.sql). Auth via X-Cron-Secret.
+ *
+ * Lógica:
+ *   - Busca até 50 emails com status='pending' e scheduled_for <= now()
+ *   - Pra cada um: monta HTML baseado em `kind` + `payload` + `locale` e
+ *     chama Brevo via sendTransactionalEmail
+ *   - Sucesso: status='sent', sent_at=now()
+ *   - Falha: incrementa attempts, registra last_error
+ *     - 5+ tentativas → status='abandoned' (anti-loop)
+ *
+ * Templates suportados (kind):
+ *   - indicacao_portal_recebida (item 3 do polish)
+ *   - nps_pedido_d7 (item 1 do polish — futuro)
+ *
+ * Idempotência: status='pending' sai da lista assim que vira 'sent'/'failed'.
+ */
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { sendTransactionalEmail, getAppUrl } from "@/lib/email";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const MAX_ATTEMPTS = 5;
+const BATCH_SIZE = 50;
+
+interface OutboxRow {
+  id: number;
+  organizacao_id: string | null;
+  kind: string;
+  to_email: string;
+  to_name: string | null;
+  subject: string;
+  payload: Record<string, any>;
+  attempts: number;
+  locale: "pt-BR" | "en-US";
+  scheduled_for: string;
+}
+
+export async function POST(req: Request) {
+  const expected = process.env.CRON_SECRET;
+  const got =
+    req.headers.get("x-cron-secret") ||
+    req.headers.get("authorization")?.replace(/^Bearer /, "");
+  if (!expected || got !== expected) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const supa = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  // Pega lote de pendentes
+  const { data: rows, error: fetchErr } = await supa
+    .from("email_outbox")
+    .select("*")
+    .eq("status", "pending")
+    .lte("scheduled_for", new Date().toISOString())
+    .order("created_at", { ascending: true })
+    .limit(BATCH_SIZE);
+
+  if (fetchErr) {
+    return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  }
+
+  if (!rows || rows.length === 0) {
+    return NextResponse.json({ ok: true, processed: 0 });
+  }
+
+  let sent = 0;
+  let failed = 0;
+  let abandoned = 0;
+
+  for (const row of rows as OutboxRow[]) {
+    try {
+      const { subject, htmlContent } = buildEmail(row);
+
+      const result = await sendTransactionalEmail({
+        to: [{ email: row.to_email, name: row.to_name ?? undefined }],
+        subject,
+        htmlContent,
+      });
+
+      // Brevo skipped (sem API key) — não é falha, mas registra
+      if (result.skipped) {
+        await supa
+          .from("email_outbox")
+          .update({
+            status: "abandoned",
+            attempts: row.attempts + 1,
+            last_error: "BREVO_API_KEY ausente — email pulado",
+          })
+          .eq("id", row.id);
+        abandoned += 1;
+        continue;
+      }
+
+      await supa
+        .from("email_outbox")
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          attempts: row.attempts + 1,
+        })
+        .eq("id", row.id);
+      sent += 1;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      const attempts = row.attempts + 1;
+      const novoStatus = attempts >= MAX_ATTEMPTS ? "abandoned" : "failed";
+
+      // Backoff exponencial: 5min × 2^attempts
+      const nextScheduled = new Date(
+        Date.now() + 5 * 60 * 1000 * Math.pow(2, Math.min(attempts, 6)),
+      );
+
+      await supa
+        .from("email_outbox")
+        .update({
+          status: novoStatus === "abandoned" ? "abandoned" : "pending",
+          attempts,
+          last_error: msg.slice(0, 500),
+          scheduled_for: novoStatus === "abandoned" ? row.scheduled_for : nextScheduled.toISOString(),
+        })
+        .eq("id", row.id);
+
+      if (novoStatus === "abandoned") abandoned += 1;
+      else failed += 1;
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    processed: rows.length,
+    sent,
+    failed,
+    abandoned,
+  });
+}
+
+// =============================================================================
+// Templates de email
+// =============================================================================
+
+function escapeHtml(value: string) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function buildEmail(row: OutboxRow): { subject: string; htmlContent: string } {
+  const appUrl = getAppUrl();
+
+  switch (row.kind) {
+    case "indicacao_portal_recebida":
+      return buildIndicacaoPortalRecebida(row, appUrl);
+    case "nps_pedido_d7":
+      return buildNpsPedidoD7(row, appUrl);
+    default:
+      // Fallback genérico — usa subject + payload.html ou payload.text
+      return {
+        subject: row.subject,
+        htmlContent:
+          row.payload?.html ??
+          `<p>${escapeHtml(row.payload?.text ?? "(sem conteúdo)")}</p>`,
+      };
+  }
+}
+
+function buildIndicacaoPortalRecebida(row: OutboxRow, appUrl: string) {
+  const p = row.payload;
+  const en = row.locale === "en-US";
+
+  const embaixadorLabel = p.embaixador_empresa ?? p.embaixador_nome ?? "cliente";
+  const indicadoNome = escapeHtml(p.indicado_nome ?? "");
+  const indicadoEmpresa = p.indicado_empresa ? escapeHtml(p.indicado_empresa) : null;
+  const indicadoCargo = p.indicado_cargo ? escapeHtml(p.indicado_cargo) : null;
+  const indicadoEmail = p.indicado_email ? escapeHtml(p.indicado_email) : null;
+  const indicadoWhatsapp = p.indicado_whatsapp ? escapeHtml(p.indicado_whatsapp) : null;
+  const contexto = p.contexto ? escapeHtml(p.contexto) : null;
+  const orgNome = escapeHtml(p.org_nome ?? "");
+  const respNome = p.responsavel_nome ? escapeHtml(p.responsavel_nome) : "";
+
+  const indicacoesUrl = `${appUrl}/indicacoes`;
+
+  if (en) {
+    return {
+      subject: `New referral from ${escapeHtml(embaixadorLabel)}`,
+      htmlContent: `
+<p>Hi ${respNome || "there"},</p>
+<p><strong>${escapeHtml(embaixadorLabel)}</strong> just submitted a new referral via the ambassador portal.</p>
+<table style="border-collapse:collapse;margin:16px 0;background:#f8fafc;padding:12px;border-radius:8px">
+  <tr><td style="padding:4px 8px"><strong>Name:</strong></td><td style="padding:4px 8px">${indicadoNome}</td></tr>
+  ${indicadoEmpresa ? `<tr><td style="padding:4px 8px"><strong>Company:</strong></td><td style="padding:4px 8px">${indicadoEmpresa}</td></tr>` : ""}
+  ${indicadoCargo ? `<tr><td style="padding:4px 8px"><strong>Title:</strong></td><td style="padding:4px 8px">${indicadoCargo}</td></tr>` : ""}
+  ${indicadoEmail ? `<tr><td style="padding:4px 8px"><strong>Email:</strong></td><td style="padding:4px 8px">${indicadoEmail}</td></tr>` : ""}
+  ${indicadoWhatsapp ? `<tr><td style="padding:4px 8px"><strong>WhatsApp:</strong></td><td style="padding:4px 8px">${indicadoWhatsapp}</td></tr>` : ""}
+  ${contexto ? `<tr><td style="padding:4px 8px;vertical-align:top"><strong>Context:</strong></td><td style="padding:4px 8px"><em>"${contexto}"</em></td></tr>` : ""}
+</table>
+<p><a href="${indicacoesUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-weight:600">Open referrals</a></p>
+<p style="color:#64748b;font-size:12px">${orgNome} — Guilds Comercial</p>
+`,
+    };
+  }
+
+  return {
+    subject: `Nova indicação de ${escapeHtml(embaixadorLabel)}`,
+    htmlContent: `
+<p>Olá ${respNome || ""},</p>
+<p><strong>${escapeHtml(embaixadorLabel)}</strong> acabou de enviar uma indicação pelo portal de embaixadores.</p>
+<table style="border-collapse:collapse;margin:16px 0;background:#f8fafc;padding:12px;border-radius:8px">
+  <tr><td style="padding:4px 8px"><strong>Nome:</strong></td><td style="padding:4px 8px">${indicadoNome}</td></tr>
+  ${indicadoEmpresa ? `<tr><td style="padding:4px 8px"><strong>Empresa:</strong></td><td style="padding:4px 8px">${indicadoEmpresa}</td></tr>` : ""}
+  ${indicadoCargo ? `<tr><td style="padding:4px 8px"><strong>Cargo:</strong></td><td style="padding:4px 8px">${indicadoCargo}</td></tr>` : ""}
+  ${indicadoEmail ? `<tr><td style="padding:4px 8px"><strong>Email:</strong></td><td style="padding:4px 8px">${indicadoEmail}</td></tr>` : ""}
+  ${indicadoWhatsapp ? `<tr><td style="padding:4px 8px"><strong>WhatsApp:</strong></td><td style="padding:4px 8px">${indicadoWhatsapp}</td></tr>` : ""}
+  ${contexto ? `<tr><td style="padding:4px 8px;vertical-align:top"><strong>Contexto:</strong></td><td style="padding:4px 8px"><em>"${contexto}"</em></td></tr>` : ""}
+</table>
+<p><a href="${indicacoesUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-weight:600">Abrir indicações</a></p>
+<p style="color:#64748b;font-size:12px">${orgNome} — Guilds Comercial</p>
+`,
+  };
+}
+
+function buildNpsPedidoD7(row: OutboxRow, appUrl: string) {
+  // Stub pra item 1 — preenche quando implementar
+  const p = row.payload;
+  const empresa = escapeHtml(p.empresa ?? "");
+  const en = row.locale === "en-US";
+  const link = `${appUrl}/nps/${escapeHtml(p.token ?? "")}`;
+  if (en) {
+    return {
+      subject: `Quick question — how was your experience with ${empresa}?`,
+      htmlContent: `<p>Hi! In one number from 0 to 10, how likely are you to recommend us? <a href="${link}">Click to answer</a>.</p>`,
+    };
+  }
+  return {
+    subject: `Como foi sua experiência com a ${empresa}?`,
+    htmlContent: `<p>Olá! Em um número de 0 a 10, qual a chance de você recomendar nosso trabalho? <a href="${link}">Clique pra responder</a>.</p>`,
+  };
+}
