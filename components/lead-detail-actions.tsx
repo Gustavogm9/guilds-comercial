@@ -11,6 +11,8 @@ import { MessageSquareQuote, Play, AlertCircle, CheckCircle2, X, Loader2, Stetho
 import { iniciarCadenciaManual } from "@/app/(app)/comunicacao/cadencia/actions";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import RaioxModal from "@/components/raiox/raiox-modal";
+import FechamentoCelebrationModal from "@/components/fechamento-celebration-modal";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
 /**
  * Ações principais no header do detalhe do lead.
@@ -37,6 +39,8 @@ export default function LeadDetailActions({
   // Issue 9: state local pro select acompanhar (controlled). Se modal cancelar,
   // volta pro valor original do lead.
   const [etapaSelecionada, setEtapaSelecionada] = useState<string>(lead.crm_stage ?? "");
+  const [celebracaoOpen, setCelebracaoOpen] = useState(false);
+  const [pedidoIndicacaoId, setPedidoIndicacaoId] = useState<number | null>(null);
   const [locale, setLocale] = useState<Locale>("pt-BR");
   useEffect(() => setLocale(getClientLocale()), []);
   const t = getT(locale);
@@ -62,6 +66,31 @@ export default function LeadDetailActions({
           tipo: "sucesso",
           mensagem: t("pipeline.toast_movido").replace("{{stage}}", t(`pipeline_etapas.${novaEtapa}`)),
         });
+        // Bloco D: ao fechar lead, dispara modal de celebração + pedido de indicação
+        if (novaEtapa === "Fechado" && lead.crm_stage !== "Fechado") {
+          // Trigger SQL acabou de criar pedido_indicacao automático.
+          // Aguardamos brevemente (50ms) e buscamos o id pra passar ao modal.
+          setTimeout(async () => {
+            try {
+              const sb = createBrowserClient();
+              const { data } = await sb
+                .from("pedidos_indicacao")
+                .select("id")
+                .eq("lead_id", lead.id)
+                .eq("momento", "pos_fechamento")
+                .eq("status", "pendente")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (data?.id) {
+                setPedidoIndicacaoId(data.id as number);
+                setCelebracaoOpen(true);
+              }
+            } catch {
+              // Silencioso — modal só abre se pedido foi criado
+            }
+          }, 200);
+        }
       } catch (err) {
         // Rollback
         setEtapaSelecionada(lead.crm_stage ?? "");
@@ -226,6 +255,15 @@ export default function LeadDetailActions({
           </button>
         </div>
       )}
+
+      {/* Modal celebração + pedido de indicação imediato (Bloco D) */}
+      <FechamentoCelebrationModal
+        open={celebracaoOpen}
+        pedidoId={pedidoIndicacaoId}
+        leadEmpresa={lead.empresa}
+        leadNome={lead.nome}
+        onClose={() => setCelebracaoOpen(false)}
+      />
     </>
   );
 }

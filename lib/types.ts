@@ -1053,3 +1053,78 @@ export interface ProgramaRecompensaPortal {
   tipo_default: RecompensaTipo;
   mensagem_recompensa: string | null;
 }
+
+// =============================================================================
+// Flywheel polish (Bloco B-D) — drill-down + tendência + breakdown
+// =============================================================================
+
+export interface HealthBreakdownComponente {
+  componente: "recencia" | "nps" | "onboarding" | "indicacao";
+  label: string;
+  pontos: number;
+  peso: number;
+  descricao: string;
+  acao_sugerida: string | null;
+}
+
+export interface HealthBreakdown {
+  organizacao_id: string;
+  lead_id: number;
+  lead_empresa: string | null;
+  lead_nome: string | null;
+  lead_responsavel_id: string | null;
+  health_score: number;
+  categoria: CategoriaHealth;
+  dias_sem_interacao: number;
+  componentes: HealthBreakdownComponente[];
+  proxima_acao_recomendada: string;
+}
+
+export type TendenciaHealth =
+  | "subindo_forte"
+  | "subindo"
+  | "estavel"
+  | "caindo"
+  | "caindo_forte"
+  | "novo";
+
+export interface HealthTendencia {
+  lead_id: number;
+  organizacao_id: string;
+  score_atual: number;
+  categoria_atual: CategoriaHealth;
+  score_30d_atras: number | null;
+  score_60d_atras: number | null;
+  score_90d_atras: number | null;
+  tendencia_30d: TendenciaHealth;
+}
+
+export interface HealthScoreSnapshot {
+  id: number;
+  organizacao_id: string;
+  lead_id: number;
+  snapshot_date: string;
+  health_score: number;
+  pts_recencia: number;
+  pts_nps: number;
+  pts_onboarding: number;
+  pts_indicacao: number;
+  categoria: CategoriaHealth;
+  created_at: string;
+}
+
+export interface NpsHistoricoLead {
+  lead_id: number;
+  organizacao_id: string;
+  total_respostas: number;
+  respondidas: number;
+  score_medio: number | null;
+  score_max: number | null;
+  score_min: number | null;
+  ultimas_10: Array<{
+    score: number;
+    data: string | null;
+    comentario: string | null;
+    categoria: CategoriaNps | null;
+  }>;
+}

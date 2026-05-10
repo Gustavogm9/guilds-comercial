@@ -31,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/hoje",        i18nKey: "sidebar.hoje",        icon: Home },
       { href: "/vendas",      i18nKey: "sidebar.vendas_crm",  icon: Kanban },
+      { href: "/flywheel",    i18nKey: "sidebar.flywheel",    icon: Sparkles },
     ],
   },
   {

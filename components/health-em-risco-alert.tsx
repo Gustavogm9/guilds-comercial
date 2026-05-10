@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Heart } from "lucide-react";
+import { AlertTriangle, ArrowRight, Heart, Eye } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
+import HealthBreakdownModal from "./health-breakdown-modal";
 
 /**
  * Card em /hoje listando clientes em_risco (health_score < 40).
@@ -19,6 +20,7 @@ export interface HealthEmRiscoHoje {
 export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje[] }) {
   const [locale, setLocale] = useState<Locale>("pt-BR");
   useEffect(() => setLocale(getClientLocale()), []);
+  const [breakdownLeadId, setBreakdownLeadId] = useState<number | null>(null);
 
   if (!leads || leads.length === 0) return null;
 
@@ -67,6 +69,14 @@ export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje
                 <span>{l.dias_sem_interacao}d sem contato</span>
               </div>
             </div>
+            <button
+              onClick={() => setBreakdownLeadId(l.lead_id)}
+              className="btn-ghost text-xs"
+              aria-label="Ver breakdown do health"
+              title="Ver breakdown"
+            >
+              <Eye className="w-3 h-3" aria-hidden="true" />
+            </button>
             <Link href={`/pipeline/${l.lead_id}`} className="btn-secondary text-xs" prefetch>
               <Heart className="w-3 h-3" aria-hidden="true" /> Reativar
             </Link>
@@ -78,6 +88,10 @@ export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje
         <Link href="/comunicacao/pos-venda" className="text-xs text-destructive hover:underline mt-2 inline-block">
           + {restantes} em risco
         </Link>
+      )}
+
+      {breakdownLeadId != null && (
+        <HealthBreakdownModal leadId={breakdownLeadId} onClose={() => setBreakdownLeadId(null)} />
       )}
     </div>
   );

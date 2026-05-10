@@ -33,6 +33,8 @@ import {
 import {
   criarExpansao, atualizarEstagioExpansao, atualizarExpansao, removerExpansao,
 } from "./expansoes-actions";
+import HealthBreakdownModal from "@/components/health-breakdown-modal";
+import OnboardingChecklistModal from "@/components/onboarding-checklist-modal";
 import ComunicacaoTabs from "../comunicacao-tabs";
 
 type Tab = "onboarding" | "nps" | "saude" | "expansoes" | "templates";
@@ -237,6 +239,7 @@ function TabBtn({ v, cur, set, icon, label }: {
 function OnboardingTab({ onboardings, t, locale }: {
   onboardings: OnboardingPendente[]; t: T; locale: Locale;
 }) {
+  const [checklistAberto, setChecklistAberto] = useState<{ id: number; empresa: string | null } | null>(null);
   if (onboardings.length === 0) {
     return (
       <div className="card p-12 text-center">
@@ -296,15 +299,26 @@ function OnboardingTab({ onboardings, t, locale }: {
                 )}
               </td>
               <td className="px-3 py-2 text-right">
-                <Link href={`/pipeline/${o.lead_id}`} className="btn-secondary text-xs">
+                <button
+                  onClick={() => setChecklistAberto({ id: o.checklist_id, empresa: o.lead_empresa })}
+                  className="btn-secondary text-xs"
+                >
                   {t("pos_venda.onb_btn_ver")}
                   <ArrowRight className="w-3 h-3" aria-hidden="true" />
-                </Link>
+                </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {checklistAberto && (
+        <OnboardingChecklistModal
+          checklistId={checklistAberto.id}
+          leadEmpresa={checklistAberto.empresa}
+          onClose={() => setChecklistAberto(null)}
+        />
+      )}
     </div>
   );
 }
@@ -862,6 +876,7 @@ function SaudeTab({ scores, resumo, t, locale }: {
   t: T;
   locale: Locale;
 }) {
+  const [breakdownLeadId, setBreakdownLeadId] = useState<number | null>(null);
   if (!resumo || resumo.total_fechados === 0) {
     return (
       <div className="card p-12 text-center">
@@ -922,6 +937,7 @@ function SaudeTab({ scores, resumo, t, locale }: {
               <th className="text-right px-3 py-2 font-semibold">NPS</th>
               <th className="text-right px-3 py-2 font-semibold">Indicações</th>
               <th className="text-right px-3 py-2 font-semibold">Valor</th>
+              <th className="text-right px-3 py-2 font-semibold"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -933,7 +949,13 @@ function SaudeTab({ scores, resumo, t, locale }: {
                   </Link>
                 </td>
                 <td className="px-3 py-2">
-                  <ScoreBar score={s.health_score} categoria={s.categoria} />
+                  <button
+                    onClick={() => setBreakdownLeadId(s.lead_id)}
+                    className="cursor-pointer hover:opacity-80 transition-opacity text-left"
+                    aria-label="Ver breakdown do health score"
+                  >
+                    <ScoreBar score={s.health_score} categoria={s.categoria} />
+                  </button>
                 </td>
                 <td className="px-3 py-2">
                   <CategoriaHealthBadge cat={s.categoria} />
@@ -956,11 +978,25 @@ function SaudeTab({ scores, resumo, t, locale }: {
                 <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
                   {fmtBRL(s.valor_potencial ?? 0)}
                 </td>
+                <td className="px-3 py-2 text-right">
+                  <button
+                    onClick={() => setBreakdownLeadId(s.lead_id)}
+                    className="btn-ghost text-xs"
+                    aria-label="Ver detalhe do health"
+                    title="Ver detalhe"
+                  >
+                    Detalhe
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {breakdownLeadId != null && (
+        <HealthBreakdownModal leadId={breakdownLeadId} onClose={() => setBreakdownLeadId(null)} />
+      )}
     </>
   );
 }
