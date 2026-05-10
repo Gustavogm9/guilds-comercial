@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   ListChecks, Star, Layers, Plus, X, ArrowRight,
   CheckCircle2, AlertCircle, Loader2, TrendingUp, Users,
-  AlertTriangle, MessageSquare, Heart,
+  AlertTriangle, MessageSquare, Heart, Rocket, DollarSign,
 } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import type {
@@ -17,13 +17,24 @@ import type {
   HealthScore,
   HealthResumo,
   CategoriaHealth,
+  ExpansaoAtiva,
+  ExpansoesResumo,
+  Expansao,
+  EstagioExpansao,
+  TipoExpansao,
+} from "@/lib/types";
+import {
+  TIPOS_EXPANSAO, ESTAGIOS_EXPANSAO_ATIVOS,
 } from "@/lib/types";
 import {
   responderNps, descartarNpsPendente,
   criarTemplateOnboarding, adicionarItemTemplate, removerItemTemplate,
 } from "./actions";
+import {
+  criarExpansao, atualizarEstagioExpansao, atualizarExpansao, removerExpansao,
+} from "./expansoes-actions";
 
-type Tab = "onboarding" | "nps" | "saude" | "templates";
+type Tab = "onboarding" | "nps" | "saude" | "expansoes" | "templates";
 type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
 type T = (key: string) => string;
 
@@ -45,6 +56,9 @@ export default function PosVendaClient({
   npsResumo,
   healthScores,
   healthResumo,
+  expansoesAtivas,
+  expansoesResumo,
+  expansoesHistorico,
 }: {
   meId: string;
   isGestor: boolean;
@@ -55,6 +69,9 @@ export default function PosVendaClient({
   npsResumo: NpsResumo | null;
   healthScores: HealthScore[];
   healthResumo: HealthResumo | null;
+  expansoesAtivas: ExpansaoAtiva[];
+  expansoesResumo: ExpansoesResumo | null;
+  expansoesHistorico: Expansao[];
 }) {
   const [tab, setTab] = useState<Tab>("onboarding");
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -95,6 +112,9 @@ export default function PosVendaClient({
         <TabBtn v="saude" cur={tab} set={setTab}
           icon={<Heart className="w-3.5 h-3.5" />}
           label={`Saúde${healthResumo && healthResumo.em_risco > 0 ? ` (${healthResumo.em_risco})` : ""}`} />
+        <TabBtn v="expansoes" cur={tab} set={setTab}
+          icon={<Rocket className="w-3.5 h-3.5" />}
+          label={`Expansões${expansoesResumo && expansoesResumo.ativas > 0 ? ` (${expansoesResumo.ativas})` : ""}`} />
         {isGestor && (
           <TabBtn v="templates" cur={tab} set={setTab}
             icon={<Layers className="w-3.5 h-3.5" />}
@@ -105,6 +125,18 @@ export default function PosVendaClient({
       {tab === "onboarding" && <OnboardingTab onboardings={onboardings} t={t} locale={locale} />}
       {tab === "nps" && <NpsTab responses={npsResponses} t={t} locale={locale} onSucesso={onSucesso} onErro={onErro} />}
       {tab === "saude" && <SaudeTab scores={healthScores} resumo={healthResumo} t={t} locale={locale} />}
+      {tab === "expansoes" && (
+        <ExpansoesTab
+          ativas={expansoesAtivas}
+          resumo={expansoesResumo}
+          historico={expansoesHistorico}
+          healthScores={healthScores}
+          t={t}
+          locale={locale}
+          onSucesso={onSucesso}
+          onErro={onErro}
+        />
+      )}
       {tab === "templates" && isGestor && (
         <TemplatesTab
           templates={templates}
@@ -961,6 +993,572 @@ function CategoriaHealthBadge({ cat }: { cat: CategoriaHealth }) {
     <span className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-1.5 py-0.5 rounded ${cls}`}>
       {label}
     </span>
+  );
+}
+
+// ======================== Tab Expansões ========================
+function ExpansoesTab({
+  ativas, resumo, historico, healthScores, t, locale, onSucesso, onErro,
+}: {
+  ativas: ExpansaoAtiva[];
+  resumo: ExpansoesResumo | null;
+  historico: Expansao[];
+  healthScores: HealthScore[];
+  t: T;
+  locale: Locale;
+  onSucesso: (m: string) => void;
+  onErro: (e: unknown) => void;
+}) {
+  const [showNova, setShowNova] = useState(false);
+  const [editing, setEditing] = useState<ExpansaoAtiva | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const fmtBRL = (v: number) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+
+  function handleEstagio(id: number, estagio: EstagioExpansao, motivo?: string) {
+    startTransition(async () => {
+      try {
+        await atualizarEstagioExpansao({ expansao_id: id, estagio, motivo_perda: motivo });
+        onSucesso("Estágio atualizado.");
+      } catch (e) { onErro(e); }
+    });
+  }
+
+  function handleRemover(id: number) {
+    if (!confirm("Remover esta expansão? (só ativas podem ser removidas)")) return;
+    startTransition(async () => {
+      try {
+        await removerExpansao(id);
+        onSucesso("Expansão removida.");
+      } catch (e) { onErro(e); }
+    });
+  }
+
+  // Sugestões: clientes saudáveis sem expansão ativa
+  const clientesComAtiva = new Set(ativas.map((a) => a.cliente_lead_id));
+  const sugestoes = healthScores
+    .filter((s) => s.categoria === "saudavel" && !clientesComAtiva.has(s.lead_id))
+    .slice(0, 3);
+
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <KpiCard
+          label="Pipeline expansão"
+          value={fmtBRL(resumo?.pipeline_aberto ?? 0)}
+          sub={`${resumo?.ativas ?? 0} ativas`}
+          icon={<Rocket className="w-4 h-4" />}
+          tone="primary"
+        />
+        <KpiCard
+          label="Receita expandida"
+          value={fmtBRL(resumo?.receita_expandida ?? 0)}
+          sub={`${resumo?.fechadas ?? 0} fechadas`}
+          icon={<DollarSign className="w-4 h-4" />}
+          tone="success"
+        />
+        <KpiCard
+          label="ARR expansão"
+          value={fmtBRL(resumo?.arr_expandido ?? 0)}
+          sub="anualizado"
+          icon={<TrendingUp className="w-4 h-4" />}
+          tone="success"
+        />
+        <KpiCard
+          label="Conversão"
+          value={resumo?.taxa_conversao_pct != null ? `${resumo.taxa_conversao_pct}%` : "—"}
+          sub={`${resumo?.fechadas ?? 0}/${(resumo?.fechadas ?? 0) + (resumo?.perdidas ?? 0)} fechadas`}
+          icon={<CheckCircle2 className="w-4 h-4" />}
+        />
+      </div>
+
+      <div className="flex justify-between items-center mb-3">
+        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-muted-foreground">
+          Expansões ativas ({ativas.length})
+        </div>
+        <button onClick={() => setShowNova(true)} className="btn-primary text-sm">
+          <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Nova expansão
+        </button>
+      </div>
+
+      {ativas.length === 0 ? (
+        <div className="card p-12 text-center">
+          <Rocket className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" aria-hidden="true" />
+          <p className="text-sm text-muted-foreground mb-3">
+            Nenhuma oportunidade de expansão aberta. Clientes fechados podem comprar mais — pergunta.
+          </p>
+          {sugestoes.length > 0 && (
+            <div className="text-xs text-muted-foreground/80 max-w-md mx-auto">
+              <div className="font-medium text-foreground mb-1">Sugestões pra começar:</div>
+              <ul className="space-y-0.5">
+                {sugestoes.map((s) => (
+                  <li key={s.lead_id}>
+                    <Link href={`/pipeline/${s.lead_id}`} className="text-primary hover:underline">
+                      {s.lead_empresa ?? s.lead_nome ?? `Lead #${s.lead_id}`}
+                    </Link>
+                    {" "}— score {s.health_score}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              <tr>
+                <th className="text-left px-3 py-2 font-semibold">Cliente</th>
+                <th className="text-left px-3 py-2 font-semibold">Tipo</th>
+                <th className="text-left px-3 py-2 font-semibold">Título</th>
+                <th className="text-left px-3 py-2 font-semibold">Estágio</th>
+                <th className="text-right px-3 py-2 font-semibold">Valor</th>
+                <th className="text-left px-3 py-2 font-semibold">Próxima ação</th>
+                <th className="text-right px-3 py-2 font-semibold">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {ativas.map((e) => {
+                const atrasada = e.dias_ate_acao != null && e.dias_ate_acao < 0;
+                return (
+                  <tr key={e.id} className={`hover:bg-secondary/60 dark:hover:bg-white/[0.04] ${atrasada ? "bg-warning-500/[0.03]" : ""}`}>
+                    <td className="px-3 py-2">
+                      <Link href={`/pipeline/${e.cliente_lead_id}`} className="font-medium hover:text-primary transition-colors">
+                        {e.cliente_empresa ?? e.cliente_nome ?? `Lead #${e.cliente_lead_id}`}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                      {e.tipo.replace("_", " ")}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {e.titulo}
+                      {e.origem.startsWith("sistema") && (
+                        <span className="ml-1.5 text-[10px] uppercase tracking-[0.12em] text-warning-500" title="Sugerido pelo sistema">
+                          ✨ auto
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <select
+                        value={e.estagio}
+                        onChange={(ev) => {
+                          const novo = ev.target.value as EstagioExpansao;
+                          if (novo === "perdida") {
+                            const motivo = prompt("Motivo da perda?");
+                            if (!motivo?.trim()) return;
+                            handleEstagio(e.id, novo, motivo);
+                          } else {
+                            handleEstagio(e.id, novo);
+                          }
+                        }}
+                        disabled={pending}
+                        aria-label="Estágio"
+                        className="input-base !py-1 !text-xs !w-32"
+                      >
+                        {ESTAGIOS_EXPANSAO_ATIVOS.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                        <option value="fechada">fechada</option>
+                        <option value="perdida">perdida</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm tabular-nums font-semibold">
+                      {fmtBRL(e.valor_potencial)}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {e.proxima_acao ? (
+                        <div>
+                          <div className="font-medium text-foreground">{e.proxima_acao}</div>
+                          {e.data_proxima_acao && (
+                            <div className={`text-[10px] tabular-nums ${atrasada ? "text-warning-500 font-semibold" : "text-muted-foreground"}`}>
+                              {atrasada ? `${Math.abs(e.dias_ate_acao!)}d atrasada` : `em ${e.dias_ate_acao}d`}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground italic">sem ação</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        onClick={() => setEditing(e)}
+                        className="btn-ghost text-xs"
+                        aria-label="Editar"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleRemover(e.id)}
+                        disabled={pending}
+                        className="btn-ghost text-xs text-muted-foreground hover:text-destructive"
+                        aria-label="Remover"
+                      >
+                        <X className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {historico.length > 0 && (
+        <details className="mt-4">
+          <summary className="text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none">
+            Histórico ({historico.length} fechadas/perdidas)
+          </summary>
+          <div className="card overflow-hidden mt-2">
+            <table className="w-full text-xs">
+              <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                <tr>
+                  <th className="text-left px-3 py-2 font-semibold">Título</th>
+                  <th className="text-left px-3 py-2 font-semibold">Estágio</th>
+                  <th className="text-right px-3 py-2 font-semibold">Valor</th>
+                  <th className="text-left px-3 py-2 font-semibold">Quando</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {historico.map((h) => (
+                  <tr key={h.id}>
+                    <td className="px-3 py-1.5">
+                      <Link href={`/pipeline/${h.cliente_lead_id}`} className="hover:text-primary">
+                        {h.titulo}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <span className={`text-[10px] uppercase tracking-[0.12em] font-semibold px-1.5 py-0.5 rounded ${
+                        h.estagio === "fechada"
+                          ? "bg-success-500/15 text-success-500 border border-success-500/30"
+                          : "bg-destructive/15 text-destructive border border-destructive/30"
+                      }`}>
+                        {h.estagio}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 text-right tabular-nums">{fmtBRL(h.valor_potencial)}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground tabular-nums">
+                      {fmtData(h.data_fechada ?? h.data_perdida ?? h.updated_at, locale)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+
+      {showNova && (
+        <NovaExpansaoModal
+          t={t}
+          healthScores={healthScores}
+          onClose={() => setShowNova(false)}
+          onSucesso={(m) => { setShowNova(false); onSucesso(m); }}
+          onErro={onErro}
+        />
+      )}
+
+      {editing && (
+        <EditarExpansaoModal
+          expansao={editing}
+          onClose={() => setEditing(null)}
+          onSucesso={(m) => { setEditing(null); onSucesso(m); }}
+          onErro={onErro}
+        />
+      )}
+    </>
+  );
+}
+
+function NovaExpansaoModal({ t, healthScores, onClose, onSucesso, onErro }: {
+  t: T;
+  healthScores: HealthScore[];
+  onClose: () => void;
+  onSucesso: (m: string) => void;
+  onErro: (e: unknown) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [form, setForm] = useState({
+    cliente_lead_id: 0,
+    tipo: "upsell" as TipoExpansao,
+    titulo: "",
+    descricao: "",
+    valor_potencial: 0,
+    valor_recorrente_mensal: 0,
+    data_proxima_acao: "",
+    proxima_acao: "",
+  });
+
+  function handleCriar() {
+    if (!form.cliente_lead_id) { onErro(new Error("Selecione um cliente.")); return; }
+    if (!form.titulo.trim()) { onErro(new Error("Título obrigatório.")); return; }
+    startTransition(async () => {
+      try {
+        await criarExpansao({
+          cliente_lead_id: form.cliente_lead_id,
+          tipo: form.tipo,
+          titulo: form.titulo,
+          descricao: form.descricao || undefined,
+          valor_potencial: form.valor_potencial,
+          valor_recorrente_mensal: form.valor_recorrente_mensal || undefined,
+          data_proxima_acao: form.data_proxima_acao || undefined,
+          proxima_acao: form.proxima_acao || undefined,
+        });
+        onSucesso("Expansão criada.");
+      } catch (e) { onErro(e); }
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-card text-foreground border border-border rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div className="font-semibold text-sm">Nova oportunidade de expansão</div>
+          <button onClick={onClose} className="btn-ghost" aria-label="Fechar">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-3">
+          <div>
+            <label className="label">Cliente</label>
+            <select
+              value={form.cliente_lead_id || ""}
+              onChange={(e) => setForm({ ...form, cliente_lead_id: parseInt(e.target.value, 10) })}
+              className="input-base !text-sm w-full mt-1"
+              aria-label="Cliente"
+            >
+              <option value="">Selecione um cliente fechado…</option>
+              {healthScores.map((s) => (
+                <option key={s.lead_id} value={s.lead_id}>
+                  {s.lead_empresa ?? s.lead_nome ?? `Lead #${s.lead_id}`}
+                  {" — score " + s.health_score}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Lista vem dos clientes em "Fechado" da org.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Tipo</label>
+              <select
+                value={form.tipo}
+                onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoExpansao })}
+                className="input-base !text-sm w-full mt-1"
+                aria-label="Tipo"
+              >
+                {TIPOS_EXPANSAO.map((tp) => (
+                  <option key={tp} value={tp}>{tp.replace("_", " ")}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Valor potencial (R$)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.valor_potencial}
+                onChange={(e) => setForm({ ...form, valor_potencial: parseFloat(e.target.value || "0") })}
+                className="input-base text-sm mt-1"
+                aria-label="Valor potencial"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="label">Título</label>
+            <input
+              value={form.titulo}
+              onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+              placeholder="Upgrade pra plano Growth"
+              className="input-base text-sm mt-1"
+              aria-label="Título"
+            />
+          </div>
+          <div>
+            <label className="label">Descrição (opcional)</label>
+            <textarea
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              className="input-base mt-1 min-h-[60px] text-sm"
+              aria-label="Descrição"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Próxima ação</label>
+              <input
+                value={form.proxima_acao}
+                onChange={(e) => setForm({ ...form, proxima_acao: e.target.value })}
+                placeholder="Marcar call de upgrade"
+                className="input-base text-sm mt-1"
+                aria-label="Próxima ação"
+              />
+            </div>
+            <div>
+              <label className="label">Quando</label>
+              <input
+                type="date"
+                value={form.data_proxima_acao}
+                onChange={(e) => setForm({ ...form, data_proxima_acao: e.target.value })}
+                className="input-base text-sm mt-1"
+                aria-label="Data próxima ação"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-3 border-t border-border flex items-center justify-end gap-2">
+          <button onClick={onClose} className="btn-ghost text-sm">Cancelar</button>
+          <button onClick={handleCriar} disabled={pending} className="btn-primary text-sm">
+            {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
+            Criar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditarExpansaoModal({ expansao, onClose, onSucesso, onErro }: {
+  expansao: ExpansaoAtiva;
+  onClose: () => void;
+  onSucesso: (m: string) => void;
+  onErro: (e: unknown) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [form, setForm] = useState({
+    titulo: expansao.titulo,
+    descricao: expansao.descricao ?? "",
+    valor_potencial: expansao.valor_potencial,
+    valor_recorrente_mensal: expansao.valor_recorrente_mensal ?? 0,
+    data_proxima_acao: expansao.data_proxima_acao ?? "",
+    proxima_acao: expansao.proxima_acao ?? "",
+  });
+
+  function handleSalvar() {
+    startTransition(async () => {
+      try {
+        await atualizarExpansao({
+          expansao_id: expansao.id,
+          titulo: form.titulo,
+          descricao: form.descricao,
+          valor_potencial: form.valor_potencial,
+          valor_recorrente_mensal: form.valor_recorrente_mensal,
+          data_proxima_acao: form.data_proxima_acao || null,
+          proxima_acao: form.proxima_acao,
+        });
+        onSucesso("Atualizada.");
+      } catch (e) { onErro(e); }
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-card text-foreground border border-border rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div>
+            <div className="font-semibold text-sm">Editar expansão</div>
+            <div className="text-xs text-muted-foreground">{expansao.cliente_empresa ?? expansao.cliente_nome}</div>
+          </div>
+          <button onClick={onClose} className="btn-ghost" aria-label="Fechar">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-3">
+          <div>
+            <label className="label">Título</label>
+            <input
+              value={form.titulo}
+              onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+              className="input-base text-sm mt-1"
+              aria-label="Título"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Valor potencial</label>
+              <input
+                type="number"
+                min={0}
+                value={form.valor_potencial}
+                onChange={(e) => setForm({ ...form, valor_potencial: parseFloat(e.target.value || "0") })}
+                className="input-base text-sm mt-1"
+                aria-label="Valor potencial"
+              />
+            </div>
+            <div>
+              <label className="label">Valor recorrente/mês</label>
+              <input
+                type="number"
+                min={0}
+                value={form.valor_recorrente_mensal}
+                onChange={(e) => setForm({ ...form, valor_recorrente_mensal: parseFloat(e.target.value || "0") })}
+                className="input-base text-sm mt-1"
+                aria-label="Valor recorrente"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="label">Descrição</label>
+            <textarea
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              className="input-base mt-1 min-h-[60px] text-sm"
+              aria-label="Descrição"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Próxima ação</label>
+              <input
+                value={form.proxima_acao}
+                onChange={(e) => setForm({ ...form, proxima_acao: e.target.value })}
+                className="input-base text-sm mt-1"
+                aria-label="Próxima ação"
+              />
+            </div>
+            <div>
+              <label className="label">Quando</label>
+              <input
+                type="date"
+                value={form.data_proxima_acao}
+                onChange={(e) => setForm({ ...form, data_proxima_acao: e.target.value })}
+                className="input-base text-sm mt-1"
+                aria-label="Data próxima ação"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-3 border-t border-border flex items-center justify-end gap-2">
+          <button onClick={onClose} className="btn-ghost text-sm">Cancelar</button>
+          <button onClick={handleSalvar} disabled={pending} className="btn-primary text-sm">
+            {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />}
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

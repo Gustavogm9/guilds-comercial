@@ -12,6 +12,7 @@ import type {
   HealthResumo,
   ExpansaoAtiva,
   ExpansoesResumo,
+  Expansao,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +112,9 @@ export default async function PosVendaPage() {
       npsResumo={(npsResumoRes.data ?? null) as NpsResumo | null}
       healthScores={(healthScoresRes.data ?? []) as HealthScore[]}
       healthResumo={(healthResumoRes.data ?? null) as HealthResumo | null}
+      expansoesAtivas={(expansoesAtivasRes.data ?? []) as ExpansaoAtiva[]}
+      expansoesResumo={(expansoesResumoRes.data ?? null) as ExpansoesResumo | null}
+      expansoesHistorico={(expansoesFechadasRes.data ?? []) as Expansao[]}
     />
   );
 }

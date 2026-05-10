@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 import {
   MessageSquare, PhoneCall, FileText, Zap, ArrowRightLeft,
   MessageCircle, Users, StickyNote, Video, Paperclip, Filter,
@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import WhatsappImport from "./whatsapp-import";
 import GruposManager from "./grupos-manager";
+import TimelineRealtime from "./timeline-realtime";
 
 export type TimelineEvento = {
   id: number; tipo: string; titulo: string | null; conteudo: string | null;
@@ -135,6 +136,14 @@ export default function LeadTimeline360({ leadId, orgId, eventosIniciais, nomeVe
   const [nota, setNota] = useState("");
   const [enviandoNota, startNota] = useTransition();
 
+  // Realtime: prepend de novos eventos sem duplicar
+  const prependEvento = useCallback((ev: TimelineEvento) => {
+    setEventos(prev => {
+      if (prev.some(e => e.id === ev.id)) return prev;
+      return [ev, ...prev];
+    });
+  }, []);
+
   const eventosFiltrados = filtro === "todos" ? eventos
     : eventos.filter(e => {
         if (filtro === "whatsapp_importado") return e.tipo.startsWith("whatsapp");
@@ -173,6 +182,9 @@ export default function LeadTimeline360({ leadId, orgId, eventosIniciais, nomeVe
 
   return (
     <div className="space-y-4">
+      {/* Subscriber headless de Realtime */}
+      <TimelineRealtime leadId={leadId} orgId={orgId} onNovoEvento={prependEvento} />
+
       {/* Abas */}
       <div className="flex items-center gap-1 p-0.5 bg-secondary/40 rounded-lg w-fit">
         {([

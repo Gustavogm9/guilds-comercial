@@ -4,7 +4,8 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import FunilSectionExport from "@/components/funil-section-export";
 import AdvocacySection from "@/components/advocacy-section";
-import type { CrmStage, ForecastMes, AdvocacyKpis, TopEmbaixador } from "@/lib/types";
+import ExpansionSection from "@/components/expansion-section";
+import type { CrmStage, ForecastMes, AdvocacyKpis, TopEmbaixador, ExpansoesResumo, HealthResumo } from "@/lib/types";
 import {
   TrendingDown, TrendingUp, Clock, DollarSign,
   Users, AlertTriangle, Target, Percent, Sparkles, Gauge
@@ -82,7 +83,11 @@ export default async function FunilPage(
 
   // 1. Forecast query (stays as is)
   const applyResp = <T,>(q: any): any => respFiltro === "all" ? q : q.eq("responsavel_id", respFiltro);
-  const [forecastRes, membros, segmentosRes, advocacyKpisRes, topEmbaixadoresRes] = await Promise.all([
+  const [
+    forecastRes, membros, segmentosRes,
+    advocacyKpisRes, topEmbaixadoresRes,
+    expansoesResumoRes, healthResumoRes,
+  ] = await Promise.all([
     applyResp(supabase.from("v_forecast_mes").select("*").eq("organizacao_id", orgId)),
     listarMembrosDaOrg(orgId),
     supabase.from("leads").select("segmento").eq("organizacao_id", orgId).not("segmento", "is", null),
@@ -93,6 +98,10 @@ export default async function FunilPage(
       .eq("organizacao_id", orgId)
       .order("receita_gerada", { ascending: false })
       .limit(10),
+    // P4: KPIs de expansão / NRR
+    supabase.from("v_expansoes_resumo").select("*").eq("organizacao_id", orgId).maybeSingle(),
+    // P3: usado pra contar clientes ativos (denominador do NRR proxy)
+    supabase.from("v_health_resumo").select("*").eq("organizacao_id", orgId).maybeSingle(),
   ]);
 
   const forecast = (forecastRes.data ?? []) as ForecastMes[];
@@ -100,6 +109,8 @@ export default async function FunilPage(
   const segmentosUnicos = Array.from(new Set((segmentosRes.data ?? []).map(l => l.segmento).filter(Boolean) as string[])).sort();
   const advocacyKpis = (advocacyKpisRes.data ?? null) as AdvocacyKpis | null;
   const topEmbaixadores = (topEmbaixadoresRes.data ?? []) as TopEmbaixador[];
+  const expansoesResumo = (expansoesResumoRes.data ?? null) as ExpansoesResumo | null;
+  const healthResumoData = (healthResumoRes.data ?? null) as HealthResumo | null;
 
   // 2. Fetch Leads (with filters)
   let qLeads = supabase.from("leads")
@@ -375,6 +386,13 @@ export default async function FunilPage(
       <AdvocacySection
         kpis={advocacyKpis}
         topEmbaixadores={topEmbaixadores}
+        currency="BRL"
+      />
+
+      {/* Expansão / NRR — receita gerada vendendo mais pra quem já é cliente */}
+      <ExpansionSection
+        resumo={expansoesResumo}
+        healthResumo={healthResumoData}
         currency="BRL"
       />
 

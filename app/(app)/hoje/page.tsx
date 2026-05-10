@@ -9,6 +9,7 @@ import FollowupProposalAlert from "@/components/followup-proposal-alert";
 import PedidosIndicacaoAlert, { type PedidoPendenteHoje } from "@/components/pedidos-indicacao-alert";
 import NpsPendenteAlert, { type NpsPendenteHoje } from "@/components/nps-pendente-alert";
 import HealthEmRiscoAlert, { type HealthEmRiscoHoje } from "@/components/health-em-risco-alert";
+import ExpansoesAtrasadasAlert, { type ExpansaoAtrasadaHoje } from "@/components/expansoes-atrasadas-alert";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp, Upload, UserPlus, Kanban, X } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
@@ -113,13 +114,23 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     .limit(20);
   if (!isGestor || !verTodos) qHealthRisco = qHealthRisco.eq("lead_responsavel_id", me.id);
 
+  // Expansões com próxima ação atrasada (lado direito do funil em ação)
+  let qExpansoesAtrasadas = supabase
+    .from("v_expansoes_atrasadas")
+    .select("expansao_id, cliente_lead_id, cliente_empresa, cliente_nome, titulo, proxima_acao, dias_atrasada, valor_potencial, estagio, responsavel_id")
+    .eq("organizacao_id", orgId)
+    .order("dias_atrasada", { ascending: false })
+    .limit(20);
+  if (!isGestor || !verTodos) qExpansoesAtrasadas = qExpansoesAtrasadas.eq("responsavel_id", me.id);
+
   const [
     { data: leads },
     { data: topData },
     { data: pedidosData },
     { data: npsData },
     { data: healthData },
-  ] = await Promise.all([q, qTop, qPedidos, qNpsPendentes, qHealthRisco]);
+    { data: expansoesData },
+  ] = await Promise.all([q, qTop, qPedidos, qNpsPendentes, qHealthRisco, qExpansoesAtrasadas]);
   const all = (leads ?? []) as LeadEnriched[];
   const top = (topData ?? []) as TopOportunidade[];
   const pedidosIndicacao = ((pedidosData ?? []) as Array<{
@@ -164,6 +175,27 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     lead_nome: h.lead_nome,
     health_score: h.health_score,
     dias_sem_interacao: h.dias_sem_interacao,
+  }));
+  const expansoesAtrasadas = ((expansoesData ?? []) as Array<{
+    expansao_id: number;
+    cliente_lead_id: number;
+    cliente_empresa: string | null;
+    cliente_nome: string | null;
+    titulo: string;
+    proxima_acao: string | null;
+    dias_atrasada: number;
+    valor_potencial: number;
+    estagio: string;
+  }>).map<ExpansaoAtrasadaHoje>((e) => ({
+    expansao_id: e.expansao_id,
+    cliente_lead_id: e.cliente_lead_id,
+    cliente_empresa: e.cliente_empresa,
+    cliente_nome: e.cliente_nome,
+    titulo: e.titulo,
+    proxima_acao: e.proxima_acao,
+    dias_atrasada: e.dias_atrasada,
+    valor_potencial: e.valor_potencial,
+    estagio: e.estagio,
   }));
 
   // --------------------------------------------------------
@@ -289,6 +321,9 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
 
       {/* Clientes em risco de churn — alerta vermelho pra reativar antes do não-renew */}
       <HealthEmRiscoAlert leads={healthRisco} />
+
+      {/* Expansões com próxima ação atrasada — pipeline pós-venda parado */}
+      <ExpansoesAtrasadasAlert expansoes={expansoesAtrasadas} />
 
       {/* Banner de boas-vindas para colaboradores recém-convidados */}
       {isWelcome && (
