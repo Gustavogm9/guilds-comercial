@@ -101,14 +101,15 @@ export type AiFeatureCodigo =
   | "resumo_diario"
   | "digest_semanal"
   | "reativar_nutricao"
-  | "forecast_ml";
+  | "forecast_ml"
+  | "analisar_whatsapp";
 
 export const AI_FEATURES: AiFeatureCodigo[] = [
   "enriquecer_lead", "gerar_oferta_raiox", "gerar_documento_raiox",
   "gerar_mensagem_cadencia", "extrair_ligacao", "next_best_action",
   "briefing_pre_call", "objection_handler", "gerar_proposta",
   "sugerir_motivo_perda", "detectar_risco", "resumo_diario",
-  "digest_semanal", "reativar_nutricao", "forecast_ml",
+  "digest_semanal", "reativar_nutricao", "forecast_ml", "analisar_whatsapp",
 ];
 
 export type AiProviderCodigo = "anthropic" | "openai" | "google" | "local";
@@ -828,4 +829,117 @@ export interface HealthResumo {
   em_risco: number;
   score_medio: number | null;
   arr_em_risco: number;
+}
+
+// =============================================================================
+// Expansões (P4 do flywheel)
+// =============================================================================
+
+export type TipoExpansao =
+  | "upsell"
+  | "cross_sell"
+  | "expansao_seats"
+  | "renovacao"
+  | "recompra"
+  | "outro";
+
+export const TIPOS_EXPANSAO: TipoExpansao[] = [
+  "upsell",
+  "cross_sell",
+  "expansao_seats",
+  "renovacao",
+  "recompra",
+  "outro",
+];
+
+export type EstagioExpansao =
+  | "identificada"
+  | "qualificada"
+  | "proposta"
+  | "negociacao"
+  | "fechada"
+  | "perdida";
+
+export const ESTAGIOS_EXPANSAO: EstagioExpansao[] = [
+  "identificada",
+  "qualificada",
+  "proposta",
+  "negociacao",
+  "fechada",
+  "perdida",
+];
+
+export const ESTAGIOS_EXPANSAO_ATIVOS: EstagioExpansao[] = [
+  "identificada",
+  "qualificada",
+  "proposta",
+  "negociacao",
+];
+
+export type OrigemExpansao =
+  | "vendedor"
+  | "cliente"
+  | "sistema_inatividade"
+  | "sistema_milestone"
+  | "sistema_renovacao";
+
+export interface Expansao {
+  id: number;
+  organizacao_id: string;
+  cliente_lead_id: number;
+  responsavel_id: string | null;
+  tipo: TipoExpansao;
+  titulo: string;
+  descricao: string | null;
+  valor_potencial: number;
+  valor_recorrente_mensal: number | null;
+  estagio: EstagioExpansao;
+  motivo_perda: string | null;
+  origem: OrigemExpansao;
+  data_identificada: string;
+  data_proxima_acao: string | null;
+  proxima_acao: string | null;
+  data_fechada: string | null;
+  data_perdida: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpansaoAtiva extends Expansao {
+  cliente_empresa: string | null;
+  cliente_nome: string | null;
+  cliente_crm_stage: CrmStage | null;
+  responsavel_nome: string | null;
+  dias_aberta: number;
+  dias_ate_acao: number | null;
+}
+
+export interface ExpansoesResumo {
+  organizacao_id: string;
+  total_expansoes: number;
+  ativas: number;
+  fechadas: number;
+  perdidas: number;
+  taxa_conversao_pct: number | null;
+  pipeline_aberto: number;
+  receita_expandida: number;
+  arr_expandido: number;
+  dias_medio_fechar: number | null;
+}
+
+export interface ExpansaoAtrasada {
+  expansao_id: number;
+  organizacao_id: string;
+  cliente_lead_id: number;
+  responsavel_id: string | null;
+  tipo: TipoExpansao;
+  titulo: string;
+  estagio: EstagioExpansao;
+  proxima_acao: string | null;
+  data_proxima_acao: string;
+  valor_potencial: number;
+  cliente_empresa: string | null;
+  cliente_nome: string | null;
+  dias_atrasada: number;
 }

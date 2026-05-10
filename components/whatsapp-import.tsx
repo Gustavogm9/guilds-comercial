@@ -1,6 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
-import { Upload, MessageCircle, Loader2, CheckCircle2, X, Eye, ThumbsUp, ThumbsDown, Minus } from "lucide-react";
+import { Upload, MessageCircle, Loader2, CheckCircle2, X, ThumbsUp, ThumbsDown, Minus, Sparkles, RefreshCw } from "lucide-react";
 
 type Conversa = {
   id: number; contato_nome: string | null; arquivo_nome: string | null;
@@ -18,12 +18,26 @@ export default function WhatsappImport({ leadId, nomeVendedor, whatsapp }: {
   const [importando, startImport] = useTransition();
   const [resultado, setResultado] = useState<any | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [conversaAberta, setConversaAberta] = useState<number | null>(null);
+  const [analisando, setAnalisando] = useState<Set<number>>(new Set());
 
   if (!carregado) {
     setCarregado(true);
     fetch(`/api/leads/${leadId}/whatsapp`)
       .then(r => r.json()).then(d => d.conversas && setConversas(d.conversas)).catch(() => null);
+  }
+
+  async function analisarComIA(conversaId: number) {
+    setAnalisando(prev => new Set([...prev, conversaId]));
+    try {
+      const r = await fetch(`/api/leads/${leadId}/whatsapp/${conversaId}/analisar`, { method: "POST" });
+      const d = await r.json();
+      if (d.ok) {
+        const lista = await fetch(`/api/leads/${leadId}/whatsapp`).then(r => r.json());
+        if (lista.conversas) setConversas(lista.conversas);
+      }
+    } finally {
+      setAnalisando(prev => { const s = new Set(prev); s.delete(conversaId); return s; });
+    }
   }
 
   function importarArquivo(file: File) {
@@ -128,12 +142,17 @@ export default function WhatsappImport({ leadId, nomeVendedor, whatsapp }: {
                   <MessageCircle className="w-4 h-4 text-emerald-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium">{c.contato_nome ?? c.arquivo_nome ?? "Conversa"}</span>
                     {sentIcon(c.sentimento)}
                     {c.nivel_interesse && (
                       <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">
                         Interesse {c.nivel_interesse}/10
+                      </span>
+                    )}
+                    {!c.resumo_ia && (
+                      <span className="text-[10px] bg-amber-500/10 text-amber-700 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
+                        <Sparkles className="w-2.5 h-2.5" /> IA pendente
                       </span>
                     )}
                   </div>
@@ -153,6 +172,27 @@ export default function WhatsappImport({ leadId, nomeVendedor, whatsapp }: {
                         <span key={i} className="text-[10px] bg-secondary px-1.5 py-0.5 rounded text-muted-foreground">{pk}</span>
                       ))}
                     </div>
+                  )}
+                  {!c.resumo_ia && (
+                    <button
+                      onClick={() => analisarComIA(c.id)}
+                      disabled={analisando.has(c.id)}
+                      className="mt-2 btn-ghost !py-1 !px-2 text-[10px] gap-1 text-emerald-700 border border-emerald-500/30 hover:bg-emerald-500/5"
+                    >
+                      {analisando.has(c.id)
+                        ? <><Loader2 className="w-3 h-3 animate-spin" /> Analisando…</>
+                        : <><Sparkles className="w-3 h-3" /> Analisar com IA</>
+                      }
+                    </button>
+                  )}
+                  {c.resumo_ia && (
+                    <button
+                      onClick={() => analisarComIA(c.id)}
+                      disabled={analisando.has(c.id)}
+                      className="mt-2 text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Re-analisar
+                    </button>
                   )}
                 </div>
               </div>

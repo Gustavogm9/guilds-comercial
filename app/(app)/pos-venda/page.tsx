@@ -10,6 +10,8 @@ import type {
   NpsResumo,
   HealthScore,
   HealthResumo,
+  ExpansaoAtiva,
+  ExpansoesResumo,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +36,9 @@ export default async function PosVendaPage() {
     npsResumoRes,
     healthScoresRes,
     healthResumoRes,
+    expansoesAtivasRes,
+    expansoesResumoRes,
+    expansoesFechadasRes,
   ] = await Promise.all([
     supabase
       .from("v_onboarding_pendente")
@@ -75,6 +80,24 @@ export default async function PosVendaPage() {
       .select("*")
       .eq("organizacao_id", orgId)
       .maybeSingle(),
+    supabase
+      .from("v_expansoes_ativas")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .order("data_proxima_acao", { ascending: true, nullsFirst: false })
+      .limit(200),
+    supabase
+      .from("v_expansoes_resumo")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .maybeSingle(),
+    supabase
+      .from("expansoes")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .in("estagio", ["fechada", "perdida"])
+      .order("updated_at", { ascending: false })
+      .limit(50),
   ]);
 
   return (
