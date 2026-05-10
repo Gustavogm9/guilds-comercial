@@ -7,9 +7,11 @@ import LeadScoreCard from "@/components/lead-score-card";
 import CadenciaPassoCard from "@/components/cadencia-passo-card";
 import NextActionCard from "@/components/next-action-card";
 import PedidoIndicacaoBanner from "@/components/pedido-indicacao-banner";
+import LeadTimeline360 from "@/components/lead-timeline-360";
+import type { TimelineEvento } from "@/components/lead-timeline-360";
 import { STAGE_COLORS } from "@/lib/lists";
 import type { LeadEnriched, LeadScore } from "@/lib/types";
-import { ChevronLeft, MessageSquare, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin } from "lucide-react";
+import { ChevronLeft, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin } from "lucide-react";
 import ObjectionHandler from "@/components/objection-handler";
 import { getServerLocale, getT, type Locale } from "@/lib/i18n";
 
@@ -96,6 +98,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
     { data: eventos },
     { data: scoreRow },
     { data: pedidosIndicacaoPendentes },
+    { data: timeline360 },
   ] = await Promise.all([
     supabase.from("v_leads_enriched").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
     supabase.from("ligacoes").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("data_hora", { ascending: false }).limit(50),
@@ -110,6 +113,13 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       .eq("lead_id", id)
       .eq("status", "pendente")
       .order("data_pedido", { ascending: true }),
+    supabase
+      .from("lead_timeline")
+      .select("id, tipo, titulo, conteudo, resumo_ia, metadata, ref_id, ref_tabela, criado_por, created_at, profiles(display_name)")
+      .eq("lead_id", id)
+      .eq("organizacao_id", orgId)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   if (!leadRow) notFound();
@@ -463,24 +473,19 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
         </section>
       )}
 
-      {/* Timeline */}
+      {/* Timeline 360° — substitui a seção estática anterior */}
       <section className="mt-6">
-        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-          <MessageSquare className="w-3.5 h-3.5"/> {t("pipeline.detail_section_timeline")}
+        <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">
+          Histórico 360°
         </h2>
-        <div className="card divide-y">
-          {(eventos ?? []).length === 0 && (
-            <p className="p-4 text-sm text-muted-foreground">{t("pipeline.detail_section_timeline_vazio")}</p>
-          )}
-          {(eventos ?? []).map((ev: any) => (
-            <div key={ev.id} className="p-3 text-sm flex items-start gap-3">
-              <div className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums">{fmtDateTime(ev.created_at, locale)}</div>
-              <div className="flex-1">
-                <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold mr-2">{ev.tipo}</span>
-                <span>{summarizePayload(ev.payload, t)}</span>
-              </div>
-            </div>
-          ))}
+        <div className="card p-4">
+          <LeadTimeline360
+            leadId={lead.id}
+            orgId={orgId}
+            eventosIniciais={(timeline360 ?? []) as unknown as TimelineEvento[]}
+            nomeVendedor={me.display_name}
+            whatsapp={lead.whatsapp}
+          />
         </div>
       </section>
     </div>

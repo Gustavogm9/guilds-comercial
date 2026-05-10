@@ -679,3 +679,118 @@ export interface TopEmbaixador {
   taxa_conversao_pct: number;
   ultima_indicacao_em: string;
 }
+
+// =============================================================================
+// Onboarding pós-venda + NPS (P2 do flywheel)
+// =============================================================================
+
+export type StatusOnboardingChecklist = "em_andamento" | "concluido" | "abandonado";
+export type StatusOnboardingItem = "pendente" | "concluido" | "pulado";
+export type ResponsavelPapel = "comercial" | "sdr" | "gestor" | "cliente";
+export type CanalNps = "email" | "whatsapp" | "call" | "in_app" | "manual";
+export type CategoriaNps = "promotor" | "neutro" | "detrator";
+
+export interface OnboardingTemplate {
+  id: number;
+  organizacao_id: string;
+  nome: string;
+  descricao: string | null;
+  ativo: boolean;
+  default_template: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OnboardingTemplateItem {
+  id: number;
+  template_id: number;
+  ordem: number;
+  titulo: string;
+  descricao: string | null;
+  due_offset_dias: number;
+  obrigatorio: boolean;
+  responsavel_papel: ResponsavelPapel | null;
+}
+
+export interface OnboardingChecklist {
+  id: number;
+  organizacao_id: string;
+  lead_id: number;
+  template_id: number | null;
+  status: StatusOnboardingChecklist;
+  iniciado_em: string;
+  concluido_em: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OnboardingItem {
+  id: number;
+  checklist_id: number;
+  template_item_id: number | null;
+  ordem: number;
+  titulo: string;
+  descricao: string | null;
+  status: StatusOnboardingItem;
+  due_at: string | null;
+  responsavel_papel: ResponsavelPapel | null;
+  responsavel_id: string | null;
+  concluido_em: string | null;
+  concluido_por: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OnboardingPendente {
+  checklist_id: number;
+  organizacao_id: string;
+  lead_id: number;
+  iniciado_em: string;
+  template_id: number | null;
+  lead_empresa: string | null;
+  lead_nome: string | null;
+  lead_responsavel_id: string | null;
+  total_items: number;
+  concluidos: number;
+  pulados: number;
+  atrasados: number;
+  pct_concluido: number;
+}
+
+export interface NpsResponse {
+  id: number;
+  organizacao_id: string;
+  lead_id: number;
+  solicitado_em: string;
+  solicitado_por: string | null;
+  canal: CanalNps | null;
+  score: number | null;
+  comentario: string | null;
+  respondido_em: string | null;
+  categoria: CategoriaNps | null;
+  created_at: string;
+}
+
+export interface NpsResumo {
+  organizacao_id: string;
+  total_respostas: number;
+  promotores: number;
+  neutros: number;
+  detratores: number;
+  nps_score: number | null;
+  score_medio: number | null;
+}
+
+export interface NpsPendenteResponder {
+  nps_id: number;
+  organizacao_id: string;
+  lead_id: number;
+  solicitado_em: string;
+  canal: CanalNps | null;
+  lead_empresa: string | null;
+  lead_nome: string | null;
+  lead_responsavel_id: string | null;
+  dias_pendente: number;
+}

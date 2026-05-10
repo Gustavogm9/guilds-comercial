@@ -7,6 +7,7 @@ import QuickActions from "@/components/quick-actions";
 import ActivationChecklist from "@/components/activation-checklist";
 import FollowupProposalAlert from "@/components/followup-proposal-alert";
 import PedidosIndicacaoAlert, { type PedidoPendenteHoje } from "@/components/pedidos-indicacao-alert";
+import NpsPendenteAlert, { type NpsPendenteHoje } from "@/components/nps-pendente-alert";
 import type { LeadEnriched, TopOportunidade } from "@/lib/types";
 import { AlertTriangle, Sparkles, Clock, ChevronRight, MessageSquare, Zap, TrendingUp, Upload, UserPlus, Kanban, X } from "lucide-react";
 import BriefingPreCall from "@/components/briefing-pre-call";
@@ -92,7 +93,18 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     .limit(20);
   if (!isGestor || !verTodos) qPedidos = qPedidos.eq("lead_responsavel_id", me.id);
 
-  const [{ data: leads }, { data: topData }, { data: pedidosData }] = await Promise.all([q, qTop, qPedidos]);
+  // NPS pendentes (vendedor precisa registrar a resposta do cliente)
+  let qNpsPendentes = supabase
+    .from("v_nps_pendente_responder")
+    .select("nps_id, lead_id, lead_empresa, lead_nome, solicitado_em, dias_pendente, lead_responsavel_id")
+    .eq("organizacao_id", orgId)
+    .order("solicitado_em", { ascending: true })
+    .limit(20);
+  if (!isGestor || !verTodos) qNpsPendentes = qNpsPendentes.eq("lead_responsavel_id", me.id);
+
+  const [{ data: leads }, { data: topData }, { data: pedidosData }, { data: npsData }] = await Promise.all([
+    q, qTop, qPedidos, qNpsPendentes,
+  ]);
   const all = (leads ?? []) as LeadEnriched[];
   const top = (topData ?? []) as TopOportunidade[];
   const pedidosIndicacao = ((pedidosData ?? []) as Array<{
@@ -109,6 +121,21 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
     lead_nome: p.lead_nome,
     data_pedido: p.data_pedido,
     dias_pendente: p.dias_pendente,
+  }));
+  const npsPendentes = ((npsData ?? []) as Array<{
+    nps_id: number;
+    lead_id: number;
+    lead_empresa: string | null;
+    lead_nome: string | null;
+    solicitado_em: string;
+    dias_pendente: number;
+  }>).map<NpsPendenteHoje>((n) => ({
+    nps_id: n.nps_id,
+    lead_id: n.lead_id,
+    lead_empresa: n.lead_empresa,
+    lead_nome: n.lead_nome,
+    solicitado_em: n.solicitado_em,
+    dias_pendente: n.dias_pendente,
   }));
 
   // --------------------------------------------------------
@@ -228,6 +255,9 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
 
       {/* Pedidos de indicação pendentes — lado direito do funil borboleta */}
       <PedidosIndicacaoAlert pedidos={pedidosIndicacao} />
+
+      {/* NPS pendente de coleta — fecha o ciclo do funil borboleta */}
+      <NpsPendenteAlert npsList={npsPendentes} />
 
       {/* Banner de boas-vindas para colaboradores recém-convidados */}
       {isWelcome && (
