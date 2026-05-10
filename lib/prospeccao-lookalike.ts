@@ -107,7 +107,7 @@ export async function computarFingerprint(supabase: any, orgId: string): Promise
 
   const valores = amostra.map((l: any) => Number(l.valor_potencial) || 0).filter((v: number) => v > 0);
   const valor_medio = valores.length
-    ? Math.round(valores.reduce((a, b) => a + b, 0) / valores.length)
+    ? Math.round(valores.reduce((a: number, b: number) => a + b, 0) / valores.length)
     : 0;
 
   const pct = (campo: string) =>

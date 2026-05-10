@@ -261,7 +261,7 @@ export async function concluirRaioXDinamico(leadId: number, templateId: number) 
     .eq("id", respostaData.id);
 
   // 5. Disparar Webhook
-  await dispatchWebhook("raiox.completed", orgId, {
+  await dispatchWebhook(orgId, "raiox.completed", {
     lead_id: leadId,
     raio_x_id: raioXLegacy.id,
     template_id: templateId,

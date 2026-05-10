@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { toast } from "react-hot-toast";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, CheckCircle2, X } from "lucide-react";
 
 export default function RaioXForm({ template }: { template: any }) {
   const supabase = createClient();
@@ -12,6 +11,14 @@ export default function RaioXForm({ template }: { template: any }) {
     JSON.stringify(template?.config_json || { secoes: [] }, null, 2)
   );
   const [nome, setNome] = useState(template?.nome || "Raio-X Padrão");
+  const [feedback, setFeedback] = useState<{ tipo: "sucesso" | "erro"; mensagem: string } | null>(null);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const ms = feedback.tipo === "sucesso" ? 2500 : 4500;
+    const timer = setTimeout(() => setFeedback(null), ms);
+    return () => clearTimeout(timer);
+  }, [feedback]);
 
   async function handleSave() {
     setIsSubmitting(true);
@@ -20,7 +27,7 @@ export default function RaioXForm({ template }: { template: any }) {
       try {
         parsedJson = JSON.parse(configJson);
       } catch (err) {
-        toast.error("Formato JSON inválido. Verifique a sintaxe.");
+        setFeedback({ tipo: "erro", mensagem: "Formato JSON inválido. Verifique a sintaxe." });
         setIsSubmitting(false);
         return;
       }
@@ -38,10 +45,10 @@ export default function RaioXForm({ template }: { template: any }) {
         // Mas a page.tsx vai garantir que exista.
       }
       
-      toast.success("Configuração do Raio-X salva com sucesso!");
+      setFeedback({ tipo: "sucesso", mensagem: "Configuração do Raio-X salva com sucesso!" });
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao salvar configuração.");
+      setFeedback({ tipo: "erro", mensagem: "Erro ao salvar configuração." });
     } finally {
       setIsSubmitting(false);
     }
@@ -75,10 +82,32 @@ export default function RaioXForm({ template }: { template: any }) {
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={isSubmitting}>
+        <button className="btn-primary" type="button" onClick={handleSave} disabled={isSubmitting}>
           {isSubmitting ? "Salvando..." : "Salvar Configuração"}
-        </Button>
+        </button>
       </div>
+
+      {feedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-24 right-6 md:right-8 md:bottom-28 z-[100] max-w-sm card p-3 flex items-start gap-2.5 shadow-stripe-md animate-in fade-in slide-in-from-bottom-2 ${
+            feedback.tipo === "sucesso"
+              ? "border-success-500/30 bg-success-500/5"
+              : "border-destructive/30 bg-destructive/5"
+          }`}
+        >
+          {feedback.tipo === "sucesso" ? (
+            <CheckCircle2 className="w-4 h-4 text-success-500 mt-0.5 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+          )}
+          <span className="text-sm text-foreground flex-1">{feedback.mensagem}</span>
+          <button type="button" onClick={() => setFeedback(null)} className="text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

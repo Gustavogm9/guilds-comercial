@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, CheckCircle2, ChevronRight, ChevronLeft, Save } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { toast } from "react-hot-toast";
+import { Loader2, CheckCircle2, ChevronRight, ChevronLeft, Save, AlertCircle, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { concluirRaioXDinamico } from "@/app/(app)/raio-x/actions";
 
@@ -44,6 +42,14 @@ export default function DynamicRaioXShell({ leadId, template, onComplete }: Dyna
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [respostaId, setRespostaId] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<{ tipo: "sucesso" | "erro"; mensagem: string } | null>(null);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const ms = feedback.tipo === "sucesso" ? 2500 : 4500;
+    const timer = setTimeout(() => setFeedback(null), ms);
+    return () => clearTimeout(timer);
+  }, [feedback]);
 
   useEffect(() => {
     async function fetchRespostas() {
@@ -73,10 +79,10 @@ export default function DynamicRaioXShell({ leadId, template, onComplete }: Dyna
       setIsSaving(true);
       try {
         await concluirRaioXDinamico(leadId, template.id);
-        toast.success("Raio-X concluído e avaliado com IA!");
+        setFeedback({ tipo: "sucesso", mensagem: "Raio-X concluído e avaliado com IA!" });
         if (onComplete) onComplete();
       } catch (error: any) {
-        toast.error(error.message || "Erro ao concluir Raio-X.");
+        setFeedback({ tipo: "erro", mensagem: error.message || "Erro ao concluir Raio-X." });
         console.error(error);
       } finally {
         setIsSaving(false);
@@ -120,7 +126,7 @@ export default function DynamicRaioXShell({ leadId, template, onComplete }: Dyna
       }
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao salvar progresso.");
+      setFeedback({ tipo: "erro", mensagem: "Erro ao salvar progresso." });
     } finally {
       setIsSaving(false);
     }
@@ -241,24 +247,47 @@ export default function DynamicRaioXShell({ leadId, template, onComplete }: Dyna
 
       {/* Controles de Navegação */}
       <div className="flex items-center justify-between pt-2">
-        <Button 
-          variant="outline" 
+        <button 
+          className="btn-secondary" 
+          type="button"
           onClick={handlePrev} 
           disabled={currentStep === 0 || isSaving}
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
           Anterior
-        </Button>
+        </button>
         
         <div className="flex items-center gap-2">
           {isSaving && <span className="text-xs text-muted-foreground flex items-center gap-1"><Save className="w-3 h-3 animate-pulse"/> Salvando...</span>}
           
-          <Button onClick={handleNext} disabled={isSaving}>
+          <button className="btn-primary" type="button" onClick={handleNext} disabled={isSaving}>
             {currentStep === secoes.length - 1 ? "Concluir Raio-X" : "Próximo"}
             {currentStep < secoes.length - 1 && <ChevronRight className="w-4 h-4 ml-2" />}
-          </Button>
+          </button>
         </div>
       </div>
+
+      {feedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-24 right-6 md:right-8 md:bottom-28 z-[100] max-w-sm card p-3 flex items-start gap-2.5 shadow-stripe-md animate-in fade-in slide-in-from-bottom-2 ${
+            feedback.tipo === "sucesso"
+              ? "border-success-500/30 bg-success-500/5"
+              : "border-destructive/30 bg-destructive/5"
+          }`}
+        >
+          {feedback.tipo === "sucesso" ? (
+            <CheckCircle2 className="w-4 h-4 text-success-500 mt-0.5 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+          )}
+          <span className="text-sm text-foreground flex-1">{feedback.mensagem}</span>
+          <button type="button" onClick={() => setFeedback(null)} className="text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
