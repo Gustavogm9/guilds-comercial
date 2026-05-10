@@ -69,7 +69,7 @@ export default function RenovacoesProximasAlert({
             {fmtBRL(valorTotal)} em ARR no horizonte de 30d. Renovação fechada = receita garantida.
           </p>
         </div>
-        <Link href="/pos-venda" className="btn-ghost text-xs whitespace-nowrap" prefetch>
+        <Link href="/comunicacao/pos-venda" className="btn-ghost text-xs whitespace-nowrap" prefetch>
           Ver todas <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
@@ -110,7 +110,7 @@ export default function RenovacoesProximasAlert({
       </ul>
 
       {restantes > 0 && (
-        <Link href="/pos-venda" className={`text-xs hover:underline mt-2 inline-block ${linkTone}`}>
+        <Link href="/comunicacao/pos-venda" className={`text-xs hover:underline mt-2 inline-block ${linkTone}`}>
           + {restantes} próxima{restantes > 1 ? "s" : ""}
         </Link>
       )}

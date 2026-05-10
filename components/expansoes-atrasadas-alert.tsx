@@ -52,7 +52,7 @@ export default function ExpansoesAtrasadasAlert({ expansoes }: { expansoes: Expa
             {fmtBRL(valorTotal)} em pipeline parado. Liga, manda mensagem, fecha.
           </p>
         </div>
-        <Link href="/pos-venda" className="btn-ghost text-xs whitespace-nowrap" prefetch>
+        <Link href="/comunicacao/pos-venda" className="btn-ghost text-xs whitespace-nowrap" prefetch>
           Ver todos <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
@@ -85,7 +85,7 @@ export default function ExpansoesAtrasadasAlert({ expansoes }: { expansoes: Expa
       </ul>
 
       {restantes > 0 && (
-        <Link href="/pos-venda" className="text-xs text-warning-500 hover:underline mt-2 inline-block">
+        <Link href="/comunicacao/pos-venda" className="text-xs text-warning-500 hover:underline mt-2 inline-block">
           + {restantes} atrasada{restantes > 1 ? "s" : ""}
         </Link>
       )}

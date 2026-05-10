@@ -54,7 +54,7 @@ export default function AdvocacySection({
             Cada cliente fechado é uma fonte de novos leads. Mede aqui o efeito multiplicador.
           </p>
         </div>
-        <Link href="/indicacoes" className="btn-secondary text-xs whitespace-nowrap">
+        <Link href="/growth/indicacoes" className="btn-secondary text-xs whitespace-nowrap">
           {t("indicacoes.titulo")} <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </header>
@@ -158,7 +158,7 @@ function EmptyAdvocacy({ t }: { t: (k: string) => string }) {
         Quando você fechar um cliente, o sistema vai automaticamente gerar um pedido
         de indicação. As métricas aparecem aqui assim que o ciclo completar.
       </p>
-      <Link href="/indicacoes" className="btn-secondary text-xs">
+      <Link href="/growth/indicacoes" className="btn-secondary text-xs">
         Entender o funil borboleta <ArrowRight className="w-3 h-3" aria-hidden="true" />
       </Link>
     </div>

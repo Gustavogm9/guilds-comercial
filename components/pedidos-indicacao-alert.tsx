@@ -95,7 +95,7 @@ export default function PedidosIndicacaoAlert({
           </p>
           {erro && <p role="alert" className="text-xs text-destructive mt-1.5">{erro}</p>}
         </div>
-        <Link href="/indicacoes" className="btn-ghost text-xs whitespace-nowrap" prefetch>
+        <Link href="/growth/indicacoes" className="btn-ghost text-xs whitespace-nowrap" prefetch>
           Ver todos <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
@@ -144,7 +144,7 @@ export default function PedidosIndicacaoAlert({
       </ul>
 
       {restantes > 0 && (
-        <Link href="/indicacoes" className="text-xs text-primary hover:underline mt-2 inline-block">
+        <Link href="/growth/indicacoes" className="text-xs text-primary hover:underline mt-2 inline-block">
           + {restantes} pedido{restantes > 1 ? "s" : ""} pendente{restantes > 1 ? "s" : ""}
         </Link>
       )}
