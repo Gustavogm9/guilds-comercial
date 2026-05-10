@@ -19,6 +19,7 @@ import {
   adiarPedidoIndicacao,
   type NovaIndicacaoInput,
 } from "./actions";
+import EmbaixadorTokenManager from "@/components/embaixador-token-manager";
 
 type Tab = "pendentes" | "indicacoes" | "embaixadores" | "recompensas";
 type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
@@ -46,6 +47,8 @@ export default function IndicacoesClient({
   indicacoes,
   embaixadores,
   kpis,
+  tokensEmbaixador,
+  baseUrl,
 }: {
   meId: string;
   isGestor: boolean;
@@ -53,6 +56,8 @@ export default function IndicacoesClient({
   indicacoes: IndicacaoEnriched[];
   embaixadores: TopEmbaixador[];
   kpis: AdvocacyKpis | null;
+  tokensEmbaixador: import("@/lib/types").EmbaixadorToken[];
+  baseUrl: string;
 }) {
   const [tab, setTab] = useState<Tab>("pendentes");
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -101,7 +106,15 @@ export default function IndicacoesClient({
           onErro={(e) => setFeedback({ tipo: "erro", mensagem: e instanceof Error ? e.message : "Erro inesperado." })} />
       )}
       {tab === "indicacoes" && <IndicacoesTab indicacoes={indicacoes} t={t} locale={locale} />}
-      {tab === "embaixadores" && <EmbaixadoresTab embaixadores={embaixadores} t={t} locale={locale} />}
+      {tab === "embaixadores" && (
+        <EmbaixadoresTab
+          embaixadores={embaixadores}
+          tokensEmbaixador={tokensEmbaixador}
+          baseUrl={baseUrl}
+          t={t}
+          locale={locale}
+        />
+      )}
       {tab === "recompensas" && <RecompensasTab recompensas={recompensasPendentes} t={t} locale={locale} />}
 
       {feedback && <FeedbackToast feedback={feedback} onClose={() => setFeedback(null)} />}
@@ -593,8 +606,11 @@ function StatusBadge({ status, t }: { status: IndicacaoEnriched["status"]; t: T 
 }
 
 // ================== Tab: Embaixadores ==================
-function EmbaixadoresTab({ embaixadores, t, locale }: {
-  embaixadores: TopEmbaixador[]; t: T; locale: Locale;
+function EmbaixadoresTab({ embaixadores, tokensEmbaixador, baseUrl, t, locale }: {
+  embaixadores: TopEmbaixador[];
+  tokensEmbaixador: import("@/lib/types").EmbaixadorToken[];
+  baseUrl: string;
+  t: T; locale: Locale;
 }) {
   if (embaixadores.length === 0) {
     return (
@@ -604,6 +620,9 @@ function EmbaixadoresTab({ embaixadores, t, locale }: {
       </div>
     );
   }
+
+  // Index dos tokens por lead_id pra lookup rápido
+  const tokenByLead = new Map(tokensEmbaixador.map((tk) => [tk.lead_id, tk]));
 
   return (
     <div className="card overflow-hidden">
@@ -616,11 +635,12 @@ function EmbaixadoresTab({ embaixadores, t, locale }: {
             <th className="text-right px-3 py-2 font-semibold">{t("indicacoes.embaixador_th_fechou")}</th>
             <th className="text-right px-3 py-2 font-semibold">{t("indicacoes.embaixador_th_taxa")}</th>
             <th className="text-right px-3 py-2 font-semibold">{t("indicacoes.embaixador_th_receita")}</th>
+            <th className="text-left px-3 py-2 font-semibold">Portal</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {embaixadores.map((e, idx) => (
-            <tr key={e.embaixador_lead_id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
+            <tr key={e.embaixador_lead_id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04] align-top">
               <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{idx + 1}</td>
               <td className="px-3 py-2">
                 <Link
@@ -638,6 +658,14 @@ function EmbaixadoresTab({ embaixadores, t, locale }: {
               <td className="px-3 py-2 text-right text-xs tabular-nums">{e.taxa_conversao_pct.toFixed(0)}%</td>
               <td className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-success-500">
                 {formatBRL(e.receita_gerada)}
+              </td>
+              <td className="px-3 py-2">
+                <EmbaixadorTokenManager
+                  leadId={e.embaixador_lead_id}
+                  empresaLead={e.embaixador_empresa}
+                  tokenAtual={tokenByLead.get(e.embaixador_lead_id) ?? null}
+                  baseUrl={baseUrl}
+                />
               </td>
             </tr>
           ))}

@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
+import { getAppUrl } from "@/lib/email";
 import IndicacoesClient from "./indicacoes-client";
 import type {
   PedidoIndicacaoEnriched,
   IndicacaoEnriched,
   AdvocacyKpis,
   TopEmbaixador,
+  EmbaixadorToken,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +52,7 @@ export default async function IndicacoesPage(props: {
     ? indicacoesBase
     : indicacoesBase.eq("solicitado_por", respFiltro);
 
-  const [pendentesRes, indicacoesRes, embaixadoresRes, kpisRes] = await Promise.all([
+  const [pendentesRes, indicacoesRes, embaixadoresRes, kpisRes, tokensRes] = await Promise.all([
     pendentesQuery,
     indicacoesQuery,
     supabase.from("v_top_embaixadores")
@@ -62,7 +64,15 @@ export default async function IndicacoesPage(props: {
       .select("*")
       .eq("organizacao_id", orgId)
       .maybeSingle(),
+    // P6: tokens de portal embaixador (pra cada embaixador, mostra "Gerar link" ou link existente)
+    supabase.from("v_embaixador_tokens")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .limit(200),
   ]);
+
+  // baseUrl pra montar links públicos do portal /indicar/{token}
+  const baseUrl = getAppUrl();
 
   return (
     <IndicacoesClient
@@ -72,6 +82,8 @@ export default async function IndicacoesPage(props: {
       indicacoes={(indicacoesRes.data ?? []) as IndicacaoEnriched[]}
       embaixadores={(embaixadoresRes.data ?? []) as TopEmbaixador[]}
       kpis={(kpisRes.data ?? null) as AdvocacyKpis | null}
+      tokensEmbaixador={(tokensRes.data ?? []) as EmbaixadorToken[]}
+      baseUrl={baseUrl}
     />
   );
 }

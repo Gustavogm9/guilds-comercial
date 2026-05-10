@@ -986,3 +986,40 @@ export interface RenovacoesResumo {
   taxa_renovacao_pct: number | null;
   arr_em_renovacao_90d: number;
 }
+
+// =============================================================================
+// Portal embaixador self-service (P6 do flywheel)
+// =============================================================================
+
+export interface EmbaixadorToken {
+  id: number;
+  organizacao_id: string;
+  lead_id: number;
+  token: string;
+  ativo: boolean;
+  expires_at: string | null;
+  ultimo_acesso: string | null;
+  total_acessos: number;
+  total_indicacoes_recebidas: number;
+  mensagem_personalizada: string | null;
+  max_indicacoes_por_acesso: number;
+  created_at: string;
+  criado_por: string | null;
+  embaixador_empresa: string | null;
+  embaixador_nome: string | null;
+  embaixador_crm_stage: CrmStage | null;
+  criado_por_nome: string | null;
+}
+
+export interface EmbaixadorPortalContext {
+  organizacao_id: string;
+  organizacao_nome: string;
+  lead_id: number;
+  embaixador_empresa: string | null;
+  embaixador_nome: string | null;
+  mensagem_personalizada: string | null;
+  total_indicacoes_recebidas: number;
+  max_indicacoes_por_acesso: number;
+  qtd_minhas_indicacoes: number;
+  qtd_minhas_que_fecharam: number;
+}
