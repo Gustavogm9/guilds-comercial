@@ -7,6 +7,7 @@ import MobileNav from "@/components/mobile-nav";
 import NovoLeadFab from "@/components/novo-lead-fab";
 import TrialBanner from "@/components/trial-banner";
 import AiCreditsBadge from "@/components/ai-credits-badge";
+import AgentCopilotWidget from "@/components/ai/agent-copilot-widget";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
@@ -74,6 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <MobileNav />
       </main>
       <NovoLeadFab />
+      <AgentCopilotWidget />
     </div>
   );
 }
