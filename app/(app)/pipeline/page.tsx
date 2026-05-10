@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PipelinePage(
   props: {
-    searchParams: Promise<{ resp?: string; q?: string; seg?: string; temp?: string; view?: string }>;
+    searchParams: Promise<{ resp?: string; q?: string; seg?: string; temp?: string; view?: string; prod?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -62,13 +62,27 @@ export default async function PipelinePage(
     q = q.eq("temperatura", searchParams.temp.trim());
   }
 
-  const [{ data: leads }, membros] = await Promise.all([
+  const [{ data: leads }, membros, { data: produtosData }] = await Promise.all([
     q,
     listarMembrosDaOrg(orgId),
+    supabase.from("produtos").select("id, nome").eq("organizacao_id", orgId).eq("ativo", true).order("ordem"),
   ]);
 
+  // Filtro por produto: busca lead_ids vinculados ao produto selecionado
+  const prodFiltro = searchParams.prod?.trim();
+  let leadsFiltrados = (leads ?? []) as LeadEnriched[];
+  if (prodFiltro) {
+    const { data: lps } = await supabase
+      .from("lead_produtos")
+      .select("lead_id")
+      .eq("produto_id", prodFiltro);
+    const ids = new Set((lps ?? []).map((lp: any) => lp.lead_id));
+    leadsFiltrados = leadsFiltrados.filter(l => ids.has(l.id));
+  }
+
   // Extrair segmentos únicos para o filtro
-  const segmentos = [...new Set((leads ?? []).map((l: any) => l.segmento).filter(Boolean))].sort() as string[];
+  const segmentos = [...new Set((leadsFiltrados).map((l: any) => l.segmento).filter(Boolean))].sort() as string[];
+  const todosProdutos = (produtosData ?? []) as { id: number; nome: string }[];
   const viewMode = searchParams.view === "list" ? "list" : "kanban";
 
   return (
@@ -87,21 +101,21 @@ export default async function PipelinePage(
           isGestor={isGestor}
           membros={membros}
           segmentos={segmentos}
-          produtos={[]}
+          produtos={todosProdutos}
           respFiltro={respFiltro}
           qFiltro={searchParams.q ?? ""}
           segFiltro={searchParams.seg ?? ""}
           tempFiltro={searchParams.temp ?? ""}
-          prodFiltro={(searchParams as any).prod ?? ""}
+          prodFiltro={searchParams.prod ?? ""}
           viewMode={viewMode}
-          leads={(leads ?? []) as LeadEnriched[]}
+          leads={leadsFiltrados}
         />
       </div>
 
       {viewMode === "list" ? (
-        <PipelineGrid leads={(leads ?? []) as LeadEnriched[]} />
+        <PipelineGrid leads={leadsFiltrados} />
       ) : (
-        <KanbanBoard leads={(leads ?? []) as LeadEnriched[]} />
+        <KanbanBoard leads={leadsFiltrados} />
       )}
     </div>
   );

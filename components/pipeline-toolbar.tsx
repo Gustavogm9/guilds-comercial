@@ -10,10 +10,12 @@ interface Props {
   isGestor: boolean;
   membros: Array<{ profile_id: string; display_name: string }>;
   segmentos: string[];
+  produtos: Array<{ id: number; nome: string }>;
   respFiltro: string;
   qFiltro: string;
   segFiltro: string;
   tempFiltro: string;
+  prodFiltro: string;
   viewMode?: "list" | "kanban";
   leads: LeadEnriched[];
 }
@@ -30,7 +32,7 @@ interface Props {
  *   - A11y: `aria-label` em search e selects
  */
 function PipelineToolbarInner(props: Props) {
-  const { isGestor, membros, segmentos, respFiltro, qFiltro, segFiltro, tempFiltro, viewMode = "kanban", leads } = props;
+  const { isGestor, membros, segmentos, produtos, respFiltro, qFiltro, segFiltro, tempFiltro, prodFiltro, viewMode = "kanban", leads } = props;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [busca, setBusca] = useState(qFiltro);
@@ -68,7 +70,7 @@ function PipelineToolbarInner(props: Props) {
     });
   }
 
-  const temFiltros = qFiltro || segFiltro || tempFiltro || (isGestor && respFiltro !== "all");
+  const temFiltros = qFiltro || segFiltro || tempFiltro || prodFiltro || (isGestor && respFiltro !== "all");
 
   // Dados para export CSV
   const csvData = leads.map(l => ({
@@ -178,6 +180,27 @@ function PipelineToolbarInner(props: Props) {
           <option value="Frio">{t("pipeline.toolbar_temp_frio")}</option>
         </select>
       </div>
+
+      {/* Filtro por produto */}
+      {produtos.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          <label className="text-[9px] uppercase tracking-[0.12em] font-semibold text-muted-foreground/70">
+            Produto
+          </label>
+          <select
+            value={prodFiltro}
+            onChange={(e) => aplicarFiltro("prod", e.target.value)}
+            disabled={pending}
+            aria-label="Filtrar por produto"
+            className="input-base !py-1.5 !text-xs w-40"
+          >
+            <option value="">— produto —</option>
+            {produtos.map(p => (
+              <option key={p.id} value={String(p.id)}>{p.nome}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Indicador de filtros ativos OU pending */}
       {pending ? (

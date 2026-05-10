@@ -9,6 +9,7 @@ import NextActionCard from "@/components/next-action-card";
 import PedidoIndicacaoBanner from "@/components/pedido-indicacao-banner";
 import RenovacaoConfigCard from "@/components/renovacao-config-card";
 import LeadTimeline360 from "@/components/lead-timeline-360";
+import LeadProdutosWidget from "@/components/lead-produtos-widget";
 import type { TimelineEvento } from "@/components/lead-timeline-360";
 import { STAGE_COLORS } from "@/lib/lists";
 import type { LeadEnriched, LeadScore } from "@/lib/types";
@@ -100,6 +101,8 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
     { data: scoreRow },
     { data: pedidosIndicacaoPendentes },
     { data: timeline360 },
+    { data: leadProdutosData },
+    { data: todosProdutosData },
   ] = await Promise.all([
     supabase.from("v_leads_enriched").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
     supabase.from("ligacoes").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("data_hora", { ascending: false }).limit(50),
@@ -121,10 +124,20 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       .eq("organizacao_id", orgId)
       .order("created_at", { ascending: false })
       .limit(50),
+    supabase.from("lead_produtos")
+      .select("lead_id, produto_id, status, produtos(nome, categoria, recorrente)")
+      .eq("lead_id", id),
+    supabase.from("produtos")
+      .select("id, nome, categoria")
+      .eq("organizacao_id", orgId)
+      .eq("ativo", true)
+      .order("ordem"),
   ]);
 
   if (!leadRow) notFound();
   const lead = leadRow as LeadEnriched;
+  const leadProdutos = (leadProdutosData ?? []) as any[];
+  const todosProdutos = (todosProdutosData ?? []) as { id: number; nome: string; categoria?: string }[];
   const score = scoreRow as LeadScore | null;
   const stage = lead.crm_stage ? STAGE_COLORS[lead.crm_stage] : null;
   const stageLabel = lead.crm_stage ? t(`pipeline_etapas.${lead.crm_stage}`) : null;
@@ -188,6 +201,16 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
         <div className="mt-4">
           <LeadDetailActions lead={lead} vendedor={me.display_name} />
+          {/* Produtos de interesse — widget de tags de produto */}
+          {todosProdutos.length > 0 && (
+            <div className="mt-3">
+              <LeadProdutosWidget
+                leadId={lead.id}
+                leadProdutosIniciais={leadProdutos}
+                produtos={todosProdutos}
+              />
+            </div>
+          )}
           {/* Banner de pedido de indicação pendente — só aparece se houver. */}
           {pedidosIndicacaoPendentes && pedidosIndicacaoPendentes.length > 0 && (
             <div className="mt-3">
