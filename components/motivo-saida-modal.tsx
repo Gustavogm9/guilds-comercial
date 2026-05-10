@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { X, AlertTriangle, Sparkles } from "lucide-react";
 import { MOTIVOS_PERDA, type MotivoPerda, type CrmStage } from "@/lib/types";
 import { moverEtapa } from "@/app/(app)/hoje/actions";
-import { arquivarLead } from "@/app/(app)/base/actions";
+import { arquivarLead } from "@/app/(app)/vendas/base/actions";
 import { sugerirMotivoPerda } from "@/lib/ai/actions";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 

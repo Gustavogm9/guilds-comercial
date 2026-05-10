@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, Kanban, Users, Search, Activity, Mail, PhoneCall, LogOut, UserCog,
   Radio, User, BarChart3, Bot, Settings, ShieldCheck, Repeat, Telescope, BookOpen,
-  Sparkles, Star,
+  Sparkles, Star, MessageSquare
 } from "lucide-react";
 import clsx from "clsx";
 import OrgSwitcher from "./org-switcher";
@@ -30,36 +30,25 @@ const NAV_GROUPS: NavGroup[] = [
     titleKey: "sidebar.workspace",
     items: [
       { href: "/hoje",        i18nKey: "sidebar.hoje",        icon: Home },
-      { href: "/prospeccao",  i18nKey: "sidebar.prospeccao",  icon: Telescope },
-      { href: "/portfolio",   i18nKey: "sidebar.portfolio",   icon: BookOpen },
-      { href: "/pipeline",    i18nKey: "sidebar.pipeline",    icon: Kanban },
-      { href: "/base",        i18nKey: "sidebar.base_leads",  icon: Search },
+      { href: "/vendas",      i18nKey: "sidebar.vendas_crm",  icon: Kanban },
     ],
   },
   {
     titleKey: "sidebar.analise",
     items: [
-      { href: "/funil",      i18nKey: "sidebar.funil_vendas", icon: BarChart3 },
-      { href: "/raio-x",     i18nKey: "sidebar.raio_x",     icon: Activity },
+      { href: "/growth",      i18nKey: "sidebar.growth_marketing", icon: BarChart3 },
     ],
   },
   {
     titleKey: "sidebar.comunicacao",
     items: [
-      { href: "/cadencia",    i18nKey: "sidebar.cadencia",    icon: Repeat },
-      { href: "/ligacoes",    i18nKey: "sidebar.ligacoes",    icon: PhoneCall },
-      { href: "/indicacoes",  i18nKey: "sidebar.indicacoes",  icon: Sparkles },
-      { href: "/pos-venda",   i18nKey: "sidebar.pos_venda",   icon: Star },
-      { href: "/canais",      i18nKey: "sidebar.canais",      icon: Radio,    gestorOnly: true },
-      { href: "/newsletter",  i18nKey: "sidebar.newsletter",  icon: Mail },
+      { href: "/comunicacao",    i18nKey: "sidebar.comunicacao",    icon: MessageSquare },
     ],
   },
   {
     titleKey: "sidebar.equipe",
     items: [
-      { href: "/vendedor",   i18nKey: "sidebar.meu_painel", icon: User,     myPanel: true },
-      { href: "/time",       i18nKey: "sidebar.meu_time",   icon: Users,    gestorOnly: true },
-      { href: "/equipe",     i18nKey: "sidebar.membros",    icon: UserCog,  gestorOnly: true },
+      { href: "/gestao",    i18nKey: "sidebar.equipe",    icon: Users },
     ],
   },
   {

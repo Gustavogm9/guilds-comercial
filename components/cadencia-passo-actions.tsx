@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Check, X, ExternalLink, Clock, ChevronDown, MessageSquare, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { marcarPassoCadencia, adiarPassoCadencia } from "@/app/(app)/cadencia/actions";
+import { marcarPassoCadencia, adiarPassoCadencia } from "@/app/(app)/comunicacao/cadencia/actions";
 
 /**
  * Botões de ação rápida em cada card de cadência (na rota /cadencia).

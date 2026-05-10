@@ -6,7 +6,7 @@ import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import {
   responderPedidoIndicacao,
   adiarPedidoIndicacao,
-} from "@/app/(app)/indicacoes/actions";
+} from "@/app/(app)/growth/indicacoes/actions";
 
 /**
  * Card de pedidos de indicação pendentes em /hoje.

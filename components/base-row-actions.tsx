@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { qualificarBase, promoverParaPipeline, enriquecerLead } from "@/app/(app)/base/actions";
+import { qualificarBase, promoverParaPipeline, enriquecerLead } from "@/app/(app)/vendas/base/actions";
 import type { LeadEnriched } from "@/lib/types";
 import { Check, ArrowRight, X, ChevronDown, Sparkles, Loader2, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
 import MotivoSaidaModal from "./motivo-saida-modal";

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { criarLead } from "@/app/(app)/base/actions";
+import { criarLead } from "@/app/(app)/vendas/base/actions";
 import { SEGMENTOS, FONTES } from "@/lib/lists";
 import { X, Plus } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";

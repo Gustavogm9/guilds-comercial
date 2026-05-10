@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { X, Loader2, Save } from "lucide-react";
-import { editarLeadInline } from "@/app/(app)/base/actions";
+import { editarLeadInline } from "@/app/(app)/vendas/base/actions";
 import type { LeadEnriched } from "@/lib/types";
 
 // Re-using ETAPAS_CRM manually or importing if available

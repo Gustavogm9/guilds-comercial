@@ -8,7 +8,7 @@ import QuickActions from "@/components/quick-actions";
 import MotivoSaidaModal from "@/components/motivo-saida-modal";
 import type { CrmStage, LeadEnriched } from "@/lib/types";
 import { MessageSquareQuote, Play, AlertCircle, CheckCircle2, X, Loader2, Stethoscope } from "lucide-react";
-import { iniciarCadenciaManual } from "@/app/(app)/cadencia/actions";
+import { iniciarCadenciaManual } from "@/app/(app)/comunicacao/cadencia/actions";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import RaioxModal from "@/components/raiox/raiox-modal";
 

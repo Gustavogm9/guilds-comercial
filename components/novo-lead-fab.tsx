@@ -11,9 +11,7 @@ export default async function NovoLeadFab() {
   const profiles = membros.map(m => ({ id: m.profile_id, display_name: m.display_name }));
 
   return (
-    <div
-      className="fixed right-5 z-40 md:right-8 bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-8"
-    >
+    <div className="fixed right-5 z-40 md:right-8 bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-24">
       <NovoLeadModal profiles={profiles} variant="fab" />
     </div>
   );

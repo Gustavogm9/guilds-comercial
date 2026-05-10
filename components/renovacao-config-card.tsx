@@ -2,7 +2,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Calendar, Repeat, DollarSign, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
-import { definirRenovacao } from "@/app/(app)/pos-venda/renovacao-actions";
+import { definirRenovacao } from "@/app/(app)/comunicacao/pos-venda/renovacao-actions";
 
 /**
  * Card no detalhe do lead pra setar/visualizar a configuração de renovação.

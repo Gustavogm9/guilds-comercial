@@ -1,6 +1,6 @@
 "use client";
 import { useTransition } from "react";
-import { alterarStatusNews, marcarEnvio } from "@/app/(app)/newsletter/actions";
+import { alterarStatusNews, marcarEnvio } from "@/app/(app)/comunicacao/newsletter/actions";
 import { Send, Pause, Trash2, Play } from "lucide-react";
 
 export default function NewsletterRowActions({

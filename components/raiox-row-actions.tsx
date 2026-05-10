@@ -1,6 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
-import { marcarPago, salvarResultado } from "@/app/(app)/raio-x/actions";
+import { marcarPago, salvarResultado } from "@/app/(app)/growth/raio-x/actions";
 import { gerarOfertaRaioX, gerarDocumentoRaioX } from "@/lib/ai/actions";
 import { Check, FileText, X, Sparkles, Loader2, Copy, ExternalLink } from "lucide-react";
 

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { X, UserSquare2 } from "lucide-react";
-import { encerrarImpersonificacao } from "@/app/(app)/equipe/impersonation-actions";
+import { encerrarImpersonificacao } from "@/app/(app)/gestao/equipe/impersonation-actions";
 import { useRouter } from "next/navigation";
 
 export function ImpersonationBanner({

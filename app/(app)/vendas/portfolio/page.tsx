@@ -1,0 +1,63 @@
+import { redirect } from "next/navigation";
+import { getCurrentProfile } from "@/lib/supabase/server";
+import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
+import { BookOpen } from "lucide-react";
+import VendasTabs from "../vendas-tabs";
+import PortfolioClient from "./portfolio-client";
+import {
+  listarProdutos, listarCases, listarHipoteses, listarPropostas,
+} from "./actions";
+import {
+  listarMetricasProdutos, listarProjetosProprios,
+} from "./actions-sprint10";
+
+export const dynamic = "force-dynamic";
+
+export default async function PortfolioPage() {
+  const me = await getCurrentProfile();
+  if (!me) redirect("/login");
+
+  const orgId = await getCurrentOrgId();
+  if (!orgId) redirect("/hoje");
+
+  const role = await getCurrentRole();
+  const isGestor = role === "gestor";
+
+  // Carrega tudo em paralelo
+  const [produtos, cases, hipoteses, propostas, metricas, projetos] = await Promise.all([
+    listarProdutos(),
+    listarCases(),
+    listarHipoteses(),
+    listarPropostas(),
+    listarMetricasProdutos(),
+    listarProjetosProprios(),
+  ]);
+
+  return (
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <VendasTabs isGestor={isGestor} />
+      
+      {/* Header */}
+      <div className="flex items-start gap-3 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 grid place-items-center shrink-0">
+          <BookOpen className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Portfolio & ICP Lab</h1>
+          <p className="text-sm text-muted-foreground">
+            Produtos, projetos, cases, hipóteses de ICP, métricas de conversão e propostas — tudo num só lugar.
+          </p>
+        </div>
+      </div>
+
+      <PortfolioClient
+        produtos={produtos}
+        cases={cases}
+        hipoteses={hipoteses}
+        propostas={propostas}
+        metricas={metricas}
+        projetos={projetos}
+      />
+    </div>
+  );
+}

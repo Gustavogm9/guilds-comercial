@@ -2,7 +2,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Sparkles, Copy, Check, ExternalLink, Loader2, Send } from "lucide-react";
 import { gerarMensagemCadencia } from "@/lib/ai/actions";
-import { salvarMensagemPassoEnviada } from "@/app/(app)/cadencia/actions";
+import { salvarMensagemPassoEnviada } from "@/app/(app)/comunicacao/cadencia/actions";
 import { normalizarTelefoneI18n } from "@/lib/utils/i18n-fiscal";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 

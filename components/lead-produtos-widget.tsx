@@ -13,7 +13,7 @@ import {
   vincularProdutoLead,
   desvincularProdutoLead,
   atualizarStatusLeadProduto,
-} from "@/app/(app)/portfolio/actions-sprint10";
+} from "@/app/(app)/vendas/portfolio/actions-sprint10";
 
 const STATUS_OPTS = [
   { key: "interesse",  label: "Interesse",  cor: "bg-blue-500/10 text-blue-700" },

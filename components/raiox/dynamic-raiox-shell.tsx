@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, CheckCircle2, ChevronRight, ChevronLeft, Save, AlertCircle, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { concluirRaioXDinamico } from "@/app/(app)/raio-x/actions";
+import { concluirRaioXDinamico } from "@/app/(app)/growth/raio-x/actions";
 
 type Question = {
   id: string;

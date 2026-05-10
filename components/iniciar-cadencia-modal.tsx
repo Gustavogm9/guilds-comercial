@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { buscarLeadsParaCadencia, iniciarCadenciaManual } from "@/app/(app)/cadencia/actions";
+import { buscarLeadsParaCadencia, iniciarCadenciaManual } from "@/app/(app)/comunicacao/cadencia/actions";
 import { X, Play, Search, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 

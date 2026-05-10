@@ -3,7 +3,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Link2, Copy, Check, X, RefreshCw, Loader2, AlertCircle, Send } from "lucide-react";
 import {
   gerarTokenEmbaixador, revogarTokenEmbaixador, atualizarMensagemToken,
-} from "@/app/(app)/indicacoes/token-actions";
+} from "@/app/(app)/growth/indicacoes/token-actions";
 import type { EmbaixadorToken } from "@/lib/types";
 
 /**

@@ -7,7 +7,7 @@ import {
   responderPedidoIndicacao,
   adiarPedidoIndicacao,
   type NovaIndicacaoInput,
-} from "@/app/(app)/indicacoes/actions";
+} from "@/app/(app)/growth/indicacoes/actions";
 
 /**
  * Banner mostrado no /pipeline/[id] quando há pedido de indicação pendente

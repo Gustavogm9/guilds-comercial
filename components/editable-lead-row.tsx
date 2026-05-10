@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { editarLeadInline } from "@/app/(app)/base/actions";
+import { editarLeadInline } from "@/app/(app)/vendas/base/actions";
 import type { LeadEnriched } from "@/lib/types";
 import BaseRowActions from "@/components/base-row-actions";
 import { Loader2 } from "lucide-react";
