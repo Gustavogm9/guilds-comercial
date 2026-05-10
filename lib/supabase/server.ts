@@ -10,7 +10,7 @@ import { cache } from "react";
  * continua síncrono e não precisamos mudar todos os call-sites.
  */
 export const createClient = () => {
-  return createServerClient(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -33,6 +33,41 @@ export const createClient = () => {
       },
     }
   );
+
+  // Patch auth.getUser() to support impersonation transparently across the app
+  const originalGetUser = supabase.auth.getUser.bind(supabase.auth);
+  supabase.auth.getUser = async (jwt?: string) => {
+    const res = await originalGetUser(jwt);
+    if (!res.data.user) return res;
+
+    try {
+      const store = await cookies();
+      const targetUserId = store.get("x-impersonate-user")?.value;
+      
+      if (targetUserId && targetUserId !== res.data.user.id) {
+        // Return a mocked User object that looks like the target user
+        return {
+          ...res,
+          data: {
+            ...res.data,
+            user: {
+              ...res.data.user,
+              id: targetUserId,
+              // Mark it for UI or internal logic if needed
+              _is_impersonated: true,
+              _real_admin_id: res.data.user.id,
+            } as any
+          }
+        };
+      }
+    } catch {
+      // Ignore cookie read errors (e.g. during build or static generation)
+    }
+
+    return res;
+  };
+
+  return supabase;
 };
 
 // Memoiza por request — o middleware + RSCs costumam chamar getUser várias vezes

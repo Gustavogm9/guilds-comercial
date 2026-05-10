@@ -73,7 +73,7 @@ export async function POST(
     const hipotese = campanha.icp_hipoteses;
     if (hipotese) {
       // Usa os critérios exatos da hipótese
-      fingerprint = await computarFingerprint(orgId);
+      fingerprint = await computarFingerprint(supabase, orgId);
       const fp = {
         ...fingerprint,
         segmentos_top: (hipotese.segmentos ?? []).map((v: string) => ({ valor: v, contagem: 10, percentual: 100 })),
@@ -91,7 +91,7 @@ export async function POST(
       if (p?.icp_extraido) {
         fingerprint = mapIcpToFingerprint(p.icp_extraido, p.icp_extraido.amostras_usadas || 0);
       } else {
-        fingerprint = await computarFingerprint(orgId);
+        fingerprint = await computarFingerprint(supabase, orgId);
       }
       queries = gerarQueriesLookalike(fingerprint, {
         regioes:   cfg.regioes   ?? [],
@@ -99,7 +99,7 @@ export async function POST(
         maxQueries,
       });
     } else {
-      fingerprint = await computarFingerprint(orgId);
+      fingerprint = await computarFingerprint(supabase, orgId);
       queries = gerarQueriesLookalike(fingerprint, {
         regioes:   cfg.regioes   ?? [],
         segmentos: cfg.segmentos ?? [],

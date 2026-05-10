@@ -203,6 +203,23 @@ export async function moverEtapa(
     }).catch((err) => console.warn("[push] moverEtapa", err));
   }
 
+  // Disparar Webhooks
+  try {
+    const { data: leadCompleto } = await supabase.from("leads").select("*").eq("id", lead_id).single();
+    if (leadCompleto) {
+      const { dispatchWebhook } = await import("@/lib/webhooks");
+      await dispatchWebhook(orgId, "lead.stage_changed", { lead: leadCompleto });
+      
+      if (novaEtapa === "Fechado") {
+        await dispatchWebhook(orgId, "lead.won", { lead: leadCompleto });
+      } else if (novaEtapa === "Perdido") {
+        await dispatchWebhook(orgId, "lead.lost", { lead: leadCompleto });
+      }
+    }
+  } catch (err) {
+    console.warn("[webhook] Falha ao disparar webhooks em moverEtapa", err);
+  }
+
   revalidatePath("/pipeline");
   revalidatePath("/hoje");
   revalidatePath("/funil");

@@ -155,6 +155,122 @@ export async function salvarResultado(input: {
     payload: { acao: "resultado", score: input.score, nivel: input.nivel },
   });
 
+  // Disparar Webhook
+  try {
+    const { data: raioXCompleto } = await supabase.from("raio_x").select("*").eq("id", input.raio_x_id).single();
+    if (raioXCompleto) {
+      const { dispatchWebhook } = await import("@/lib/webhooks");
+      await dispatchWebhook(orgId, "raiox.completed", { raio_x: raioXCompleto });
+    }
+  } catch (err) {
+    console.warn("[webhook] Falha ao disparar webhook em salvarResultado", err);
+  }
+
   revalidatePath("/raio-x");
   revalidatePath(`/pipeline/${input.lead_id}`);
+}
+
+import { dispatchWebhook } from "@/lib/webhooks";
+
+/** 
+ * Conclui um Raio-X Dinâmico: 
+ * - Usa a IA para avaliar as respostas
+ * - Salva o resultado final 
+ */
+export async function concluirRaioXDinamico(leadId: number, templateId: number) {
+  const supabase = createClient();
+  const orgId = await requireOrg();
+
+  // 1. Fetch respostas
+  const { data: respostaData, error: respError } = await supabase
+    .from("raiox_respostas")
+    .select("id, respostas_json")
+    .eq("lead_id", leadId)
+    .eq("template_id", templateId)
+    .single();
+
+  if (respError || !respostaData) {
+    throw new Error("Respostas do Raio-X não encontradas.");
+  }
+
+  // 2. Fetch or create `raio_x` legacy tracking row
+  let { data: raioXLegacy } = await supabase
+    .from("raio_x")
+    .select("id")
+    .eq("lead_id", leadId)
+    .eq("organizacao_id", orgId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!raioXLegacy) {
+    const { data: { user } } = await supabase.auth.getUser();
+    // Creates a new one if the lead didn't have one
+    const { data: novoRaioX, error: insertError } = await supabase
+      .from("raio_x")
+      .insert({
+        organizacao_id: orgId,
+        lead_id: leadId,
+        responsavel_id: user?.id ?? null,
+        preco_lista: 0,
+        gratuito: true, // Dinâmico executado direto no board assume-se gratuito
+        pago: true,     // Já que foi executado, pula a etapa de pagamento
+        nivel: "Pendente",
+      })
+      .select("id")
+      .single();
+    if (insertError) throw insertError;
+    raioXLegacy = novoRaioX;
+  }
+
+  // 3. Invocar IA para avaliar o Raio-X
+  const { invokeAI } = await import("@/lib/ai/dispatcher");
+  const result = await invokeAI({
+    feature: "avaliar_raiox" as any, // Adicionar essa feature no banco
+    vars: { 
+      respostas: JSON.stringify(respostaData.respostas_json)
+    },
+    leadId: leadId,
+    outputMode: "json"
+  });
+
+  if (!result.ok || !result.parsed) {
+    throw new Error(`Falha na IA: ${result.erro || "Sem resposta JSON"}`);
+  }
+
+  // Espera-se que a IA retorne:
+  // { score: number, nivel: "Alto"|"Médio"|"Baixo", perda_anual: number, saida: string, diagnostico: string, observacoes: string }
+  const iaParsed = result.parsed as any;
+
+  // 4. Salvar Resultado
+  await salvarResultado({
+    raio_x_id: raioXLegacy.id,
+    lead_id: leadId,
+    score: typeof iaParsed.score === "number" ? iaParsed.score : 0,
+    nivel: NIVEIS_VALIDOS.includes(iaParsed.nivel) ? iaParsed.nivel : "Médio",
+    perda_anual_estimada: typeof iaParsed.perda_anual === "number" ? iaParsed.perda_anual : 0,
+    saida_recomendada: iaParsed.saida || "Saída recomendada pela IA",
+    diagnostico_pago_sugerido: iaParsed.diagnostico || "Diagnóstico sugerido",
+    observacoes: iaParsed.observacoes || "",
+  });
+
+  // Marca na tabela dinâmica que foi concluído
+  await supabase
+    .from("raiox_respostas")
+    .update({ concluido: true })
+    .eq("id", respostaData.id);
+
+  // 5. Disparar Webhook
+  await dispatchWebhook("raiox.completed", orgId, {
+    lead_id: leadId,
+    raio_x_id: raioXLegacy.id,
+    template_id: templateId,
+    score: iaParsed.score,
+    nivel: iaParsed.nivel,
+    perda_anual_estimada: iaParsed.perda_anual
+  }).catch(err => {
+    console.error("Erro ao disparar webhook raiox.completed:", err);
+  });
+
+  return { sucesso: true, raioXLegacyId: raioXLegacy.id };
 }

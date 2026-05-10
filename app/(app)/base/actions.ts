@@ -135,6 +135,17 @@ export async function criarLead(input: {
     await supabase.from("cadencia").upsert(cadenciaRows, { onConflict: "lead_id,passo" });
   }
 
+  // Disparar Webhook
+  try {
+    const { data: leadCompleto } = await supabase.from("leads").select("*").eq("id", data!.id).single();
+    if (leadCompleto) {
+      const { dispatchWebhook } = await import("@/lib/webhooks");
+      await dispatchWebhook(orgId, "lead.created", leadCompleto);
+    }
+  } catch (err) {
+    console.warn("[webhook] Falha ao disparar webhook em criarLead", err);
+  }
+
   revalidatePath("/base");
   if (direto) revalidatePath("/pipeline");
   return data!.id;

@@ -8,6 +8,7 @@ import NovoLeadFab from "@/components/novo-lead-fab";
 import TrialBanner from "@/components/trial-banner";
 import AiCreditsBadge from "@/components/ai-credits-badge";
 import AgentCopilotWidget from "@/components/ai/agent-copilot-widget";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
@@ -32,6 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   const isGestor = role === "gestor";
   const activeOrg = orgs.find(o => o.id === orgId) ?? null;
+  const isImpersonating = (profile as any)._is_impersonated === true;
 
   return (
     <div className="flex min-h-screen">
@@ -68,6 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <div className="text-xs text-muted-foreground truncate ml-2">{profile.display_name}</div>
         </div>
+        {isImpersonating && <ImpersonationBanner targetName={profile.display_name} />}
         {isGestor && activeOrg && (
           <TrialBanner trialEndsAt={activeOrg.trial_ends_at} billingStatus={activeOrg.billing_status} />
         )}

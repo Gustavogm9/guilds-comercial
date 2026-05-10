@@ -9,6 +9,7 @@ import {
   definirMetaIndividual, removerMetaIndividual,
   transferirCarteira, atualizarConfigOrg,
 } from "./actions";
+import { iniciarImpersonificacao } from "./impersonation-actions";
 import {
   UserCog, Mail, Target, Map, ArrowRightLeft, Settings2,
   Plus, X, Check, AlertCircle, UserMinus, UserPlus, Copy,
@@ -242,6 +243,15 @@ function MembrosTab({ meId, membros, t, onSucesso, onErro }: {
     });
   }
 
+  function handleImpersonate(profile_id: string) {
+    startTransition(async () => {
+      try {
+        await iniciarImpersonificacao(profile_id);
+        onSucesso("Modo de impersonificação iniciado.");
+      } catch (e) { onErro(e); }
+    });
+  }
+
   return (
     <>
       <div className="card overflow-hidden">
@@ -284,13 +294,23 @@ function MembrosTab({ meId, membros, t, onSucesso, onErro }: {
                 <td className="px-3 py-2 text-right">
                   {m.profile_id !== meId && (
                     m.ativo ? (
-                      <button
-                        onClick={() => setConfirmDesativar(m)}
-                        disabled={pending}
-                        className="btn-ghost text-xs text-destructive"
-                      >
-                        <UserMinus className="w-3.5 h-3.5" aria-hidden="true"/> {t("equipe.membros_desativar")}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleImpersonate(m.profile_id)}
+                          disabled={pending}
+                          className="btn-ghost text-xs text-primary"
+                          title="Acessar como usuário"
+                        >
+                          <UserCog className="w-3.5 h-3.5" aria-hidden="true"/> Acessar
+                        </button>
+                        <button
+                          onClick={() => setConfirmDesativar(m)}
+                          disabled={pending}
+                          className="btn-ghost text-xs text-destructive"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" aria-hidden="true"/> {t("equipe.membros_desativar")}
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => handleReativar(m.profile_id)}

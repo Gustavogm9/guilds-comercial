@@ -7,9 +7,10 @@ import CadenciaModal from "@/components/cadencia-modal";
 import QuickActions from "@/components/quick-actions";
 import MotivoSaidaModal from "@/components/motivo-saida-modal";
 import type { CrmStage, LeadEnriched } from "@/lib/types";
-import { MessageSquareQuote, Play, AlertCircle, CheckCircle2, X, Loader2 } from "lucide-react";
+import { MessageSquareQuote, Play, AlertCircle, CheckCircle2, X, Loader2, Stethoscope } from "lucide-react";
 import { iniciarCadenciaManual } from "@/app/(app)/cadencia/actions";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
+import RaioxModal from "@/components/raiox/raiox-modal";
 
 /**
  * Ações principais no header do detalhe do lead.
@@ -28,6 +29,7 @@ export default function LeadDetailActions({
   vendedor: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [raioxOpen, setRaioxOpen] = useState(false);
   const [motivoModo, setMotivoModo] = useState<{ lead_id: number; destino: CrmStage; etapaOriginal: CrmStage | null } | null>(null);
   const [confirmIniciarCadencia, setConfirmIniciarCadencia] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: "sucesso" | "erro"; mensagem: string } | null>(null);
@@ -132,7 +134,17 @@ export default function LeadDetailActions({
           {t("pipeline.actions_iniciar_cadencia")}
         </button>
 
+        <button
+          onClick={() => setRaioxOpen(true)}
+          className="btn-ghost text-xs font-medium text-primary hover:bg-primary/10"
+          type="button"
+        >
+          <Stethoscope className="w-3.5 h-3.5 mr-1" />
+          Executar Raio-X
+        </button>
+
         <CadenciaModal open={open} onClose={() => setOpen(false)} lead={lead} vendedor={vendedor} />
+        <RaioxModal open={raioxOpen} onClose={() => setRaioxOpen(false)} leadId={lead.id} />
         <MotivoSaidaModal
           modo={motivoModo ? { tipo: "mover", lead_id: motivoModo.lead_id, destino: motivoModo.destino } : null}
           onClose={handleCloseMotivo}

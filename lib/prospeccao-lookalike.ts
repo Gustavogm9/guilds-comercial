@@ -13,8 +13,6 @@
  * Quanto mais clientes fechados, mais preciso o fingerprint.
  */
 
-import { createClient } from "@/lib/supabase/server";
-
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 export interface FingerprintICP {
@@ -66,9 +64,7 @@ export interface OpcoesBuscaLookalike {
 
 // ─── 1. Fingerprint ──────────────────────────────────────────────────────────
 
-export async function computarFingerprint(orgId: string): Promise<FingerprintICP> {
-  const supabase = createClient();
-
+export async function computarFingerprint(supabase: any, orgId: string): Promise<FingerprintICP> {
   // Busca todos os leads não-demo da org
   const { data: todos } = await supabase
     .from("leads")
@@ -77,7 +73,7 @@ export async function computarFingerprint(orgId: string): Promise<FingerprintICP
     .eq("is_demo", false);
 
   const base = todos ?? [];
-  const ganhos = base.filter(l =>
+  const ganhos = base.filter((l: any) =>
     l.crm_stage === "Fechado" ||
     (l.fit_icp === true && l.funnel_stage === "pipeline")
   );
@@ -109,14 +105,14 @@ export async function computarFingerprint(orgId: string): Promise<FingerprintICP
       }));
   }
 
-  const valores = amostra.map(l => Number(l.valor_potencial) || 0).filter(v => v > 0);
+  const valores = amostra.map((l: any) => Number(l.valor_potencial) || 0).filter((v: number) => v > 0);
   const valor_medio = valores.length
     ? Math.round(valores.reduce((a, b) => a + b, 0) / valores.length)
     : 0;
 
-  const pct = (campo: keyof typeof amostra[0]) =>
+  const pct = (campo: string) =>
     amostra.length
-      ? Math.round((amostra.filter(l => !!(l as any)[campo]).length / amostra.length) * 100)
+      ? Math.round((amostra.filter((l: any) => !!l[campo]).length / amostra.length) * 100)
       : 0;
 
   return {

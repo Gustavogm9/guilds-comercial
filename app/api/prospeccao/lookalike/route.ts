@@ -31,14 +31,14 @@ export async function GET(req: NextRequest) {
   const produtoId = url.searchParams.get("produtoId");
 
   try {
+    const supabase = createClient();
     if (produtoId) {
-      const supabase = createClient();
       const { data: p } = await supabase.from("produtos").select("icp_extraido").eq("id", produtoId).single();
       if (p?.icp_extraido) {
         return NextResponse.json({ ok: true, fingerprint: mapIcpToFingerprint(p.icp_extraido, p.icp_extraido.amostras_usadas || 0) });
       }
     }
-    const fp = await computarFingerprint(orgId);
+    const fp = await computarFingerprint(supabase, orgId);
     return NextResponse.json({ ok: true, fingerprint: fp });
   } catch (err: any) {
     return NextResponse.json({ erro: err.message }, { status: 500 });
@@ -69,10 +69,10 @@ export async function POST(req: NextRequest) {
       if (p?.icp_extraido) {
         fingerprint = mapIcpToFingerprint(p.icp_extraido, p.icp_extraido.amostras_usadas || 0);
       } else {
-        fingerprint = await computarFingerprint(orgId);
+        fingerprint = await computarFingerprint(supabase, orgId);
       }
     } else {
-      fingerprint = await computarFingerprint(orgId);
+      fingerprint = await computarFingerprint(supabase, orgId);
     }
 
     // 2. Gera queries
