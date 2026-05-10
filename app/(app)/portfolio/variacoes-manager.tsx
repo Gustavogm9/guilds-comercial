@@ -27,7 +27,7 @@ export default function VariacoesManager({ produtoId, variacoesIniciais, nomePro
   function set<K extends keyof Variacao>(k: K, v: Variacao[K]) { setForm(p => p ? { ...p, [k]: v } : p); }
 
   function salvar() {
-    if (!form?.nome?.trim()) { setErro("Nome Ã© obrigatÃ³rio."); return; }
+    if (!form?.nome?.trim()) { setErro("Nome é obrigatório."); return; }
     start(async () => {
       const r = await salvarVariacao({ ...form as any, produto_id: produtoId });
       if (!r.ok) { setErro(r.erro ?? "Erro."); return; }
@@ -38,7 +38,7 @@ export default function VariacoesManager({ produtoId, variacoesIniciais, nomePro
   }
 
   function excluir(id: number) {
-    if (!confirm("Remover esta variaÃ§Ã£o?")) return;
+    if (!confirm("Remover esta variação?")) return;
     start(async () => {
       await deletarVariacao(id);
       setVariacoes(p => p.filter(v => v.id !== id));
@@ -48,7 +48,7 @@ export default function VariacoesManager({ produtoId, variacoesIniciais, nomePro
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">{variacoes.length} plano(s)/variaÃ§Ã£o(Ãµes)</div>
+        <div className="text-xs text-muted-foreground">{variacoes.length} plano(s)/variação(ões)</div>
         <button onClick={() => abrir()} className="btn-primary !py-1 !px-2.5 text-xs gap-1">
           <Plus className="w-3.5 h-3.5" /> Adicionar plano
         </button>
@@ -81,8 +81,8 @@ export default function VariacoesManager({ produtoId, variacoesIniciais, nomePro
               </label>
             </div>
             <div className="col-span-2">
-              <label className="label">DescriÃ§Ã£o do plano</label>
-              <textarea className="input-base text-xs min-h-[56px]" value={form.descricao ?? ""} onChange={e => set("descricao", e.target.value)} placeholder="O que estÃ¡ incluso..." />
+              <label className="label">Descrição do plano</label>
+              <textarea className="input-base text-xs min-h-[56px]" value={form.descricao ?? ""} onChange={e => set("descricao", e.target.value)} placeholder="O que está incluso..." />
             </div>
           </div>
           <div className="flex gap-2">
@@ -97,8 +97,8 @@ export default function VariacoesManager({ produtoId, variacoesIniciais, nomePro
       {variacoes.length === 0 && !form && (
         <div className="p-6 border border-dashed rounded-lg text-center">
           <Layers className="w-6 h-6 text-muted-foreground/40 mx-auto mb-1.5" />
-          <p className="text-xs text-muted-foreground">Nenhuma variaÃ§Ã£o/plano cadastrado.</p>
-          <p className="text-[10px] text-muted-foreground">Adicione planos como Starter, Pro ou pacotes de serviÃ§o.</p>
+          <p className="text-xs text-muted-foreground">Nenhuma variação/plano cadastrado.</p>
+          <p className="text-[10px] text-muted-foreground">Adicione planos como Starter, Pro ou pacotes de serviço.</p>
         </div>
       )}
 
@@ -114,7 +114,7 @@ export default function VariacoesManager({ produtoId, variacoesIniciais, nomePro
             </div>
             {v.valor && (
               <div className="text-xs font-mono text-muted-foreground shrink-0">
-                R$ {v.valor.toLocaleString("pt-BR")}{v.recorrente ? "/mÃªs" : ""}
+                R$ {v.valor.toLocaleString("pt-BR")}{v.recorrente ? "/mês" : ""}
               </div>
             )}
             <div className="flex gap-1 shrink-0">

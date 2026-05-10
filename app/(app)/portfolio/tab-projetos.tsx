@@ -36,7 +36,7 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
   function set<K extends keyof Projeto>(k: K, v: Projeto[K]) { setForm(p => p ? { ...p, [k]: v } : p); }
 
   function salvar() {
-    if (!form?.titulo?.trim()) { setErro("TÃ­tulo Ã© obrigatÃ³rio."); return; }
+    if (!form?.titulo?.trim()) { setErro("Título é obrigatório."); return; }
     start(async () => {
       const r = await salvarProjetoProprio({
         ...form as any,
@@ -58,7 +58,7 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          {projetos.length} projeto{projetos.length !== 1 ? "s" : ""} prÃ³prio{projetos.length !== 1 ? "s" : ""}
+          {projetos.length} projeto{projetos.length !== 1 ? "s" : ""} próprio{projetos.length !== 1 ? "s" : ""}
         </div>
         <button onClick={abrirNovo} className="btn-primary gap-1.5">
           <Plus className="w-4 h-4" /> Novo projeto
@@ -68,13 +68,13 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
       {form !== null && (
         <div className="card p-5 space-y-4 border-primary/30 animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold">{form.id ? "Editar projeto" : "Novo projeto prÃ³prio"}</span>
+            <span className="text-sm font-semibold">{form.id ? "Editar projeto" : "Novo projeto próprio"}</span>
             <button onClick={fechar}><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
           {erro && <div className="text-xs text-destructive">{erro}</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="md:col-span-2">
-              <label className="label">TÃ­tulo *</label>
+              <label className="label">Título *</label>
               <input className="input-base" value={form.titulo ?? ""} onChange={e => set("titulo", e.target.value)} placeholder="Nome do projeto" />
             </div>
             <div>
@@ -85,11 +85,11 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
               </select>
             </div>
             <div>
-              <label className="label">Data de conclusÃ£o</label>
+              <label className="label">Data de conclusão</label>
               <input type="date" className="input-base" value={form.data_conclusao ?? ""} onChange={e => set("data_conclusao", e.target.value)} />
             </div>
             <div className="md:col-span-2">
-              <label className="label">DescriÃ§Ã£o</label>
+              <label className="label">Descrição</label>
               <textarea className="input-base min-h-[70px] text-sm" value={form.descricao ?? ""} onChange={e => set("descricao", e.target.value)} placeholder="Do que se trata o projeto?" />
             </div>
             <div className="md:col-span-2">
@@ -97,7 +97,7 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
               <textarea className="input-base min-h-[60px] text-sm" value={form.resultado ?? ""} onChange={e => set("resultado", e.target.value)} placeholder="Ex: Reduziu 40% do tempo de vendas, gerou R$120k em contratosâ€¦" />
             </div>
             <div className="md:col-span-2">
-              <label className="label">Tecnologias/Ferramentas <span className="text-muted-foreground font-normal">(separadas por vÃ­rgula)</span></label>
+              <label className="label">Tecnologias/Ferramentas <span className="text-muted-foreground font-normal">(separadas por vírgula)</span></label>
               <input className="input-base" value={(form.tecnologias ?? []).join(", ")} onChange={e => set("tecnologias", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} placeholder="Next.js, Supabase, n8n, IA generativaâ€¦" />
             </div>
             <div>
@@ -107,7 +107,7 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
             <div className="flex items-end gap-4 pb-1">
               <label className="flex items-center gap-2 cursor-pointer text-sm">
                 <input type="checkbox" className="accent-primary" checked={!!form.publico} onChange={e => set("publico", e.target.checked)} />
-                <Globe className="w-3.5 h-3.5 text-muted-foreground" /> PÃºblico
+                <Globe className="w-3.5 h-3.5 text-muted-foreground" /> Público
               </label>
               <label className="flex items-center gap-2 cursor-pointer text-sm">
                 <input type="checkbox" className="accent-primary" checked={!!form.destaque} onChange={e => set("destaque", e.target.checked)} />
@@ -127,9 +127,9 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
       {projetos.length === 0 && !form ? (
         <div className="card p-10 text-center border-dashed">
           <FolderOpen className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-muted-foreground mb-1">Nenhum projeto prÃ³prio cadastrado</p>
+          <p className="text-sm font-medium text-muted-foreground mb-1">Nenhum projeto próprio cadastrado</p>
           <p className="text-xs text-muted-foreground mb-4">
-            Cadastre os projetos da sua empresa para usar como demonstraÃ§Ãµes e portfolio de vendas.
+            Cadastre os projetos da sua empresa para usar como demonstrações e portfolio de vendas.
           </p>
           <button onClick={abrirNovo} className="btn-primary mx-auto gap-1.5">
             <Plus className="w-4 h-4" /> Cadastrar primeiro projeto
@@ -145,8 +145,8 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
                   <div className="font-semibold text-sm">{p.titulo}</div>
                   <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                     {p.produtos?.nome && <><Tag className="w-3 h-3" />{p.produtos.nome}</>}
-                    {p.data_conclusao && <> Â· {new Date(p.data_conclusao).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</>}
-                    {p.publico && <><Globe className="w-3 h-3 ml-1" />pÃºblico</>}
+                    {p.data_conclusao && <> · {new Date(p.data_conclusao).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</>}
+                    {p.publico && <><Globe className="w-3 h-3 ml-1" />público</>}
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
