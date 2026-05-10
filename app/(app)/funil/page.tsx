@@ -87,6 +87,7 @@ export default async function FunilPage(
     forecastRes, membros, segmentosRes,
     advocacyKpisRes, topEmbaixadoresRes,
     expansoesResumoRes, healthResumoRes,
+    renovacoesResumoRes,
   ] = await Promise.all([
     applyResp(supabase.from("v_forecast_mes").select("*").eq("organizacao_id", orgId)),
     listarMembrosDaOrg(orgId),
@@ -113,6 +114,7 @@ export default async function FunilPage(
   const topEmbaixadores = (topEmbaixadoresRes.data ?? []) as TopEmbaixador[];
   const expansoesResumo = (expansoesResumoRes.data ?? null) as ExpansoesResumo | null;
   const healthResumoData = (healthResumoRes.data ?? null) as HealthResumo | null;
+  const renovacoesResumoData = (renovacoesResumoRes.data ?? null) as RenovacoesResumo | null;
 
   // 2. Fetch Leads (with filters)
   let qLeads = supabase.from("leads")
@@ -391,10 +393,12 @@ export default async function FunilPage(
         currency="BRL"
       />
 
-      {/* Expansão / NRR — receita gerada vendendo mais pra quem já é cliente */}
+      {/* Expansão / NRR — receita gerada vendendo mais pra quem já é cliente
+          + sub-bloco de renovações automáticas (P5) */}
       <ExpansionSection
         resumo={expansoesResumo}
         healthResumo={healthResumoData}
+        renovacoesResumo={renovacoesResumoData}
         currency="BRL"
       />
 
