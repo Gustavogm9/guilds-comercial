@@ -32,6 +32,7 @@ type Props = {
     id: number; nome: string;
     segmentos?: string[]; cidades?: string[]; cargos?: string[];
   } | null;
+  produtos?: { id: number; nome: string; icp_extraido?: any }[];
 };
 
 const ESTADOS_BR = [
@@ -40,10 +41,11 @@ const ESTADOS_BR = [
   "RS","SC","SE","SP","TO",
 ];
 
-export default function TabLookalike({ onEmpresaEnriquecida, orgId, hipoteseId, hipotesePre }: Props) {
+export default function TabLookalike({ onEmpresaEnriquecida, orgId, hipoteseId, hipotesePre, produtos = [] }: Props) {
   const [fingerprint, setFingerprint] = useState<FingerprintICP | null>(null);
   const [fpLoading, setFpLoading] = useState(true);
   const [fpExpanded, setFpExpanded] = useState(false);
+  const [produtoSelecionado, setProdutoSelecionado] = useState<number | "">("");
 
   // Pré-popula com critérios da hipótese se vier do ICP Lab
   const [regioesSelecionadas, setRegioesSelecionadas] = useState<string[]>(
@@ -61,14 +63,25 @@ export default function TabLookalike({ onEmpresaEnriquecida, orgId, hipoteseId, 
   const [erro, setErro] = useState<string | null>(null);
   const [enriquecendo, setEnriquecendo] = useState<Set<string>>(new Set());
 
-  // Carrega fingerprint ao montar
+  // Carrega fingerprint ao montar ou ao mudar de produto
   useEffect(() => {
-    fetch("/api/prospeccao/lookalike/fingerprint")
-      .then(r => r.json())
-      .then(d => d.fingerprint && setFingerprint(d.fingerprint))
-      .catch(() => null)
-      .finally(() => setFpLoading(false));
-  }, []);
+    setFpLoading(true);
+    if (produtoSelecionado) {
+      // Usa o ICP do produto selecionado
+      fetch(`/api/prospeccao/lookalike/fingerprint?produtoId=${produtoSelecionado}`)
+        .then(r => r.json())
+        .then(d => d.fingerprint && setFingerprint(d.fingerprint))
+        .catch(() => null)
+        .finally(() => setFpLoading(false));
+    } else {
+      // Fingerprint global da org
+      fetch("/api/prospeccao/lookalike/fingerprint")
+        .then(r => r.json())
+        .then(d => d.fingerprint && setFingerprint(d.fingerprint))
+        .catch(() => null)
+        .finally(() => setFpLoading(false));
+    }
+  }, [produtoSelecionado]);
 
   function toggleRegiao(uf: string) {
     setRegioesSelecionadas(prev =>
@@ -96,6 +109,7 @@ export default function TabLookalike({ onEmpresaEnriquecida, orgId, hipoteseId, 
             segmentos: segmentosSelecionados,
             cargos: hipotesePre?.cargos ?? [],
             hipotese_id: hipoteseId ?? null,
+            produtoId: produtoSelecionado || undefined,
             maxQueries,
             maxResultadosPorQuery: 5,
           }),
@@ -144,6 +158,25 @@ export default function TabLookalike({ onEmpresaEnriquecida, orgId, hipoteseId, 
           ) : null}
         </div>
       )}
+      {/* Seletor de Produto */}
+      {produtos.length > 0 && (
+        <div className="mb-4">
+          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block uppercase tracking-wider">
+            Origem do ICP (Look-alike)
+          </label>
+          <select
+            className="input w-full text-sm"
+            value={produtoSelecionado}
+            onChange={(e) => setProdutoSelecionado(e.target.value ? Number(e.target.value) : "")}
+          >
+            <option value="">Geral da Organização (Toda a base)</option>
+            {produtos.map(p => (
+              <option key={p.id} value={p.id}>Produto: {p.nome}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Fingerprint ICP */}
       <div className="card p-4 border-primary/20 bg-primary/[0.02]">
         <div className="flex items-center justify-between">

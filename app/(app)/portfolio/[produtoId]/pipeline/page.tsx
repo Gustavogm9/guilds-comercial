@@ -6,6 +6,7 @@ import {
   ChevronLeft, Package, Users, TrendingUp, BarChart3,
   Target, AlertCircle, Star,
 } from "lucide-react";
+import { IcpProdutoWidget, LookalikeWidget } from "../../icp-lookalike";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +38,10 @@ export default async function FunilProdutoPage({ params }: Params) {
     { data: variacoes },
     { data: responsaveis },
     { data: cases },
+    { data: leadsLookalikeData },
   ] = await Promise.all([
     supabase.from("produtos")
-      .select("id, nome, descricao, categoria, recorrente, valor_base, valor_max, segmentos_alvo, cargos_alvo")
+      .select("id, nome, descricao, categoria, recorrente, valor_base, valor_max, segmentos_alvo, cargos_alvo, icp_extraido")
       .eq("id", pid).eq("organizacao_id", orgId).maybeSingle(),
     supabase.from("lead_produtos")
       .select("lead_id, status, added_at, leads(id, empresa, nome, crm_stage, temperatura, segmento, responsavel_id, valor_potencial)")
@@ -54,15 +56,29 @@ export default async function FunilProdutoPage({ params }: Params) {
     supabase.from("portfolio_cases")
       .select("id, titulo, cliente_nome, resultado, destaque")
       .eq("produto_id", pid).eq("organizacao_id", orgId).limit(5),
+    supabase.from("leads")
+      .select("id, empresa, nome, crm_stage, temperatura, segmento, valor_potencial, produto_scores")
+      .eq("organizacao_id", orgId)
+      .neq("crm_stage", "Fechado")
+      .neq("crm_stage", "Perdido")
+      // Usa .filter no jsonb para pegar score >= 60. Usamos texto '60' porque ->> retorna texto.
+      .filter(`produto_scores->>${pid}`, "gte", "60")
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   if (!produto) notFound();
 
   // Agrupa leads por status
   const porStatus: Record<string, any[]> = { interesse: [], negociando: [], fechado: [], perdido: [] };
+  const linkedLeadIds = new Set();
   (leadProdutos ?? []).forEach((lp: any) => {
     if (porStatus[lp.status]) porStatus[lp.status].push(lp);
+    linkedLeadIds.add(lp.lead_id);
   });
+
+  // Filtra os lookalikes para não mostrar leads que já estão vinculados a este produto
+  const lookalikeLeads = (leadsLookalikeData ?? []).filter((l: any) => !linkedLeadIds.has(l.id));
 
   const total = (leadProdutos ?? []).length;
   const conv = porStatus.fechado.length > 0
@@ -195,8 +211,31 @@ export default async function FunilProdutoPage({ params }: Params) {
           )}
         </div>
 
-        {/* Sidebar: planos, equipe, cases */}
+        {/* Sidebar: planos, equipe, cases, ICP */}
         <div className="space-y-4">
+          <IcpProdutoWidget produtoId={pid} icpAtual={produto.icp_extraido} />
+          
+          {lookalikeLeads.length > 0 && (
+            <div className="card p-4 border-blue-500/30 bg-blue-500/5">
+              <div className="text-xs font-semibold mb-3 text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5" /> Leads com Alto Fit
+              </div>
+              <div className="space-y-2">
+                {lookalikeLeads.map((l: any) => (
+                  <Link href={`/pipeline/${l.id}`} key={l.id} className="block p-2 rounded bg-background border border-border hover:border-blue-500/50 transition-colors text-xs">
+                    <div className="font-medium flex justify-between">
+                      <span className="truncate pr-2">{l.empresa || l.nome}</span>
+                      <span className="text-blue-600 shrink-0 font-bold">{l.produto_scores[pid]}%</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate">{l.segmento || "Sem segmento"}</div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <LookalikeWidget produtoId={pid} temIcp={!!produto.icp_extraido} />
+
           {/* Planos/Variações */}
           {(variacoes ?? []).length > 0 && (
             <div className="card p-4">

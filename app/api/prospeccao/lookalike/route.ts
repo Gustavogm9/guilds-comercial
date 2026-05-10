@@ -7,6 +7,7 @@ import {
   gerarQueriesLookalike,
   scoreSimilaridade,
   calcularCompletude,
+  type FingerprintICP,
 } from "@/lib/prospeccao-lookalike";
 import { buscarEmpresasPorNicho, estimarCusto } from "@/lib/prospeccao";
 import type { EmpresaBuscada } from "@/lib/prospeccao";
@@ -15,16 +16,45 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
+ * Mapeia um ICP extraído via IA (JSON) para o formato FingerprintICP
+ */
+function mapIcpToFingerprint(icp: any, totalGanhos: number): FingerprintICP {
+  const segs = typeof icp.segmento === "string" ? icp.segmento.split(/[,/]+/).map((s: string) => s.trim()) : [];
+  const cargos = Array.isArray(icp.cargos_decisores) ? icp.cargos_decisores : [];
+  
+  return {
+    segmentos_top: segs.map((s: string) => ({ valor: s, frequencia: 1, percentual: 100 })),
+    cidades_top: [], // ICP do produto geralmente foca em nicho/cargo
+    cargos_top: cargos.map((c: string) => ({ valor: c, frequencia: 1, percentual: 100 })),
+    valor_medio_brl: 0,
+    completude: { tem_email: 0, tem_whatsapp: 0, tem_linkedin: 0, tem_site: 0 },
+    total_base: 0,
+    total_ganhos: totalGanhos,
+    calculado_em: icp.ultimo_calculo || new Date().toISOString()
+  };
+}
+
+/**
  * GET /api/prospeccao/lookalike/fingerprint
  * Retorna o fingerprint ICP da organização sem executar buscas.
  */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const me = await getCurrentProfile();
   if (!me) return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
   const orgId = await getCurrentOrgId();
   if (!orgId) return NextResponse.json({ erro: "Sem org." }, { status: 403 });
 
+  const url = new URL(req.url);
+  const produtoId = url.searchParams.get("produtoId");
+
   try {
+    if (produtoId) {
+      const supabase = createClient();
+      const { data: p } = await supabase.from("produtos").select("icp_extraido").eq("id", produtoId).single();
+      if (p?.icp_extraido) {
+        return NextResponse.json({ ok: true, fingerprint: mapIcpToFingerprint(p.icp_extraido, p.icp_extraido.amostras_usadas || 0) });
+      }
+    }
     const fp = await computarFingerprint(orgId);
     return NextResponse.json({ ok: true, fingerprint: fp });
   } catch (err: any) {
@@ -45,12 +75,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { regioes = [], segmentos = [], maxQueries = 4, maxResultadosPorQuery = 5 } = body;
+    const { regioes = [], segmentos = [], maxQueries = 4, maxResultadosPorQuery = 5, produtoId } = body;
 
     const supabase = createClient();
 
     // 1. Computa fingerprint
-    const fingerprint = await computarFingerprint(orgId);
+    let fingerprint: FingerprintICP;
+    if (produtoId) {
+      const { data: p } = await supabase.from("produtos").select("icp_extraido").eq("id", produtoId).single();
+      if (p?.icp_extraido) {
+        fingerprint = mapIcpToFingerprint(p.icp_extraido, p.icp_extraido.amostras_usadas || 0);
+      } else {
+        fingerprint = await computarFingerprint(orgId);
+      }
+    } else {
+      fingerprint = await computarFingerprint(orgId);
+    }
 
     // 2. Gera queries
     const queries = gerarQueriesLookalike(fingerprint, { regioes, segmentos, maxQueries });

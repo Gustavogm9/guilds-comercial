@@ -178,6 +178,7 @@ export default function ProspeccaoHub({ orgId, icp, hipoteseId, hipotesePre, hip
               orgId={orgId}
               hipoteseId={hipoteseId}
               hipotesePre={hipotesePre}
+              produtos={produtos}
             />
           )}
         </div>
