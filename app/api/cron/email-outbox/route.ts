@@ -231,19 +231,40 @@ function buildIndicacaoPortalRecebida(row: OutboxRow, appUrl: string) {
 }
 
 function buildNpsPedidoD7(row: OutboxRow, appUrl: string) {
-  // Stub pra item 1 — preenche quando implementar
   const p = row.payload;
-  const empresa = escapeHtml(p.empresa ?? "");
+  const orgNome = escapeHtml(p.org_nome ?? "");
+  const clienteNome = p.cliente_nome ? escapeHtml(p.cliente_nome).split(" ")[0] : "";
   const en = row.locale === "en-US";
-  const link = `${appUrl}/nps/${escapeHtml(p.token ?? "")}`;
+  const token = String(p.token ?? "");
+  const link = `${appUrl}/nps/${encodeURIComponent(token)}`;
+
   if (en) {
     return {
-      subject: `Quick question — how was your experience with ${empresa}?`,
-      htmlContent: `<p>Hi! In one number from 0 to 10, how likely are you to recommend us? <a href="${link}">Click to answer</a>.</p>`,
+      subject: row.subject,
+      htmlContent: `
+<p>Hi ${clienteNome || "there"},</p>
+<p>It's been about a week since you started working with <strong>${orgNome}</strong>. We'd love to know:</p>
+<p style="font-size:18px;font-weight:600;margin:24px 0 12px">On a scale of 0 to 10, how likely are you to recommend us to a friend or colleague?</p>
+<p style="margin:24px 0">
+  <a href="${link}" style="display:inline-block;padding:14px 24px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;font-size:15px">Answer in 30 seconds</a>
+</p>
+<p style="color:#64748b;font-size:13px">Your answer goes straight to the team and helps us improve. No spam, ever.</p>
+<p style="color:#94a3b8;font-size:11px;margin-top:32px">Powered by Guilds Comercial · ${orgNome}</p>
+`,
     };
   }
+
   return {
-    subject: `Como foi sua experiência com a ${empresa}?`,
-    htmlContent: `<p>Olá! Em um número de 0 a 10, qual a chance de você recomendar nosso trabalho? <a href="${link}">Clique pra responder</a>.</p>`,
+    subject: row.subject,
+    htmlContent: `
+<p>Olá ${clienteNome || ""},</p>
+<p>Faz cerca de uma semana que você começou a trabalhar com a <strong>${orgNome}</strong>. A gente queria saber:</p>
+<p style="font-size:18px;font-weight:600;margin:24px 0 12px">De 0 a 10, qual a chance de você nos recomendar pra um amigo ou colega?</p>
+<p style="margin:24px 0">
+  <a href="${link}" style="display:inline-block;padding:14px 24px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;font-size:15px">Responder em 30 segundos</a>
+</p>
+<p style="color:#64748b;font-size:13px">Sua resposta vai direto pro time e ajuda a gente a melhorar. Não enviamos spam.</p>
+<p style="color:#94a3b8;font-size:11px;margin-top:32px">Powered by Guilds Comercial · ${orgNome}</p>
+`,
   };
 }
