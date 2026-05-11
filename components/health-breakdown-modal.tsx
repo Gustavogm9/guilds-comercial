@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, AlertCircle, Loader2, Heart, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { X, AlertCircle, Loader2, Heart, TrendingUp, TrendingDown, Minus, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { HealthBreakdown, HealthTendencia, TendenciaHealth } from "@/lib/types";
+import type { HealthBreakdown, HealthTendencia, TendenciaHealth, NpsHistoricoLead } from "@/lib/types";
 
 /**
  * Modal que mostra breakdown completo do health score de um lead.
@@ -27,17 +27,20 @@ export default function HealthBreakdownModal({
   const [erro, setErro] = useState<string | null>(null);
   const [breakdown, setBreakdown] = useState<HealthBreakdown | null>(null);
   const [tendencia, setTendencia] = useState<HealthTendencia | null>(null);
+  const [npsHistorico, setNpsHistorico] = useState<NpsHistoricoLead | null>(null);
 
   useEffect(() => {
     const sb = createClient();
     Promise.all([
       sb.from("v_health_breakdown").select("*").eq("lead_id", leadId).maybeSingle(),
       sb.from("v_health_tendencia").select("*").eq("lead_id", leadId).maybeSingle(),
+      sb.from("v_nps_historico_lead").select("*").eq("lead_id", leadId).maybeSingle(),
     ])
-      .then(([brRes, tendRes]) => {
+      .then(([brRes, tendRes, npsRes]) => {
         if (brRes.error) throw brRes.error;
         setBreakdown(brRes.data as HealthBreakdown);
         setTendencia((tendRes.data as HealthTendencia) ?? null);
+        setNpsHistorico((npsRes.data as NpsHistoricoLead) ?? null);
         setLoading(false);
       })
       .catch((e) => {
@@ -129,10 +132,73 @@ export default function HealthBreakdownModal({
                   <ComponenteCard key={c.componente} c={c} />
                 ))}
               </div>
+
+              {/* Histórico NPS — só se houver */}
+              {npsHistorico && npsHistorico.respondidas > 0 && (
+                <NpsHistoricoSection hist={npsHistorico} />
+              )}
             </>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function NpsHistoricoSection({ hist }: { hist: NpsHistoricoLead }) {
+  const max = 10;
+  return (
+    <div className="mt-5 pt-5 border-t border-border">
+      <div className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
+        <Star className="w-3 h-3" aria-hidden="true" /> Histórico de NPS
+      </div>
+
+      <div className="flex items-center gap-4 mb-3 text-xs">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Média</div>
+          <div className="text-lg font-semibold tabular-nums">
+            {hist.score_medio ?? "—"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Respostas</div>
+          <div className="text-lg font-semibold tabular-nums">{hist.respondidas}</div>
+        </div>
+        {hist.score_min != null && hist.score_max != null && (
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Faixa</div>
+            <div className="text-lg font-semibold tabular-nums">{hist.score_min}–{hist.score_max}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Sparkline rude: barras por resposta (cronológico) */}
+      {hist.ultimas_10 && hist.ultimas_10.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1.5">
+            Últimas respostas (mais recente à esquerda)
+          </div>
+          <div className="flex items-end gap-1 h-16">
+            {hist.ultimas_10.map((r, idx) => {
+              const tone =
+                r.categoria === "promotor" ? "bg-success-500" :
+                r.categoria === "neutro" ? "bg-warning-500" :
+                "bg-destructive";
+              const height = `${Math.max(8, (r.score / max) * 100)}%`;
+              return (
+                <div
+                  key={idx}
+                  className="flex-1 max-w-[24px] rounded-t flex flex-col items-center"
+                  title={`Score ${r.score}${r.comentario ? ` — "${r.comentario.slice(0, 60)}"` : ""}${r.data ? ` (${new Date(r.data).toLocaleDateString()})` : ""}`}
+                >
+                  <div className={`w-full ${tone} rounded-t`} style={{ height }} />
+                  <span className="text-[9px] tabular-nums text-muted-foreground mt-0.5">{r.score}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

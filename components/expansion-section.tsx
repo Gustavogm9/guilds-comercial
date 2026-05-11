@@ -134,8 +134,16 @@ export default function ExpansionSection({
             />
             <KpiCard
               label="ARR em renovação"
-              value={fmt(renovacoesResumo.arr_em_renovacao_90d)}
-              sub="próximos 90d"
+              value={fmt(
+                renovacoesResumo.taxa_renovacao_pct != null
+                  ? renovacoesResumo.arr_em_renovacao_90d * (renovacoesResumo.taxa_renovacao_pct / 100)
+                  : renovacoesResumo.arr_em_renovacao_90d
+              )}
+              sub={
+                renovacoesResumo.taxa_renovacao_pct != null
+                  ? `próx. 90d · ${renovacoesResumo.taxa_renovacao_pct}% conv.`
+                  : "próximos 90d (bruto)"
+              }
               icon={<DollarSign className="w-4 h-4" />}
               tone="success"
             />

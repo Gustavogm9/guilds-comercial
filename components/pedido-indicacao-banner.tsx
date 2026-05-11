@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { Sparkles, X, Clock, Loader2, ArrowRight, Plus } from "lucide-react";
+import { Sparkles, X, Clock, Loader2, ArrowRight, Plus, MessageCircle } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import {
   responderPedidoIndicacao,
   adiarPedidoIndicacao,
   type NovaIndicacaoInput,
 } from "@/app/(app)/growth/indicacoes/actions";
+import ScriptPedidoModal from "./script-pedido-modal";
 
 /**
  * Banner mostrado no /pipeline/[id] quando há pedido de indicação pendente
@@ -25,9 +26,11 @@ export interface PedidoBannerInput {
 export default function PedidoIndicacaoBanner({
   pedidos,
   empresaLead,
+  leadId,
 }: {
   pedidos: PedidoBannerInput[];
   empresaLead: string | null;
+  leadId?: number;
 }) {
   const [locale, setLocale] = useState<Locale>("pt-BR");
   useEffect(() => setLocale(getClientLocale()), []);
@@ -38,20 +41,22 @@ export default function PedidoIndicacaoBanner({
   return (
     <>
       {pedidos.map((p) => (
-        <BannerCard key={p.pedido_id} pedido={p} t={t} empresaLead={empresaLead} locale={locale} />
+        <BannerCard key={p.pedido_id} pedido={p} t={t} empresaLead={empresaLead} locale={locale} leadId={leadId} />
       ))}
     </>
   );
 }
 
 function BannerCard({
-  pedido, t, empresaLead, locale,
+  pedido, t, empresaLead, locale, leadId,
 }: {
   pedido: PedidoBannerInput;
   t: (k: string) => string;
   empresaLead: string | null;
   locale: Locale;
+  leadId?: number;
 }) {
+  const [scriptOpen, setScriptOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -98,6 +103,17 @@ function BannerCard({
             )}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
+            {leadId && (
+              <button
+                onClick={() => setScriptOpen(true)}
+                disabled={pending}
+                className="btn-ghost text-xs text-primary"
+                title="Ver script personalizado de pedido"
+              >
+                <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                Ver script
+              </button>
+            )}
             <button
               onClick={() => setModalOpen(true)}
               disabled={pending}
@@ -125,6 +141,14 @@ function BannerCard({
           </div>
         </div>
       </div>
+
+      {leadId && (
+        <ScriptPedidoModal
+          leadId={leadId}
+          open={scriptOpen}
+          onClose={() => setScriptOpen(false)}
+        />
+      )}
 
       {modalOpen && (
         <ResponderModalInline

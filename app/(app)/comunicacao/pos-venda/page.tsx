@@ -40,6 +40,7 @@ export default async function PosVendaPage() {
     expansoesAtivasRes,
     expansoesResumoRes,
     expansoesFechadasRes,
+    renovacoesLeadsRes,
   ] = await Promise.all([
     supabase
       .from("v_onboarding_pendente")
@@ -99,6 +100,14 @@ export default async function PosVendaPage() {
       .in("estagio", ["fechada", "perdida"])
       .order("updated_at", { ascending: false })
       .limit(50),
+    // Bloco E: clientes Fechados pra bulk renovação
+    supabase
+      .from("leads")
+      .select("id, empresa, nome, valor_potencial, data_fechamento, data_renovacao, ciclo_renovacao_meses, valor_renovacao, responsavel_id")
+      .eq("organizacao_id", orgId)
+      .eq("crm_stage", "Fechado")
+      .order("data_fechamento", { ascending: false })
+      .limit(500),
   ]);
 
   return (
@@ -115,6 +124,17 @@ export default async function PosVendaPage() {
       expansoesAtivas={(expansoesAtivasRes.data ?? []) as ExpansaoAtiva[]}
       expansoesResumo={(expansoesResumoRes.data ?? null) as ExpansoesResumo | null}
       expansoesHistorico={(expansoesFechadasRes.data ?? []) as Expansao[]}
+      renovacoesLeads={(renovacoesLeadsRes.data ?? []) as Array<{
+        id: number;
+        empresa: string | null;
+        nome: string | null;
+        valor_potencial: number | null;
+        data_fechamento: string | null;
+        data_renovacao: string | null;
+        ciclo_renovacao_meses: number | null;
+        valor_renovacao: number | null;
+        responsavel_id: string | null;
+      }>}
     />
   );
 }

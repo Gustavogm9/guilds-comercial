@@ -5,6 +5,7 @@ import {
   ListChecks, Star, Layers, Plus, X, ArrowRight,
   CheckCircle2, AlertCircle, Loader2, TrendingUp, Users,
   AlertTriangle, MessageSquare, Heart, Rocket, DollarSign,
+  RotateCw, Save, Calendar,
 } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import type {
@@ -35,9 +36,23 @@ import {
 } from "./expansoes-actions";
 import HealthBreakdownModal from "@/components/health-breakdown-modal";
 import OnboardingChecklistModal from "@/components/onboarding-checklist-modal";
+import NpsInsightsCard from "@/components/nps-insights-card";
+import { bulkAtualizarRenovacoes } from "./renovacoes-bulk-actions";
 import ComunicacaoTabs from "../comunicacao-tabs";
 
-type Tab = "onboarding" | "nps" | "saude" | "expansoes" | "templates";
+type Tab = "onboarding" | "nps" | "saude" | "expansoes" | "renovacoes" | "templates";
+
+interface RenovacaoLead {
+  id: number;
+  empresa: string | null;
+  nome: string | null;
+  valor_potencial: number | null;
+  data_fechamento: string | null;
+  data_renovacao: string | null;
+  ciclo_renovacao_meses: number | null;
+  valor_renovacao: number | null;
+  responsavel_id: string | null;
+}
 type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
 type T = (key: string) => string;
 
@@ -62,6 +77,7 @@ export default function PosVendaClient({
   expansoesAtivas,
   expansoesResumo,
   expansoesHistorico,
+  renovacoesLeads,
 }: {
   meId: string;
   isGestor: boolean;
@@ -75,6 +91,7 @@ export default function PosVendaClient({
   expansoesAtivas: ExpansaoAtiva[];
   expansoesResumo: ExpansoesResumo | null;
   expansoesHistorico: Expansao[];
+  renovacoesLeads: Array<RenovacaoLead>;
 }) {
   const [tab, setTab] = useState<Tab>("onboarding");
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -119,6 +136,9 @@ export default function PosVendaClient({
         <TabBtn v="expansoes" cur={tab} set={setTab}
           icon={<Rocket className="w-3.5 h-3.5" />}
           label={`Expansões${expansoesResumo && expansoesResumo.ativas > 0 ? ` (${expansoesResumo.ativas})` : ""}`} />
+        <TabBtn v="renovacoes" cur={tab} set={setTab}
+          icon={<RotateCw className="w-3.5 h-3.5" />}
+          label={`Renovações${renovacoesLeads.filter(r => !r.data_renovacao).length > 0 ? ` (${renovacoesLeads.filter(r => !r.data_renovacao).length})` : ""}`} />
         {isGestor && (
           <TabBtn v="templates" cur={tab} set={setTab}
             icon={<Layers className="w-3.5 h-3.5" />}
@@ -136,6 +156,14 @@ export default function PosVendaClient({
           historico={expansoesHistorico}
           healthScores={healthScores}
           t={t}
+          locale={locale}
+          onSucesso={onSucesso}
+          onErro={onErro}
+        />
+      )}
+      {tab === "renovacoes" && (
+        <RenovacoesBulkTab
+          leads={renovacoesLeads}
           locale={locale}
           onSucesso={onSucesso}
           onErro={onErro}
@@ -349,8 +377,13 @@ function NpsTab({ responses, t, locale, onSucesso, onErro }: {
     );
   }
 
+  // Mostra insights se há ao menos 3 respostas com comentário
+  const comComentario = responses.filter((r) => r.score != null && r.comentario).length;
+
   return (
     <>
+      {comComentario >= 3 && <NpsInsightsCard />}
+
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -1596,6 +1629,239 @@ function EditarExpansaoModal({ expansao, onClose, onSucesso, onErro }: {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ======================== Tab Renovações (bulk) ========================
+function RenovacoesBulkTab({
+  leads, locale, onSucesso, onErro,
+}: {
+  leads: RenovacaoLead[];
+  locale: Locale;
+  onSucesso: (m: string) => void;
+  onErro: (e: unknown) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [filtro, setFiltro] = useState<"todos" | "sem_data" | "com_data">("sem_data");
+  const [edits, setEdits] = useState<Record<number, {
+    data?: string;
+    ciclo?: number;
+    valor?: number;
+  }>>({});
+
+  const fmtBRL = (v: number) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+
+  const filtrados = leads.filter((l) => {
+    if (filtro === "sem_data") return !l.data_renovacao;
+    if (filtro === "com_data") return !!l.data_renovacao;
+    return true;
+  });
+
+  function update(leadId: number, patch: { data?: string; ciclo?: number; valor?: number }) {
+    setEdits((prev) => ({
+      ...prev,
+      [leadId]: { ...(prev[leadId] ?? {}), ...patch },
+    }));
+  }
+
+  function handleSalvarLote() {
+    const updates = Object.entries(edits)
+      .filter(([_, e]) => e.data !== undefined || e.ciclo !== undefined || e.valor !== undefined)
+      .map(([leadIdStr, e]) => {
+        const leadId = parseInt(leadIdStr, 10);
+        const orig = leads.find((l) => l.id === leadId);
+        return {
+          lead_id: leadId,
+          data_renovacao: e.data !== undefined ? (e.data || null) : (orig?.data_renovacao ?? null),
+          ciclo_renovacao_meses: e.ciclo !== undefined ? e.ciclo : (orig?.ciclo_renovacao_meses ?? null),
+          valor_renovacao: e.valor !== undefined ? e.valor : (orig?.valor_renovacao ?? null),
+        };
+      });
+
+    if (updates.length === 0) {
+      onErro(new Error("Nenhuma alteração pra salvar."));
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const r = await bulkAtualizarRenovacoes(updates);
+        if (r.erros.length > 0) {
+          onErro(new Error(`${r.atualizados} ok · ${r.erros.length} com erro: ${r.erros[0]}`));
+        } else {
+          onSucesso(`${r.atualizados} renovação(ões) atualizada(s).`);
+        }
+        setEdits({});
+      } catch (e) {
+        onErro(e);
+      }
+    });
+  }
+
+  // Sugestão automática: cliente fechado há > 6m → sugerir 12m de ciclo a partir do fechamento
+  function sugerirAutomatico() {
+    const novosEdits: typeof edits = { ...edits };
+    let count = 0;
+    leads.forEach((l) => {
+      if (l.data_renovacao || !l.data_fechamento) return;
+      const fechamento = new Date(l.data_fechamento);
+      const sugestao = new Date(fechamento);
+      sugestao.setFullYear(sugestao.getFullYear() + 1);
+      novosEdits[l.id] = {
+        data: sugestao.toISOString().slice(0, 10),
+        ciclo: 12,
+        valor: l.valor_potencial ?? 0,
+      };
+      count += 1;
+    });
+    setEdits(novosEdits);
+    if (count > 0) {
+      onSucesso(`Sugerido D+12m pra ${count} cliente(s). Revise e salve.`);
+    } else {
+      onErro(new Error("Nenhum cliente sem renovação configurada."));
+    }
+  }
+
+  const semData = leads.filter((l) => !l.data_renovacao).length;
+  const comData = leads.length - semData;
+  const editsCount = Object.keys(edits).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Header explicativo */}
+      <div className="card p-4 bg-primary/5 border-primary/20">
+        <div className="flex items-start gap-3">
+          <RotateCw className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden="true" />
+          <div>
+            <div className="font-semibold text-sm mb-1">Configuração em massa de renovação</div>
+            <p className="text-xs text-muted-foreground">
+              Defina data de renovação, ciclo e valor pra vários clientes de uma vez. O cron diário 08:00 detecta
+              vencimentos &lt;= 90d e cria expansão tipo=renovacao automaticamente.{" "}
+              <strong>{semData}</strong> cliente(s) ainda sem data configurada,{" "}
+              <strong>{comData}</strong> com data.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Filtrar:</span>
+          {(["todos", "sem_data", "com_data"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFiltro(f)}
+              className={`px-2 py-1 rounded text-xs ${
+                filtro === f
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground bg-secondary"
+              }`}
+            >
+              {f === "todos" ? "Todos" : f === "sem_data" ? "Sem data" : "Com data"}
+              <span className="ml-1 tabular-nums opacity-70">
+                ({f === "todos" ? leads.length : f === "sem_data" ? semData : comData})
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={sugerirAutomatico}
+            disabled={pending || semData === 0}
+            className="btn-ghost text-xs"
+            title="Preenche data = data_fechamento + 12 meses pra clientes sem data"
+          >
+            <Calendar className="w-3 h-3" aria-hidden="true" /> Sugerir +12m
+          </button>
+          {editsCount > 0 && (
+            <button
+              onClick={handleSalvarLote}
+              disabled={pending}
+              className="btn-primary text-xs"
+            >
+              {pending ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <Save className="w-3 h-3" aria-hidden="true" />}
+              Salvar {editsCount} alteraç{editsCount === 1 ? "ão" : "ões"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabela */}
+      {filtrados.length === 0 ? (
+        <div className="card p-12 text-center text-sm text-muted-foreground">
+          Nenhum cliente nesse filtro.
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/60 dark:bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                <tr>
+                  <th className="text-left px-3 py-2 font-semibold">Cliente</th>
+                  <th className="text-left px-3 py-2 font-semibold">Fechado em</th>
+                  <th className="text-left px-3 py-2 font-semibold">Data renovação</th>
+                  <th className="text-left px-3 py-2 font-semibold">Ciclo (meses)</th>
+                  <th className="text-right px-3 py-2 font-semibold">Valor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtrados.map((l) => {
+                  const edit = edits[l.id];
+                  const hasEdit = edit && (edit.data !== undefined || edit.ciclo !== undefined || edit.valor !== undefined);
+                  return (
+                    <tr key={l.id} className={hasEdit ? "bg-warning-500/5" : "hover:bg-secondary/40"}>
+                      <td className="px-3 py-2">
+                        <Link href={`/pipeline/${l.id}`} className="font-medium hover:text-primary transition-colors">
+                          {l.empresa ?? l.nome ?? `Lead #${l.id}`}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">
+                        {l.data_fechamento ? new Date(l.data_fechamento).toLocaleDateString(locale) : "—"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="date"
+                          value={edit?.data ?? l.data_renovacao ?? ""}
+                          onChange={(e) => update(l.id, { data: e.target.value })}
+                          className="input-base !text-xs !py-1 w-36"
+                          aria-label="Data de renovação"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={edit?.ciclo ?? l.ciclo_renovacao_meses ?? 12}
+                          onChange={(e) => update(l.id, { ciclo: parseInt(e.target.value, 10) })}
+                          className="input-base !text-xs !py-1 w-20"
+                          aria-label="Ciclo"
+                        >
+                          <option value={1}>1</option>
+                          <option value={3}>3</option>
+                          <option value={6}>6</option>
+                          <option value={12}>12</option>
+                          <option value={24}>24</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          min={0}
+                          value={edit?.valor ?? l.valor_renovacao ?? l.valor_potencial ?? 0}
+                          onChange={(e) => update(l.id, { valor: parseFloat(e.target.value || "0") })}
+                          className="input-base !text-xs !py-1 w-28 text-right tabular-nums"
+                          aria-label="Valor"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

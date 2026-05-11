@@ -227,6 +227,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
                   observacoes: p.observacoes,
                 }))}
                 empresaLead={lead.empresa}
+                leadId={lead.id}
               />
             </div>
           )}

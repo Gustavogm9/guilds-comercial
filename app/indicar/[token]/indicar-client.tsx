@@ -1,28 +1,53 @@
 "use client";
 import { useState, useTransition } from "react";
-import { Sparkles, Send, CheckCircle2, AlertCircle, Loader2, Plus, X } from "lucide-react";
-import type { EmbaixadorPortalContext } from "@/lib/types";
+import {
+  Sparkles, Send, CheckCircle2, AlertCircle, Loader2, Plus, X,
+  QrCode, Trophy, Clock, Award, Gift,
+} from "lucide-react";
+import type { EmbaixadorPortalContext, ProgramaRecompensaPortal } from "@/lib/types";
 import {
   criarIndicacaoPortalAction,
   type NovaIndicacaoPortalInput,
 } from "./actions";
 
+interface MinhaIndicacaoPortal {
+  indicado_nome: string;
+  indicado_empresa: string | null;
+  status: string;
+  data_recebida: string;
+  data_fechado: string | null;
+  data_perdido: string | null;
+  recompensa_paga: boolean;
+}
+
+interface BrandingPortal {
+  organizacao_nome: string;
+  logo_url: string | null;
+  cor_primaria: string | null;
+}
+
 /**
  * Portal embaixador self-service. Cliente acessa via link compartilhado pelo
  * vendedor e registra indicações sem precisar de conta no CRM.
  *
- * Fluxo:
- *   1. Header com nome da org + saudação ao embaixador
- *   2. Stat cards: quantas você já indicou, quantas fecharam
- *   3. Form pra adicionar até max_indicacoes_por_acesso indicações
- *   4. Botão "Enviar" → cria via RPC → tela de sucesso
+ * Bloco F do polish:
+ *   - Lista de indicações que o cliente deu, com status (item #5)
+ *   - QR code pra compartilhar facilmente (item #15)
+ *   - Branding custom (logo + cor primária) da org (item #16)
+ *   - Programa de recompensas explícito quando ativo
  */
 export default function IndicarClient({
   token,
   ctx,
+  minhasIndicacoes,
+  programa,
+  branding,
 }: {
   token: string;
   ctx: EmbaixadorPortalContext;
+  minhasIndicacoes: MinhaIndicacaoPortal[];
+  programa: ProgramaRecompensaPortal | null;
+  branding: BrandingPortal | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [indicacoes, setIndicacoes] = useState<NovaIndicacaoPortalInput[]>([
@@ -119,9 +144,29 @@ export default function IndicarClient({
     );
   }
 
+  // Branding custom (#16): aplica cor primária da org se setada
+  const corCustom = branding?.cor_primaria;
+  const bgStyle = corCustom
+    ? { background: `linear-gradient(135deg, ${corCustom}10 0%, transparent 50%, ${corCustom}05 100%)` }
+    : undefined;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/[0.02]">
+    <div
+      className={corCustom ? "min-h-screen" : "min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/[0.02]"}
+      style={bgStyle}
+    >
       <div className="max-w-2xl mx-auto p-4 md:p-8">
+        {/* Logo da org (se configurado — branding) */}
+        {branding?.logo_url && (
+          <div className="text-center mb-4">
+            <img
+              src={branding.logo_url}
+              alt={branding.organizacao_nome ?? "Logo"}
+              className="h-12 mx-auto"
+              style={{ maxWidth: "200px", objectFit: "contain" }}
+            />
+          </div>
+        )}
         {/* Header */}
         <header className="mb-6 text-center">
           <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-semibold uppercase tracking-[0.12em]">
@@ -142,6 +187,35 @@ export default function IndicarClient({
               {ctx.mensagem_personalizada}
             </div>
           )}
+
+          {/* Programa de recompensa — quando ativo */}
+          {programa?.programa_ativo && (programa.valor_virou_lead > 0 || programa.valor_fechado > 0) && (
+            <div className="mt-4 p-3 rounded-lg bg-success-500/5 border border-success-500/30 max-w-md mx-auto">
+              <div className="flex items-center justify-center gap-2 mb-1.5">
+                <Gift className="w-4 h-4 text-success-500" aria-hidden="true" />
+                <span className="text-[10px] uppercase tracking-[0.12em] font-bold text-success-500">
+                  Programa de recompensas ativo
+                </span>
+              </div>
+              <p className="text-xs text-foreground/90 text-center">
+                {programa.valor_fechado > 0 && (
+                  <>
+                    Você ganha <strong>R$ {programa.valor_fechado}</strong> a cada indicação que vira cliente.
+                  </>
+                )}
+                {programa.valor_virou_lead > 0 && programa.valor_fechado === 0 && (
+                  <>
+                    Você ganha <strong>R$ {programa.valor_virou_lead}</strong> a cada indicação que vira lead novo.
+                  </>
+                )}
+              </p>
+              {programa.mensagem_recompensa && (
+                <p className="text-[11px] text-muted-foreground italic mt-1.5 text-center">
+                  {programa.mensagem_recompensa}
+                </p>
+              )}
+            </div>
+          )}
         </header>
 
         {/* Stats */}
@@ -159,6 +233,26 @@ export default function IndicarClient({
                 {ctx.qtd_minhas_que_fecharam === 1 ? "Virou cliente" : "Viraram clientes"}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Lista de indicações dadas (Bloco F #5) */}
+        {minhasIndicacoes.length > 0 && (
+          <div className="card p-4 mb-6">
+            <details>
+              <summary className="cursor-pointer select-none flex items-center justify-between">
+                <span className="text-sm font-semibold flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-primary" aria-hidden="true" />
+                  Suas indicações ({minhasIndicacoes.length})
+                </span>
+                <span className="text-[11px] text-muted-foreground">Clique para expandir</span>
+              </summary>
+              <ul className="mt-3 space-y-1.5">
+                {minhasIndicacoes.map((ind, idx) => (
+                  <IndicacaoStatusRow key={idx} ind={ind} />
+                ))}
+              </ul>
+            </details>
           </div>
         )}
 
@@ -284,10 +378,67 @@ export default function IndicarClient({
           </p>
         </div>
 
+        {/* QR code pra compartilhar (Bloco F #15) */}
+        {typeof window !== "undefined" && (
+          <details className="card p-3 mt-6">
+            <summary className="cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5">
+              <QrCode className="w-3 h-3" aria-hidden="true" />
+              Compartilhar este link via QR code
+            </summary>
+            <div className="mt-3 text-center">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.href)}`}
+                alt="QR code do link de indicação"
+                className="mx-auto rounded-lg border border-border bg-card p-2"
+                width={200}
+                height={200}
+              />
+              <p className="text-[11px] text-muted-foreground mt-2 max-w-md mx-auto">
+                Outras pessoas podem escanear este QR code (com a câmera do celular) pra abrir o portal de indicação.
+              </p>
+            </div>
+          </details>
+        )}
+
         <footer className="mt-8 text-center text-[11px] text-muted-foreground/70">
-          Powered by Guilds Comercial
+          {branding?.logo_url ? (
+            <span>by {branding.organizacao_nome}</span>
+          ) : (
+            <span>Powered by Guilds Comercial</span>
+          )}
         </footer>
       </div>
     </div>
+  );
+}
+
+// =============================================================================
+// Sub-components
+// =============================================================================
+
+function IndicacaoStatusRow({ ind }: { ind: MinhaIndicacaoPortal }) {
+  const config = {
+    recebida: { label: "Recebida", tone: "text-muted-foreground", icon: <Clock className="w-3 h-3" /> },
+    contactado: { label: "Em conversa", tone: "text-primary", icon: <Sparkles className="w-3 h-3" /> },
+    virou_lead: { label: "Em conversa", tone: "text-primary", icon: <Sparkles className="w-3 h-3" /> },
+    fechado: { label: "Virou cliente!", tone: "text-success-500", icon: <Trophy className="w-3 h-3" /> },
+    perdido: { label: "Não rolou", tone: "text-muted-foreground/60", icon: <X className="w-3 h-3" /> },
+    descartado: { label: "Descartada", tone: "text-muted-foreground/60", icon: <X className="w-3 h-3" /> },
+  } as const;
+  const c = (config as any)[ind.status] ?? config.recebida;
+
+  return (
+    <li className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-secondary/40 border border-border text-xs">
+      <div className="flex-1 min-w-0">
+        <span className="font-medium truncate block">{ind.indicado_nome}</span>
+        {ind.indicado_empresa && (
+          <span className="text-[11px] text-muted-foreground truncate block">{ind.indicado_empresa}</span>
+        )}
+      </div>
+      <span className={`inline-flex items-center gap-1 ${c.tone} font-semibold whitespace-nowrap`}>
+        {c.icon} {c.label}
+        {ind.recompensa_paga && <Award className="w-3 h-3 text-warning-500" aria-label="Recompensa paga" />}
+      </span>
+    </li>
   );
 }
