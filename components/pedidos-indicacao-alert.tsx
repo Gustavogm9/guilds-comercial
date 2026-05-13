@@ -14,7 +14,7 @@ import {
  * Aparece quando há pedidos não-respondidos do vendedor (gestor vê só os
  * próprios por padrão; quando "Ver todos" tá ativo, vê do time).
  *
- * UX: 3 ações por pedido — "Pedir agora" (abre /pipeline/[id] que tem o
+ * UX: 3 ações por pedido — "Pedir agora" (abre /vendas/pipeline/[id] que tem o
  * banner), "Não tinha", "Adiar 7d". Mostra até 3 pedidos; resto via link.
  */
 export interface PedidoPendenteHoje {
@@ -107,7 +107,7 @@ export default function PedidosIndicacaoAlert({
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
           >
             <div className="flex-1 min-w-0">
-              <Link href={`/pipeline/${p.lead_id}`} className="text-sm font-medium hover:text-primary transition-colors truncate block">
+              <Link href={`/vendas/pipeline/${p.lead_id}`} className="text-sm font-medium hover:text-primary transition-colors truncate block">
                 {p.lead_empresa ?? p.lead_nome ?? `Lead #${p.lead_id}`}
               </Link>
               <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
@@ -115,7 +115,7 @@ export default function PedidosIndicacaoAlert({
               </div>
             </div>
             <Link
-              href={`/pipeline/${p.lead_id}`}
+              href={`/vendas/pipeline/${p.lead_id}`}
               className="btn-primary text-xs"
               prefetch
             >

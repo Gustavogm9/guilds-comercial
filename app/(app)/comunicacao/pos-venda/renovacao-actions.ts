@@ -98,9 +98,9 @@ export async function definirRenovacao(input: {
     },
   });
 
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
   revalidatePath("/pos-venda");
-  revalidatePath("/funil");
+  revalidatePath("/growth/funil");
   revalidatePath("/hoje");
 }
 
@@ -124,7 +124,7 @@ export async function rodarRenovacoesAgora(): Promise<{ org_count: number; total
   const meu = rows.find((r) => r.organizacao_id === orgId);
 
   revalidatePath("/pos-venda");
-  revalidatePath("/funil");
+  revalidatePath("/growth/funil");
   revalidatePath("/hoje");
 
   return {

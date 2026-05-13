@@ -21,7 +21,7 @@ interface Props {
 }
 
 /**
- * Toolbar do /pipeline — busca + filtros + export CSV + toggle de visão.
+ * Toolbar do /vendas/pipeline — busca + filtros + export CSV + toggle de visão.
  *
  * Fixes desta rodada:
  *   - Bug 4: sanitiza `q` removendo `,()*` antes de mandar pra URL
@@ -46,7 +46,7 @@ function PipelineToolbarInner(props: Props) {
     if (value) params.set(key, value);
     else params.delete(key);
     startTransition(() => {
-      router.push(`/pipeline?${params.toString()}`, { scroll: false });
+      router.push(`/vendas/pipeline?${params.toString()}`, { scroll: false });
     });
   }
 
@@ -66,7 +66,7 @@ function PipelineToolbarInner(props: Props) {
   function limparTodos() {
     setBusca("");
     startTransition(() => {
-      router.push("/pipeline", { scroll: false });
+      router.push("/vendas/pipeline", { scroll: false });
     });
   }
 

@@ -86,7 +86,7 @@ export default function FollowupProposalAlert({ leads, userId, currency = "BRL",
         {leads.map((lead) => (
           <Link
             key={lead.id}
-            href={`/pipeline/${lead.id}`}
+            href={`/vendas/pipeline/${lead.id}`}
             className="flex items-center gap-3 px-4 py-2.5 hover:bg-warning-500/5 transition-colors group"
           >
             <div className="flex-1 min-w-0">

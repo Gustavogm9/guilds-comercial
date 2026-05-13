@@ -332,7 +332,7 @@ function Card({ lead, dragging = false, t }: {
         <div className="flex-1 min-w-0">
           {/* Link só no clique; drag é o card inteiro via setNodeRef. Stop propagation evita conflito. */}
           <Link
-            href={`/pipeline/${lead.id}`}
+            href={`/vendas/pipeline/${lead.id}`}
             className="block"
             onPointerDown={(e) => e.stopPropagation()}
           >

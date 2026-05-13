@@ -18,7 +18,6 @@ async function requireGestorOrg() {
 const ROLES_VALIDOS: Role[] = ["gestor", "comercial", "sdr"];
 
 function revalidateEquipePaths() {
-  revalidatePath("/equipe");
   revalidatePath("/gestao/equipe");
 }
 
@@ -422,8 +421,8 @@ export async function transferirCarteira(
   }
 
   revalidateEquipePaths();
-  revalidatePath("/pipeline");
-  revalidatePath("/base");
+  revalidatePath("/vendas/pipeline");
+  revalidatePath("/vendas/base");
   revalidatePath("/hoje");
 
   return { total: data?.length ?? 0 };

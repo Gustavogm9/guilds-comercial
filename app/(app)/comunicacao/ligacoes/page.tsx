@@ -117,7 +117,7 @@ export default async function LigacoesPage(props: { searchParams: Promise<{ dias
                 <tr key={l.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.03]">
                   <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap tabular-nums">{fmtDateTime(l.data_hora)}</td>
                   <td className="px-3 py-2">
-                    <Link href={`/pipeline/${l.lead_id}`} className="font-medium hover:text-primary">
+                    <Link href={`/vendas/pipeline/${l.lead_id}`} className="font-medium hover:text-primary">
                       {l.leads?.empresa || l.leads?.nome || "(?)"}
                     </Link>
                   </td>

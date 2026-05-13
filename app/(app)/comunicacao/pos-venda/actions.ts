@@ -41,7 +41,7 @@ async function assertLeadDaOrg(
 }
 
 // ===========================================================================
-// Templates de onboarding (gestor configura em /equipe ou /pos-venda config)
+// Templates de onboarding (gestor configura em /gestao/equipe ou /pos-venda config)
 // ===========================================================================
 
 export async function criarTemplateOnboarding(input: {
@@ -199,7 +199,7 @@ export async function marcarItemOnboarding(input: {
   await tentarFecharChecklist(supabase, checklist.checklist_id ?? item.checklist_id);
 
   revalidatePath("/pos-venda");
-  revalidatePath(`/pipeline/${checklist.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${checklist.lead_id}`);
 }
 
 async function tentarFecharChecklist(
@@ -273,7 +273,7 @@ export async function solicitarNps(input: {
   if (error) throw error;
 
   revalidatePath("/pos-venda");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
 }
 
 export async function responderNps(input: {
@@ -318,8 +318,8 @@ export async function responderNps(input: {
   //   - 7-8 → grava lead_evento neutro
 
   revalidatePath("/pos-venda");
-  revalidatePath(`/pipeline/${nps.lead_id}`);
-  revalidatePath("/funil");
+  revalidatePath(`/vendas/pipeline/${nps.lead_id}`);
+  revalidatePath("/growth/funil");
   revalidatePath("/hoje");
 }
 

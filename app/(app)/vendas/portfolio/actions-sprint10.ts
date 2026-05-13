@@ -107,7 +107,7 @@ export async function vincularProdutoLead(leadId: number, produtoId: number, sta
   const supabase = createClient();
   const { error } = await supabase.from("lead_produtos")
     .upsert({ lead_id: leadId, produto_id: produtoId, status });
-  revalidatePath(`/pipeline/${leadId}`);
+  revalidatePath(`/vendas/pipeline/${leadId}`);
   return { ok: !error, erro: error?.message };
 }
 
@@ -115,7 +115,7 @@ export async function atualizarStatusLeadProduto(leadId: number, produtoId: numb
   const supabase = createClient();
   const { error } = await supabase.from("lead_produtos")
     .update({ status }).eq("lead_id", leadId).eq("produto_id", produtoId);
-  revalidatePath(`/pipeline/${leadId}`);
+  revalidatePath(`/vendas/pipeline/${leadId}`);
   return { ok: !error };
 }
 
@@ -123,7 +123,7 @@ export async function desvincularProdutoLead(leadId: number, produtoId: number) 
   const supabase = createClient();
   const { error } = await supabase.from("lead_produtos")
     .delete().eq("lead_id", leadId).eq("produto_id", produtoId);
-  revalidatePath(`/pipeline/${leadId}`);
+  revalidatePath(`/vendas/pipeline/${leadId}`);
   return { ok: !error };
 }
 

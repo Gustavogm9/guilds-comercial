@@ -170,7 +170,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
-      <Link href="/pipeline" className="btn-ghost text-xs mb-3">
+      <Link href="/vendas/pipeline" className="btn-ghost text-xs mb-3">
         <ChevronLeft className="w-3.5 h-3.5"/> {t("pipeline.detail_voltar")}
       </Link>
 
@@ -360,7 +360,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
             <div className="space-y-2">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Outras Oportunidades:</div>
               {outrasOportunidades.map(op => (
-                <Link key={op.id} href={`/pipeline/${op.id}`} className="flex items-center justify-between p-2 rounded hover:bg-secondary/40 border border-transparent hover:border-border/50 transition-colors">
+                <Link key={op.id} href={`/vendas/pipeline/${op.id}`} className="flex items-center justify-between p-2 rounded hover:bg-secondary/40 border border-transparent hover:border-border/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${STAGE_COLORS[op.crm_stage ?? "Base"]?.bg ?? "bg-border"}`} />
                     <div>

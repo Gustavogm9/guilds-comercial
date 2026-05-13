@@ -7,7 +7,7 @@ import type { UrgenciaRenovacao } from "@/lib/types";
 
 /**
  * Card em /hoje listando renovações em <= 30 dias (urgentes + vencidas).
- * Renovações 30-90d ficam só em /pos-venda e /funil pra não poluir o /hoje.
+ * Renovações 30-90d ficam só em /pos-venda e /growth/funil pra não poluir o /hoje.
  *
  * Tons:
  *   - vencida → vermelho (já passou)
@@ -83,7 +83,7 @@ export default function RenovacoesProximasAlert({
               className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
             >
               <div className="flex-1 min-w-0">
-                <Link href={`/pipeline/${r.lead_id}`} className="text-sm font-medium hover:text-primary transition-colors truncate block">
+                <Link href={`/vendas/pipeline/${r.lead_id}`} className="text-sm font-medium hover:text-primary transition-colors truncate block">
                   {r.cliente_empresa ?? r.cliente_nome ?? `Lead #${r.lead_id}`}
                 </Link>
                 <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
@@ -101,7 +101,7 @@ export default function RenovacoesProximasAlert({
                   )}
                 </div>
               </div>
-              <Link href={`/pipeline/${r.lead_id}`} className="btn-secondary text-xs" prefetch>
+              <Link href={`/vendas/pipeline/${r.lead_id}`} className="btn-secondary text-xs" prefetch>
                 <Repeat className="w-3 h-3" aria-hidden="true" /> Trabalhar
               </Link>
             </li>

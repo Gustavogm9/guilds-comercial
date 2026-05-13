@@ -18,12 +18,12 @@ import {
 } from "@/lib/types";
 
 /**
- * Server actions de /indicacoes — feature do funil borboleta.
+ * Server actions de /growth/indicacoes — feature do funil borboleta.
  *
  * Patterns alinhados com o resto do projeto:
  *   - requireOrg + assertLeadDaOrg pra defense-in-depth
  *   - Validação rigorosa de input (whitelists + ranges)
- *   - revalidatePath em /indicacoes, /pipeline/[id], /hoje, /funil
+ *   - revalidatePath em /growth/indicacoes, /vendas/pipeline/[id], /hoje, /growth/funil
  *   - Erros levantados levam mensagem amigável (mostrada no toast do client)
  */
 
@@ -133,8 +133,8 @@ export async function criarPedidoIndicacao(input: {
     throw error;
   }
 
-  revalidatePath("/indicacoes");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath("/growth/indicacoes");
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
   revalidatePath("/hoje");
 }
 
@@ -311,11 +311,11 @@ export async function responderPedidoIndicacao(input: {
     }
   }
 
-  revalidatePath("/indicacoes");
+  revalidatePath("/growth/indicacoes");
   revalidatePath("/hoje");
-  revalidatePath("/base");
-  revalidatePath("/funil");
-  revalidatePath(`/pipeline/${pedido.lead_id}`);
+  revalidatePath("/vendas/base");
+  revalidatePath("/growth/funil");
+  revalidatePath(`/vendas/pipeline/${pedido.lead_id}`);
 
   return {
     indicacoes_criadas: indicacoesValidadas.length,
@@ -354,7 +354,7 @@ export async function adiarPedidoIndicacao(pedido_id: number, dias: number) {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
-  revalidatePath("/indicacoes");
+  revalidatePath("/growth/indicacoes");
   revalidatePath("/hoje");
 }
 
@@ -452,8 +452,8 @@ export async function criarIndicacaoManual(input: {
       .eq("id", indicacaoRow!.id);
   }
 
-  revalidatePath("/indicacoes");
-  revalidatePath("/base");
+  revalidatePath("/growth/indicacoes");
+  revalidatePath("/vendas/base");
   return { indicacao_id: indicacaoRow!.id, lead_id: leadId };
 }
 
@@ -492,7 +492,7 @@ export async function atualizarStatusIndicacao(
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
-  revalidatePath("/indicacoes");
+  revalidatePath("/growth/indicacoes");
 }
 
 /**
@@ -555,8 +555,8 @@ export async function converterIndicacaoEmLead(indicacao_id: number) {
     },
   });
 
-  revalidatePath("/indicacoes");
-  revalidatePath("/base");
+  revalidatePath("/growth/indicacoes");
+  revalidatePath("/vendas/base");
   return { lead_id: leadRow!.id };
 }
 
@@ -598,5 +598,5 @@ export async function marcarRecompensaPaga(input: {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
-  revalidatePath("/indicacoes");
+  revalidatePath("/growth/indicacoes");
 }

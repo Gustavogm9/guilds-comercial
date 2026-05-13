@@ -47,7 +47,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: "Pipeline",
         short_name: "Pipeline",
         description: "Kanban de leads",
-        url: "/pipeline",
+        url: "/vendas/pipeline",
         icons: [{ src: "/icon", sizes: "256x256" }],
       },
       {

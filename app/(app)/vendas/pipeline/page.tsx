@@ -97,7 +97,7 @@ export default async function PipelinePage(
           <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.pipeline_titulo")}</h1>
           <p className="text-sm text-muted-foreground">{t("paginas.pipeline_sub")}</p>
         </div>
-        <Link href="/base" className="btn-primary text-xs"><Plus className="w-3.5 h-3.5"/> {t("modais.novo_lead")}</Link>
+        <Link href="/vendas/base" className="btn-primary text-xs"><Plus className="w-3.5 h-3.5"/> {t("modais.novo_lead")}</Link>
       </header>
 
       {/* FR-CRM-05/07/08 — Toolbar com busca, filtros e export */}

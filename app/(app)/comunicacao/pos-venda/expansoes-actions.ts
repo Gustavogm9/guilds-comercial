@@ -142,8 +142,8 @@ export async function criarExpansao(input: {
   });
 
   revalidatePath("/pos-venda");
-  revalidatePath("/funil");
-  revalidatePath(`/pipeline/${input.cliente_lead_id}`);
+  revalidatePath("/growth/funil");
+  revalidatePath(`/vendas/pipeline/${input.cliente_lead_id}`);
   return { expansao_id: data!.id };
 }
 
@@ -183,8 +183,8 @@ export async function atualizarEstagioExpansao(input: {
   if (error) throw error;
 
   revalidatePath("/pos-venda");
-  revalidatePath("/funil");
-  revalidatePath(`/pipeline/${exp.cliente_lead_id}`);
+  revalidatePath("/growth/funil");
+  revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
 }
 
 export async function atualizarExpansao(input: {
@@ -248,7 +248,7 @@ export async function atualizarExpansao(input: {
   if (error) throw error;
 
   revalidatePath("/pos-venda");
-  revalidatePath(`/pipeline/${exp.cliente_lead_id}`);
+  revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
 }
 
 export async function removerExpansao(expansao_id: number) {
@@ -270,5 +270,5 @@ export async function removerExpansao(expansao_id: number) {
   if (error) throw error;
 
   revalidatePath("/pos-venda");
-  revalidatePath(`/pipeline/${exp.cliente_lead_id}`);
+  revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
 }

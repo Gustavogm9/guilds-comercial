@@ -6,7 +6,7 @@ import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import type { AdvocacyKpis, TopEmbaixador } from "@/lib/types";
 
 /**
- * Seção "Advocacy" do /funil — fecha o lado direito do funil borboleta.
+ * Seção "Advocacy" do /growth/funil — fecha o lado direito do funil borboleta.
  *
  * Mostra:
  *   - K-factor (leads novos por cliente)
@@ -16,7 +16,7 @@ import type { AdvocacyKpis, TopEmbaixador } from "@/lib/types";
  *
  * Comportamento:
  *   - Se org ainda não tem clientes fechados: card de onboarding apontando
- *     pra /indicacoes pra explicar o conceito.
+ *     pra /growth/indicacoes pra explicar o conceito.
  *   - Se tem fechados mas zero indicações: hint pra começar.
  */
 export default function AdvocacySection({
@@ -107,7 +107,7 @@ export default function AdvocacySection({
                     }`}>
                       {idx + 1}
                     </span>
-                    <Link href={`/pipeline/${e.embaixador_lead_id}`} className="font-medium hover:text-primary transition-colors flex-1 truncate">
+                    <Link href={`/vendas/pipeline/${e.embaixador_lead_id}`} className="font-medium hover:text-primary transition-colors flex-1 truncate">
                       {e.embaixador_empresa ?? e.embaixador_nome ?? `Lead #${e.embaixador_lead_id}`}
                     </Link>
                     <span className="text-xs text-muted-foreground tabular-nums">

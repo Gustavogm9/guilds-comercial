@@ -92,8 +92,8 @@ export async function gerarDocumentoRaioX(input: {
   // Documento do Raio-X afeta detalhe do lead, lista de raio-x e o cockpit
   // (urgência muda quando "Diagnóstico Pago" é classificado).
   if (r.ok) {
-    revalidatePath(`/pipeline/${input.leadId}`);
-    revalidatePath("/raio-x");
+    revalidatePath(`/vendas/pipeline/${input.leadId}`);
+    revalidatePath("/growth/raio-x");
     revalidatePath("/hoje");
   }
   return r;
@@ -249,7 +249,7 @@ export async function gerarProposta(input: {
       preferencias: input.preferencias ?? "",
     },
   });
-  if (r.ok) revalidatePath(`/pipeline/${input.leadId}`);
+  if (r.ok) revalidatePath(`/vendas/pipeline/${input.leadId}`);
   return r;
 }
 

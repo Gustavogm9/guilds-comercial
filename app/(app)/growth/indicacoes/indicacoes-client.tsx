@@ -30,7 +30,7 @@ type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
 type T = (key: string) => string;
 
 /**
- * /indicacoes — feature de advocacy / funil borboleta.
+ * /growth/indicacoes — feature de advocacy / funil borboleta.
  *
  * 4 sub-abas:
  *   1. Pendentes      — pedidos que vendedor precisa responder
@@ -38,7 +38,7 @@ type T = (key: string) => string;
  *   3. Embaixadores   — ranking por receita gerada
  *   4. Recompensas    — placeholder fase 2 (UX completa virá depois)
  *
- * Padrões alinhados com /equipe:
+ * Padrões alinhados com /gestao/equipe:
  *   - FeedbackToast com aria-live
  *   - role=tablist semântico
  *   - useTransition em mutações
@@ -296,7 +296,7 @@ function PendentesTab({ pendentes, t, locale, onSucesso, onErro }: {
             {pendentes.map((p) => (
               <tr key={p.pedido_id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                 <td className="px-3 py-2 font-medium">
-                  <Link href={`/pipeline/${p.lead_id}`} className="hover:text-primary transition-colors">
+                  <Link href={`/vendas/pipeline/${p.lead_id}`} className="hover:text-primary transition-colors">
                     {p.lead_empresa ?? p.lead_nome ?? `Lead #${p.lead_id}`}
                   </Link>
                 </td>
@@ -582,14 +582,14 @@ function IndicacoesTab({ indicacoes, t, locale }: {
                 <div className="font-medium text-sm">{i.indicado_nome}</div>
                 {i.indicado_empresa && <div className="text-xs text-muted-foreground">{i.indicado_empresa}</div>}
                 {i.lead_convertido_id && (
-                  <Link href={`/pipeline/${i.lead_convertido_id}`} className="text-[10px] text-primary hover:underline">
+                  <Link href={`/vendas/pipeline/${i.lead_convertido_id}`} className="text-[10px] text-primary hover:underline">
                     Ver lead →
                   </Link>
                 )}
               </td>
               <td className="px-3 py-2 text-xs text-muted-foreground">
                 {i.embaixador_lead_id ? (
-                  <Link href={`/pipeline/${i.embaixador_lead_id}`} className="hover:text-primary transition-colors">
+                  <Link href={`/vendas/pipeline/${i.embaixador_lead_id}`} className="hover:text-primary transition-colors">
                     {i.embaixador_empresa ?? i.embaixador_nome ?? "—"}
                   </Link>
                 ) : (
@@ -664,7 +664,7 @@ function EmbaixadoresTab({ embaixadores, tokensEmbaixador, baseUrl, t, locale }:
               <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{idx + 1}</td>
               <td className="px-3 py-2">
                 <Link
-                  href={`/pipeline/${e.embaixador_lead_id}`}
+                  href={`/vendas/pipeline/${e.embaixador_lead_id}`}
                   className="font-medium hover:text-primary transition-colors"
                 >
                   {e.embaixador_empresa ?? e.embaixador_nome ?? `Lead #${e.embaixador_lead_id}`}
@@ -828,7 +828,7 @@ function RecompensasTab({ recompensas, historicoPagas, isGestor, config, resumo,
                   <tr key={r.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                     <td className="px-3 py-2 text-xs">
                       {r.embaixador_lead_id ? (
-                        <Link href={`/pipeline/${r.embaixador_lead_id}`} className="hover:text-primary">
+                        <Link href={`/vendas/pipeline/${r.embaixador_lead_id}`} className="hover:text-primary">
                           {r.embaixador_empresa ?? r.embaixador_nome}
                         </Link>
                       ) : (
@@ -837,7 +837,7 @@ function RecompensasTab({ recompensas, historicoPagas, isGestor, config, resumo,
                     </td>
                     <td className="px-3 py-2 text-xs">
                       {r.lead_convertido_id ? (
-                        <Link href={`/pipeline/${r.lead_convertido_id}`} className="hover:text-primary">
+                        <Link href={`/vendas/pipeline/${r.lead_convertido_id}`} className="hover:text-primary">
                           {r.lead_convertido_empresa ?? r.indicado_nome}
                         </Link>
                       ) : (

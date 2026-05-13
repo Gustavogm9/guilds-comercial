@@ -74,7 +74,7 @@ export async function configurarRecompensas(input: {
     }, { onConflict: "organizacao_id" });
   if (error) throw error;
 
-  revalidatePath("/indicacoes");
+  revalidatePath("/growth/indicacoes");
 }
 
 /**
@@ -147,7 +147,7 @@ export async function marcarRecompensaPaga(input: {
     });
   }
 
-  revalidatePath("/indicacoes");
+  revalidatePath("/growth/indicacoes");
 }
 
 /**
@@ -166,5 +166,5 @@ export async function reverterRecompensaPaga(indicacao_id: number) {
     .eq("recompensa_paga", true);
   if (error) throw error;
 
-  revalidatePath("/indicacoes");
+  revalidatePath("/growth/indicacoes");
 }
