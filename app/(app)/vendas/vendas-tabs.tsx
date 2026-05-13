@@ -19,7 +19,7 @@ const TABS: Tab[] = [
   { i18nKey: "sidebar.portfolio", href: "/vendas/portfolio" },
 ];
 
-export default function VendasTabs({ isGestor }: { isGestor: boolean }) {
+export default function VendasTabs({ isGestor = false }: { isGestor?: boolean }) {
   const pathname = usePathname();
   const [locale, setLocale] = useState<Locale>("pt-BR");
   

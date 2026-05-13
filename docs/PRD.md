@@ -1,7 +1,26 @@
 # PRD — Guilds Comercial
 ## Plataforma SaaS de CRM + Copiloto de IA para times comerciais B2B
 
-**Versão:** 1.0 · **Data:** 2026-04-23 · **Autor:** Gustavo (CMO/Fundador — Guilds Lab) · **Status:** Draft para validação interna
+**Versão:** 1.1 · **Última atualização:** 2026-05-13 · **Autor:** Gustavo (CMO/Fundador — Guilds Lab) · **Status:** Em produção
+
+> 📌 **Atualização mai/2026:** Este PRD reflete a visão estratégica original (escrita em abr/2026). O produto evoluiu significativamente desde então:
+>
+> - **Módulo de Prospecção** completo (CNPJ.biz / Sales Nav parity) — veja [PROSPECCAO.md](./PROSPECCAO.md)
+> - **Cadência visual configurável** (substituiu hardcoded) — veja [CADENCIA.md](./CADENCIA.md)
+> - **Voice notes + análise de chamadas IA** (Whisper + GPT)
+> - **ICP fit score** via embeddings (pgvector + OpenAI)
+> - **Flywheel borboleta nativo** (indicações + NPS + health score) — veja [FLYWHEEL.md](./FLYWHEEL.md)
+> - **Custom fields por org** (7 tipos, JSONB)
+> - **Goals + Comissionamento** com workflow aprovar→pago
+> - **Landing pages builder** com slug público
+>
+> Para o **estado completo do que está pronto, em construção e roadmap**, veja:
+> - [MODULOS.md](./MODULOS.md) — índice canônico de ~135 features Live
+> - [ROADMAP.md](./ROADMAP.md) — entregue / em andamento / planejado / descartado
+> - [ARCHITECTURE.md](./ARCHITECTURE.md) — decisões de engenharia atualizadas
+> - [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) — schema com 15 novas migrations
+> - [AI_AND_AUTOMATIONS.md](./AI_AND_AUTOMATIONS.md) — 15 features IA + 15 jobs cron
+> - [TECH_DEBT.md](./TECH_DEBT.md) — 13 itens resolvidos, 12 abertos
 
 ---
 
@@ -1501,6 +1520,119 @@ Com custo total ~R$ 38k/mês (infra + IA + operação) e ticket médio Pro R$ 89
 | Versão | Data       | Autor     | Notas                                    |
 |--------|------------|-----------|------------------------------------------|
 | 1.0    | 2026-04-23 | Gustavo   | Versão inicial, escopo V1 SaaS multi-tenant |
+| 1.1    | 2026-05-13 | Gustavo + Claude | Banner de status + Anexo E (entregas mai/2026) |
+
+---
+
+### Anexo E — Entregas wave mai/2026
+
+Resumo de tudo que foi adicionado entre o PRD original e mai/2026. Por ordem de impacto:
+
+#### E.1 Módulo de Prospecção (NOVO — competidor de CNPJ.biz / RD Station Prospect)
+
+- Consulta CNPJ ilimitada via BrasilAPI (cache global compartilhado entre orgs com pivot de privacidade).
+- Persistência de QSA (sócios) com Tavily enrichment para LinkedIn.
+- Bulk import até 500 CNPJs/job com worker pg_cron rate-limited (2.85 req/s).
+- Cron diário detecta mudanças (sócio, CNAE, endereço, capital, baixa) via MD5 fingerprint → alertas + webhook.
+- Favoritos pessoais com tags/notas privadas.
+- Detalhe com 8 seções (header, endereço, CNAE, capital, QSA, alertas, ICP fit, ações).
+- Enriquecedores opcionais: Tavily, Firecrawl, Hunter.io, Similarweb.
+- **ICP fit score via embeddings** (pgvector + OpenAI text-embedding-3-small + centroide org).
+- Top 30 empresas por similaridade.
+- Conversão 1-click empresa → lead com cadência automática.
+
+Veja [PROSPECCAO.md](./PROSPECCAO.md).
+
+#### E.2 Cadência Visual Configurável (substitui hardcoded)
+
+- Builder visual em `/configuracoes/cadencia/fluxos` (drag-reorder, presets, condicionais).
+- 6 canais (email/whatsapp/call/linkedin/sms/task_manual).
+- 7 condicionais por passo (`sempre`, `se_nao_respondeu`, `se_score_alto`, etc.).
+- 4 triggers (manual, lead_criado, lead_segmento, lead_fonte).
+- Versionamento draft → publicado → arquivado.
+- Default per-org.
+- Push notification timezone-aware.
+- Email validation pré-envio (anti-bounce com cache 30d, disposable, MX, role-based, bounce history).
+- Webhook Brevo para registro de bounces.
+- Geração de mensagem via IA com `gerar_mensagem_cadencia`.
+
+Veja [CADENCIA.md](./CADENCIA.md).
+
+#### E.3 IA SDR (voice notes + análise de chamadas)
+
+- `<VoiceNoteRecorder>` ≤60s via MediaRecorder API + Storage `voice-notes`.
+- Upload de gravação de chamada até 25MB.
+- Cron `audio-processor` chama Whisper transcrição + GPT extração estruturada (BANT, objeções, próximos passos, sentimento, tom).
+- `<LigacaoTranscricaoPanel>` no detalhe do lead.
+
+#### E.4 Flywheel borboleta nativo
+
+- Tabelas `indicacoes` + `pedidos_indicacao` com triggers SQL auto-criando pedido pós-fechamento.
+- Aba `/indicacoes` com 4 sub-abas (Pendentes, Ativas, Top embaixadores, Recompensas).
+- KPIs Advocacy em `/funil` (K-factor, % indicação→fechado, CAC por origem).
+- NPS automático (7d/30d/90d) com cron `nps-survey`.
+- Health score básico (recência + NPS + adoção + pagamento).
+- Forecast histórico 12 semanas com snapshot semanal.
+
+Veja [FLYWHEEL.md](./FLYWHEEL.md).
+
+#### E.5 Custom Fields metadado-driven
+
+- `custom_field_def` por org/entidade (lead/empresa).
+- 7 tipos (texto, número, data, boolean, select, multi_select, url).
+- Valores em `leads.custom_fields JSONB` (sem criar coluna física).
+- `<CustomFieldsPanel>` render dinâmico + edit inline.
+
+#### E.6 Goals + Comissionamento
+
+- Tabela `meta` com vendedor/periodo/métrica/valor_alvo.
+- View `v_meta_progresso` burndown.
+- 3 tipos de regra de comissão (fixo_pct, escalonado, por_meta).
+- Cron mensal de cálculo.
+- Workflow aprovar → marcar pago + comprovante.
+
+#### E.7 Landing Pages
+
+- Builder com slug + branding + campos JSON.
+- Página pública em `/[slug]` (não autenticada).
+- Submit cria lead com `fonte='landing:{slug}'`.
+- Tracking UTM + dispositivo + IP hash.
+
+#### E.8 Score multi-dimensional
+
+- Colunas em `leads`: `score_icp_fit`, `score_engajamento`, `score_comportamento`, `score_total`, `score_calculado_em`.
+- Cron `score-recalc` diário (06 UTC).
+- Badge visual `<LeadScoreBadge>` (0-100, verde/amarelo/cinza).
+- Atualizada `v_leads_enriched` com colunas score (adicionadas ao fim — não quebra ordem).
+
+#### E.9 Onboarding transacional
+
+- RPC `onboarding_finalize` (PL/pgSQL) substitui 10 INSERTs sequenciais.
+- Atomicidade garantida — falha qualquer passo → rollback total.
+
+#### E.10 Infra & operacional
+
+- pg_cron 15 jobs ativos.
+- Outbox pattern (email + push) com retries automáticos.
+- Webhook delivery worker queue com backoff exponencial.
+- App config UI (cron secrets, webhook URLs, feature flags).
+- `<ConfirmDialog>` reusable substitui `window.confirm()` nativo em 4 tons.
+- pgvector habilitado para embeddings.
+
+#### E.11 Comparativo competitivo mai/2026
+
+| Concorrente categoria         | Status Guilds                                        |
+|-------------------------------|-----------------------------------------------------|
+| CRM B2B (HubSpot/Pipedrive)   | ✅ Paridade + diferencial (raio-x, indicações)       |
+| Prospecção CNPJ (CNPJ.biz)    | ✅ Paridade + diferencial (alertas, ICP fit)         |
+| LinkedIn outbound (Sales Nav) | ⚠️ Parcial (Tavily público)                          |
+| Cadência (Apollo/Outreach)    | ✅ Paridade essencial + IA gerativa                  |
+| Análise chamadas (Gong)       | ✅ Paridade (Whisper + GPT)                          |
+| AI SDR autônomo (11x/Regie)   | 🚧 Fase 2 Q4 2026                                   |
+| Email warmup (Smartlead)      | 🚧 70% pronto                                       |
+| Doc + e-sign (Pandadoc)       | 📅 Roadmap Q3                                       |
+
+Para roadmap detalhado, veja [ROADMAP.md](./ROADMAP.md).
 
 ---
 

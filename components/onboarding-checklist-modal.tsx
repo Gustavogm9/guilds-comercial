@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { X, AlertCircle, Loader2, ListChecks, Check, MinusCircle, RotateCcw, Calendar } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { marcarItemOnboarding, fecharChecklistManual } from "@/app/(app)/comunicacao/pos-venda/actions";
@@ -31,7 +31,7 @@ export default function OnboardingChecklistModal({
   const [items, setItems] = useState<OnboardingItem[]>([]);
   const [pending, startTransition] = useTransition();
 
-  async function reload() {
+  const reload = useCallback(async () => {
     const sb = createClient();
     const [{ data: ck }, { data: itensData }] = await Promise.all([
       sb.from("onboarding_checklist").select("*").eq("id", checklistId).maybeSingle(),
@@ -39,14 +39,14 @@ export default function OnboardingChecklistModal({
     ]);
     setChecklist(ck as OnboardingChecklist);
     setItems((itensData ?? []) as OnboardingItem[]);
-  }
+  }, [checklistId]);
 
   useEffect(() => {
     setLoading(true);
     reload()
       .catch((e) => setErro(e instanceof Error ? e.message : "Erro"))
       .finally(() => setLoading(false));
-  }, [checklistId]);
+  }, [checklistId, reload]);
 
   function handleToggle(item: OnboardingItem, novoStatus: "pendente" | "concluido" | "pulado") {
     setErro(null);

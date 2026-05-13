@@ -19,7 +19,8 @@ export type PushEvento =
   | "cadencia_vencendo"
   | "resumo_diario"
   | "lead_fechado_proposta"
-  | "lead_reabriu";
+  | "lead_reabriu"
+  | "health_risco_critico";
 
 export interface PushPayload {
   evento: PushEvento;

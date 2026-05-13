@@ -3,6 +3,14 @@ import { withSentryConfig } from "@sentry/nextjs";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "api.qrserver.com",
+      },
+    ],
+  },
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },
     // Tree-shake imports nas libs com barrel files (lucide tem 1.4k ícones).

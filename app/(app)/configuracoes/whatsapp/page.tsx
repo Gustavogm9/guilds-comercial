@@ -3,6 +3,8 @@ import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { redirect } from "next/navigation";
 import WhatsappConfigClient from "./whatsapp-config-client";
 
+export const dynamic = "force-dynamic";
+
 export default async function WhatsappConfigPage() {
   const me = await getCurrentProfile();
   if (!me) redirect("/login");
