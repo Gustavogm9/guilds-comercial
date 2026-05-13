@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
-import { Users, Target, TrendingUp, AlertCircle, DollarSign, Trophy, CheckCircle2, Circle, Rocket } from "lucide-react";
+import { Users, Target, TrendingUp, AlertCircle, DollarSign, Trophy, CheckCircle2, Circle, Rocket, ClipboardList } from "lucide-react";
 import { getServerLocale, getT } from "@/lib/i18n";
 import GestaoTabs from "../gestao-tabs";
 
@@ -42,6 +42,17 @@ type AtivacaoOrg = {
   webhooks_ativos: number | null;
 };
 
+type OnboardingContext = {
+  objetivo_principal?: string | null;
+  tamanho_time?: string | null;
+  cadencia_inicial?: string | null;
+  segmento?: string | null;
+  cargo_foco?: string | null;
+  convites?: number | null;
+  ia_habilitada?: boolean | null;
+  gerar_demo?: boolean | null;
+};
+
 export default async function TimePage() {
   const me = await getCurrentProfile();
   if (!me) return null;
@@ -57,7 +68,7 @@ export default async function TimePage() {
   const sete_dias_atras = new Date();
   sete_dias_atras.setDate(sete_dias_atras.getDate() - 7);
 
-  const [{ data: kpisGlobal }, { data: kpisResp }, { data: ligacoes7d }, { data: metaSemana }, { data: ativacaoData }] = await Promise.all([
+  const [{ data: kpisGlobal }, { data: kpisResp }, { data: ligacoes7d }, { data: metaSemana }, { data: ativacaoData }, { data: onboardingEvento }] = await Promise.all([
     supabase.from("v_kpis_globais").select("*").eq("organizacao_id", orgId).maybeSingle(),
     supabase.from("v_kpis_por_responsavel").select("*").eq("organizacao_id", orgId).order("display_name"),
     supabase.from("ligacoes")
@@ -71,12 +82,20 @@ export default async function TimePage() {
       .gte("fim", new Date().toISOString().slice(0, 10))
       .maybeSingle(),
     supabaseAny.from("v_ativacao_org").select("*").eq("organizacao_id", orgId).maybeSingle(),
+    supabaseAny.from("organizacao_evento")
+      .select("payload, created_at")
+      .eq("organizacao_id", orgId)
+      .eq("tipo", "onboarding_concluido")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const g = (kpisGlobal ?? {}) as KpiGlobal;
   const lista = ((kpisResp ?? []) as KpiResp[]).filter(k => k.role !== "gestor" || k.leads_ativos > 0);
   const ligs = (ligacoes7d ?? []) as { responsavel_id: string | null; atendeu: boolean | null; resultado: string | null }[];
   const ativacao = (ativacaoData ?? {}) as AtivacaoOrg;
+  const onboarding = normalizeOnboardingContext(onboardingEvento?.payload);
 
   // Agrupa ligações por responsável (últimos 7d)
   const ligacoesPorResp = new Map<string, { total: number; atenderam: number; qualif: number }>();
@@ -112,7 +131,7 @@ export default async function TimePage() {
         </div>
       )}
 
-      <ActivationChecklist ativacao={ativacao} />
+      <ActivationChecklist ativacao={ativacao} onboarding={onboarding} />
 
       {/* Meta semanal */}
       {metaSemana && (
@@ -195,7 +214,7 @@ export default async function TimePage() {
   );
 }
 
-function ActivationChecklist({ ativacao }: { ativacao: AtivacaoOrg }) {
+function ActivationChecklist({ ativacao, onboarding }: { ativacao: AtivacaoOrg; onboarding: OnboardingContext | null }) {
   const items = [
     { label: "Convidar pelo menos 1 pessoa", done: (ativacao.membros_ativos ?? 0) >= 2 || (ativacao.convites_pendentes ?? 0) > 0 },
     { label: "Adicionar 5 leads", done: (ativacao.leads_total ?? 0) >= 5 },
@@ -222,6 +241,26 @@ function ActivationChecklist({ ativacao }: { ativacao: AtivacaoOrg }) {
           <div className="text-xs text-muted-foreground mt-1 text-right tabular-nums">{pct}%</div>
         </div>
       </div>
+      {onboarding && (
+        <div className="mt-4 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground flex items-center gap-1">
+                <ClipboardList className="w-3.5 h-3.5" /> Plano sugerido pelo onboarding
+              </h3>
+              <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <ContextPill label="Objetivo" value={objetivoLabel(onboarding.objetivo_principal)} />
+                <ContextPill label="Time" value={onboarding.tamanho_time ?? "Nao informado"} />
+                <ContextPill label="Cadencia" value={cadenciaLabel(onboarding.cadencia_inicial)} />
+                <ContextPill label="ICP" value={onboarding.cargo_foco ?? onboarding.segmento ?? "Nao informado"} />
+              </div>
+            </div>
+            <Link href={activationHref(onboarding, ativacao)} className="btn-primary text-xs shrink-0">
+              {activationCta(onboarding, ativacao)}
+            </Link>
+          </div>
+        </div>
+      )}
       <div className="grid md:grid-cols-5 gap-2 mt-4">
         {items.map((item) => (
           <div key={item.label} className={item.done ? "rounded-lg border border-success-500/25 bg-success-500/10 px-3 py-2 text-sm text-success-500" : "rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground"}>
@@ -233,6 +272,67 @@ function ActivationChecklist({ ativacao }: { ativacao: AtivacaoOrg }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function normalizeOnboardingContext(payload: unknown): OnboardingContext | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  return {
+    objetivo_principal: typeof p.objetivo_principal === "string" ? p.objetivo_principal : null,
+    tamanho_time: typeof p.tamanho_time === "string" ? p.tamanho_time : null,
+    cadencia_inicial: typeof p.cadencia_inicial === "string" ? p.cadencia_inicial : null,
+    segmento: typeof p.segmento === "string" ? p.segmento : null,
+    cargo_foco: typeof p.cargo_foco === "string" ? p.cargo_foco : null,
+    convites: typeof p.convites === "number" ? p.convites : null,
+    ia_habilitada: typeof p.ia_habilitada === "boolean" ? p.ia_habilitada : null,
+    gerar_demo: typeof p.gerar_demo === "boolean" ? p.gerar_demo : null,
+  };
+}
+
+function objetivoLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    gerar_pipeline: "Gerar pipeline",
+    organizar_time: "Organizar time",
+    aumentar_conversao: "Aumentar conversao",
+    previsibilidade: "Previsibilidade",
+  };
+  return value ? labels[value] ?? value : "Nao informado";
+}
+
+function cadenciaLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    outbound_email: "Outbound por email",
+    whatsapp_followup: "WhatsApp follow-up",
+    pos_venda: "Pos-venda",
+  };
+  return value ? labels[value] ?? value : "Nao informado";
+}
+
+function activationHref(onboarding: OnboardingContext, ativacao: AtivacaoOrg) {
+  if ((ativacao.convites_pendentes ?? 0) === 0 && (ativacao.membros_ativos ?? 0) < 2) return "/gestao/equipe";
+  if ((ativacao.leads_total ?? 0) < 5) return "/vendas/base/importar";
+  if ((ativacao.leads_movidos ?? 0) < 1) return "/vendas/pipeline";
+  if (onboarding.cadencia_inicial === "pos_venda") return "/comunicacao/pos-venda";
+  if (onboarding.cadencia_inicial === "whatsapp_followup") return "/configuracoes/whatsapp";
+  return "/comunicacao/cadencia";
+}
+
+function activationCta(onboarding: OnboardingContext, ativacao: AtivacaoOrg) {
+  if ((ativacao.convites_pendentes ?? 0) === 0 && (ativacao.membros_ativos ?? 0) < 2) return "Convidar time";
+  if ((ativacao.leads_total ?? 0) < 5) return "Importar leads";
+  if ((ativacao.leads_movidos ?? 0) < 1) return "Mover pipeline";
+  if (onboarding.cadencia_inicial === "pos_venda") return "Abrir pos-venda";
+  if (onboarding.cadencia_inicial === "whatsapp_followup") return "Configurar WhatsApp";
+  return "Abrir cadencia";
+}
+
+function ContextPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2">
+      <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">{label}</div>
+      <div className="mt-0.5 truncate text-foreground">{value}</div>
+    </div>
   );
 }
 
