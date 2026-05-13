@@ -141,7 +141,7 @@ export async function criarExpansao(input: {
     },
   });
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath("/growth/funil");
   revalidatePath(`/vendas/pipeline/${input.cliente_lead_id}`);
   return { expansao_id: data!.id };
@@ -182,7 +182,7 @@ export async function atualizarEstagioExpansao(input: {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath("/growth/funil");
   revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
 }
@@ -247,7 +247,7 @@ export async function atualizarExpansao(input: {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
 }
 
@@ -269,6 +269,6 @@ export async function removerExpansao(expansao_id: number) {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
 }

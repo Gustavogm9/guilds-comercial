@@ -43,7 +43,7 @@ export async function salvarMensagemPassoEnviada(input: {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   revalidatePath(`/vendas/pipeline/${input.leadId}`);
   return { ok: true };
 }
@@ -97,7 +97,7 @@ export async function marcarPassoCadencia(
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   revalidatePath("/hoje");
   revalidatePath("/vendas/pipeline");
 
@@ -147,7 +147,7 @@ export async function adiarPassoCadencia(cadenciaId: number, dias: number) {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   return { ok: true, novaData };
 }
 
@@ -206,7 +206,7 @@ export async function iniciarCadenciaManual(leadId: number) {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   revalidatePath("/vendas/pipeline");
   revalidatePath(`/vendas/pipeline/${leadId}`);
   return { ok: true };

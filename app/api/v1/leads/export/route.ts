@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -10,19 +11,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Verifica perfil
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("organizacao_id, role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !profile.organizacao_id) {
+  const orgId = await getCurrentOrgId();
+  if (!orgId) {
     return NextResponse.json({ error: "No organization found" }, { status: 403 });
   }
 
-  const orgId = profile.organizacao_id;
-  const isGestor = profile.role === "gestor";
+  const isGestor = (await getCurrentRole()) === "gestor";
 
   // Extrai query params
   const { searchParams } = new URL(req.url);

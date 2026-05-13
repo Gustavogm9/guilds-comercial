@@ -250,7 +250,7 @@ export default function TabHipoteses({ hipoteses: inicial, produtos }: Props) {
                   {/* Ações */}
                   <div className="flex flex-col gap-1.5 shrink-0">
                     <Link
-                      href={`/prospeccao?hipotese=${h.id}`}
+                      href={`/vendas/prospeccao?hipotese=${h.id}`}
                       className="btn-primary !py-1.5 !px-3 text-xs gap-1"
                     >
                       <ArrowRight className="w-3.5 h-3.5" /> Prospectar

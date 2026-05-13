@@ -84,7 +84,7 @@ export default async function NewsletterPage(props: { searchParams: Promise<{ ta
           { k: "pausados", l: "Pausados" },
           { k: "remover", l: "Remover" },
         ].map(t => (
-          <Link key={t.k} href={`/newsletter?tab=${t.k}`}
+          <Link key={t.k} href={`/comunicacao/newsletter?tab=${t.k}`}
             className={`px-3 py-2 text-xs font-medium border-b-2 transition ${
               tab === t.k ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}>{t.l}</Link>

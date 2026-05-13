@@ -24,7 +24,7 @@ export async function alterarStatusNews(id: number, status: "Ativo" | "Pausado" 
   const { error } = await supabase.from("newsletter").update({ status })
     .eq("id", id).eq("organizacao_id", orgId);
   if (error) throw error;
-  revalidatePath("/newsletter");
+  revalidatePath("/comunicacao/newsletter");
 }
 
 export async function marcarEnvio(id: number, lead_id: number) {
@@ -48,7 +48,7 @@ export async function marcarEnvio(id: number, lead_id: number) {
     tipo: "newsletter", payload: { acao: "envio_marcado" },
   });
 
-  revalidatePath("/newsletter");
+  revalidatePath("/comunicacao/newsletter");
 }
 
 export async function adicionarLeadNews(lead_id: number, cta?: string) {
@@ -71,5 +71,5 @@ export async function adicionarLeadNews(lead_id: number, cta?: string) {
   await supabase.from("leads").update({ newsletter_optin: true })
     .eq("id", lead_id).eq("organizacao_id", orgId);
 
-  revalidatePath("/newsletter");
+  revalidatePath("/comunicacao/newsletter");
 }
