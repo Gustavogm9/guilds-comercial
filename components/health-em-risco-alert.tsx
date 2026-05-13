@@ -60,7 +60,7 @@ export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
           >
             <div className="flex-1 min-w-0">
-              <Link href={`/pipeline/${l.lead_id}`} className="text-sm font-medium hover:text-destructive transition-colors truncate block">
+              <Link href={`/vendas/pipeline/${l.lead_id}`} className="text-sm font-medium hover:text-destructive transition-colors truncate block">
                 {l.lead_empresa ?? l.lead_nome ?? `Lead #${l.lead_id}`}
               </Link>
               <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums flex items-center gap-2">
@@ -77,7 +77,7 @@ export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje
             >
               <Eye className="w-3 h-3" aria-hidden="true" />
             </button>
-            <Link href={`/pipeline/${l.lead_id}`} className="btn-secondary text-xs" prefetch>
+            <Link href={`/vendas/pipeline/${l.lead_id}`} className="btn-secondary text-xs" prefetch>
               <Heart className="w-3 h-3" aria-hidden="true" /> Reativar
             </Link>
           </li>

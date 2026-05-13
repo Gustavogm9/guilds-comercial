@@ -34,6 +34,22 @@ export async function proxy(req: NextRequest) {
 
   const pathname = req.nextUrl.pathname;
 
+  const legacyRedirects = [
+    { from: "/pipeline", to: "/vendas/pipeline" },
+    { from: "/base", to: "/vendas/base" },
+    { from: "/funil", to: "/growth/funil" },
+    { from: "/raio-x", to: "/growth/raio-x" },
+    { from: "/indicacoes", to: "/growth/indicacoes" },
+    { from: "/equipe", to: "/gestao/equipe" },
+  ];
+  for (const route of legacyRedirects) {
+    if (pathname === route.from || pathname.startsWith(`${route.from}/`)) {
+      const url = req.nextUrl.clone();
+      url.pathname = `${route.to}${pathname.slice(route.from.length)}`;
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Rotas livres: marketing, autenticação, convite, API pública e cron têm
   // seus próprios controles (API key, token de cron ou callback do Supabase).
   const publicPrefixes = [

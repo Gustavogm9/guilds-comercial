@@ -59,7 +59,7 @@ export default function NpsPendenteAlert({ npsList }: { npsList: NpsPendenteHoje
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
           >
             <div className="flex-1 min-w-0">
-              <Link href={`/pipeline/${n.lead_id}`} className="text-sm font-medium hover:text-warning-500 transition-colors truncate block">
+              <Link href={`/vendas/pipeline/${n.lead_id}`} className="text-sm font-medium hover:text-warning-500 transition-colors truncate block">
                 {n.lead_empresa ?? n.lead_nome ?? `Lead #${n.lead_id}`}
               </Link>
               <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">

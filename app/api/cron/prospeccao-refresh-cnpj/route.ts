@@ -230,7 +230,7 @@ async function pushAlertaSituacao(supa: any, cnpj: string, situacao: string) {
         evento: "health_risco_critico",  // reusa um dos eventos do flywheel
         title: `⚠ CNPJ mudou: ${lead.empresa ?? cnpj}`,
         body: `Situação cadastral agora é "${situacao}". Verifique antes de continuar prospecção.`,
-        url: `/pipeline/${lead.id}`,
+        url: `/vendas/pipeline/${lead.id}`,
         tag: `cnpj-${cnpj}-${situacao}`,
       });
     } catch (e) {

@@ -4,7 +4,7 @@ import type { MembroEnriched, Role } from "@/lib/types";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import {
   alterarRoleMembro, desativarMembro, reativarMembro,
-  criarConvite, revogarConvite,
+  criarConvite, reenviarConvite, revogarConvite,
   adicionarSegmentoVendedor, removerSegmentoVendedor,
   definirMetaIndividual, removerMetaIndividual,
   transferirCarteira, atualizarConfigOrg,
@@ -113,7 +113,7 @@ export default function EquipeClient({
       </div>
 
       {tab === "membros"     && <MembrosTab meId={meId} membros={membros} t={t} onSucesso={showSucesso} onErro={showErro}/>}
-      {tab === "convites"    && <ConvitesTab convites={convites} t={t} onSucesso={showSucesso} onErro={showErro}/>}
+      {tab === "convites"    && <ConvitesTab convites={convites} locale={locale} t={t} onSucesso={showSucesso} onErro={showErro}/>}
       {tab === "metas"       && <MetasTab membros={membros} metas={metas} t={t} onSucesso={showSucesso} onErro={showErro}/>}
       {tab === "territorios" && <TerritoriosTab membros={membros} segmentos={segmentos} segmentosDisponiveis={segmentosDisponiveis} t={t} onSucesso={showSucesso} onErro={showErro}/>}
       {tab === "carteiras"   && <CarteirasTab membros={membros} t={t} onSucesso={showSucesso} onErro={showErro}/>}
@@ -347,8 +347,8 @@ function MembrosTab({ meId, membros, t, onSucesso, onErro }: {
 /*                            CONVITES TAB                                   */
 /* ======================================================================== */
 
-function ConvitesTab({ convites, t, onSucesso, onErro }: {
-  convites: ConviteRow[]; t: T;
+function ConvitesTab({ convites, locale, t, onSucesso, onErro }: {
+  convites: ConviteRow[]; locale: Locale; t: T;
   onSucesso: (m: string) => void; onErro: (e: unknown) => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -357,6 +357,11 @@ function ConvitesTab({ convites, t, onSucesso, onErro }: {
   const [ultimoLink, setUltimoLink] = useState<string | null>(null);
   const [ultimoEmailEnviado, setUltimoEmailEnviado] = useState<boolean | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [resendingId, setResendingId] = useState<number | null>(null);
+
+  function conviteLink(token: string) {
+    return `${window.location.origin}/api/convite/${token}`;
+  }
 
   function handleCriar() {
     if (!email) return;
@@ -378,6 +383,23 @@ function ConvitesTab({ convites, t, onSucesso, onErro }: {
         await revogarConvite(id);
         onSucesso("Convite revogado.");
       } catch (e) { onErro(e); }
+    });
+  }
+
+  function handleReenviar(convite: ConviteRow) {
+    setResendingId(convite.id);
+    startTransition(async () => {
+      try {
+        const result = await reenviarConvite(convite.id);
+        const link = conviteLink(result.token);
+        setUltimoLink(link);
+        setUltimoEmailEnviado(Boolean(result.email_sent));
+        onSucesso(result.email_sent ? t("equipe.convites_reenviado_e_enviado") : t("equipe.convites_reenviado_sem_email"));
+      } catch (e) {
+        onErro(e);
+      } finally {
+        setResendingId(null);
+      }
     });
   }
 
@@ -465,19 +487,38 @@ function ConvitesTab({ convites, t, onSucesso, onErro }: {
               <tr><td colSpan={5} className="text-center py-8 text-muted-foreground/70 text-xs">{t("equipe.convites_vazio")}</td></tr>
             )}
             {convites.map(c => {
-              const expirado = new Date(c.expira_em) < new Date();
+              const msRestantes = new Date(c.expira_em).getTime() - Date.now();
+              const diasRestantes = Math.ceil(msRestantes / 86400000);
+              const expirado = msRestantes <= 0;
+              const expiraHoje = !expirado && diasRestantes <= 1;
+              const statusLabel = expirado
+                ? t("equipe.convites_expirado")
+                : expiraHoje
+                  ? t("equipe.convites_expira_hoje")
+                  : `${diasRestantes} ${diasRestantes === 1 ? t("equipe.convites_dia") : t("equipe.convites_dias")}`;
+              const statusClass = expirado
+                ? "text-destructive border-destructive/25 bg-destructive/10"
+                : expiraHoje
+                  ? "text-warning-500 border-warning-500/25 bg-warning-500/10"
+                  : "text-success-500 border-success-500/25 bg-success-500/10";
               return (
                 <tr key={c.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                   <td className="px-3 py-2">{c.email}</td>
                   <td className="px-3 py-2 text-xs uppercase tracking-[0.12em]">{t(`equipe.papel_${c.role}`)}</td>
                   <td className="px-3 py-2 text-xs">
-                    {expirado
-                      ? <span className="text-destructive inline-flex items-center gap-1"><AlertCircle className="w-3 h-3" aria-hidden="true"/> {t("equipe.convites_expirado")}</span>
-                      : <span className="text-muted-foreground tabular-nums">{new Date(c.expira_em).toLocaleDateString()}</span>}
+                    <div className="flex flex-col gap-1">
+                      <span className={`inline-flex w-fit items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] ${statusClass}`}>
+                        {expirado && <AlertCircle className="w-3 h-3" aria-hidden="true"/>}
+                        {statusLabel}
+                      </span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {new Date(c.expira_em).toLocaleDateString(locale)}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-3 py-2">
                     <button
-                      onClick={() => copiar(`${window.location.origin}/api/convite/${c.token}`)}
+                      onClick={() => copiar(conviteLink(c.token))}
                       className="btn-ghost text-xs"
                       aria-label={t("equipe.convites_copiar_link")}
                     >
@@ -485,13 +526,25 @@ function ConvitesTab({ convites, t, onSucesso, onErro }: {
                     </button>
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <button
-                      onClick={() => handleRevogar(c.id)}
-                      disabled={pending}
-                      className="btn-ghost text-xs text-destructive"
-                    >
-                      <X className="w-3.5 h-3.5" aria-hidden="true"/> {t("equipe.convites_revogar")}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleReenviar(c)}
+                        disabled={pending || expirado || resendingId === c.id}
+                        className="btn-ghost text-xs text-primary"
+                      >
+                        {resendingId === c.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true"/>
+                          : <Mail className="w-3.5 h-3.5" aria-hidden="true"/>}
+                        {t("equipe.convites_reenviar")}
+                      </button>
+                      <button
+                        onClick={() => handleRevogar(c.id)}
+                        disabled={pending}
+                        className="btn-ghost text-xs text-destructive"
+                      >
+                        <X className="w-3.5 h-3.5" aria-hidden="true"/> {t("equipe.convites_revogar")}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

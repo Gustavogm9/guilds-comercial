@@ -37,8 +37,8 @@ const ROLE_CONFIG: Record<Role, {
       { icone: Target,    titulo: "Configure o CRM",    descricao: "Defina ICP, cadência e segmentos da organização." },
     ],
     marcos: [
-      { titulo: "Adicionar 1º lead ao pipeline", href: "/base" },
-      { titulo: "Convidar 1 membro do time",     href: "/equipe" },
+      { titulo: "Adicionar 1º lead ao pipeline", href: "/vendas/base" },
+      { titulo: "Convidar 1 membro do time",     href: "/gestao/equipe" },
       { titulo: "Iniciar 1 cadência de outreach", href: "/cadencia" },
     ],
   },
@@ -53,8 +53,8 @@ const ROLE_CONFIG: Record<Role, {
       { icone: PhoneCall,     titulo: "Registre ligações",  descricao: "Log de calls com resumo e próxima ação." },
     ],
     marcos: [
-      { titulo: "Registrar 1º lead como responsável", href: "/base" },
-      { titulo: "Qualificar 1 lead no pipeline",      href: "/pipeline" },
+      { titulo: "Registrar 1º lead como responsável", href: "/vendas/base" },
+      { titulo: "Qualificar 1 lead no pipeline",      href: "/vendas/pipeline" },
       { titulo: "Registrar 1ª ligação ou interação",  href: "/ligacoes" },
     ],
   },
@@ -69,8 +69,8 @@ const ROLE_CONFIG: Record<Role, {
       { icone: Target,        titulo: "Qualifique leads",   descricao: "Identifique os interessados e passe pro comercial." },
     ],
     marcos: [
-      { titulo: "Prospectar 1º lead na base",           href: "/base" },
-      { titulo: "Qualificar 1 lead com o comercial",    href: "/pipeline" },
+      { titulo: "Prospectar 1º lead na base",           href: "/vendas/base" },
+      { titulo: "Qualificar 1 lead com o comercial",    href: "/vendas/pipeline" },
       { titulo: "Registrar 1ª resposta na cadência",    href: "/cadencia" },
     ],
   },

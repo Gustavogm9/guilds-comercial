@@ -130,7 +130,7 @@ export default function EditableLeadRow({
     <tr className="hover:bg-secondary/40 dark:hover:bg-white/[0.03] transition-colors group">
       <td className="px-2 py-2 sticky left-0 bg-background group-hover:bg-secondary/40 border-r border-border/40 min-w-[250px] max-w-[300px] z-10 shadow-[1px_0_0_rgba(0,0,0,0.1)]">
         <div className="flex items-center gap-1 mb-1">
-          <a href={`/pipeline/${lead.id}`} className="text-muted-foreground hover:text-primary shrink-0" title="Abrir lead no pipeline">
+          <a href={`/vendas/pipeline/${lead.id}`} className="text-muted-foreground hover:text-primary shrink-0" title="Abrir lead no pipeline">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
           </a>
           <div className="font-medium text-sm flex-1 overflow-hidden">

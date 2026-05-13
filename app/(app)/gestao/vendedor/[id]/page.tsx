@@ -4,7 +4,7 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import type { LeadEnriched } from "@/lib/types";
 import { STAGE_COLORS, ETAPAS_PIPELINE_VISIVEL } from "@/lib/lists";
-import { ArrowLeft, Users, Target, TrendingUp, DollarSign, AlertCircle, PhoneCall, Mail } from "lucide-react";
+import { ArrowLeft, Users, Target, TrendingUp, DollarSign, AlertCircle, PhoneCall, Mail, ClipboardList, CalendarDays } from "lucide-react";
 import GestaoTabs from "../../gestao-tabs";
 
 export const dynamic = "force-dynamic";
@@ -99,6 +99,16 @@ export default async function VendedorPage(
   const pipelineLeads = allLeads.filter(l => l.crm_stage && (ETAPAS_PIPELINE_VISIVEL as readonly string[]).includes(l.crm_stage) && l.crm_stage !== "Fechado");
   const vencidas = allLeads.filter(l => l.urgencia === "vencida");
   const hoje = allLeads.filter(l => l.urgencia === "hoje");
+  const semProximaAcao = pipelineLeads.filter(l => !l.proxima_acao || !l.data_proxima_acao);
+  const leadsParaRevisar = uniqueLeads([...vencidas, ...hoje, ...semProximaAcao]).slice(0, 5);
+  const plano1on1 = buildOneOnOnePlan({
+    k,
+    totalLig,
+    ligacoes7d: lig7d.length,
+    vencidas: vencidas.length,
+    hoje: hoje.length,
+    semProximaAcao: semProximaAcao.length,
+  });
 
   const isGestor = role === "gestor";
   const membroAtual = membros.find(m => m.profile_id === params.id);
@@ -152,6 +162,12 @@ export default async function VendedorPage(
         <Mini label="Fechados" v={k.fechados} tone="success"/>
         <Mini label="Newsletter" v={k.newsletter_ativos ?? 0}/>
       </section>
+
+      <OneOnOnePlan
+        items={plano1on1}
+        leads={leadsParaRevisar}
+        filaHref={isGestor ? "/hoje?todos=1" : "/hoje"}
+      />
 
       {/* Alertas */}
       {(vencidas.length > 0 || hoje.length > 0) && (
@@ -240,7 +256,7 @@ export default async function VendedorPage(
                   return (
                     <tr key={l.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                       <td className="px-3 py-2">
-                        <Link href={`/pipeline/${l.id}`} className="font-medium hover:text-primary">
+                        <Link href={`/vendas/pipeline/${l.id}`} className="font-medium hover:text-primary">
                           {l.empresa || l.nome || "(sem nome)"}
                         </Link>
                         {l.nome && l.empresa && <div className="text-[11px] text-muted-foreground">{l.nome}</div>}
@@ -279,11 +295,168 @@ export default async function VendedorPage(
           </div>
         </div>
         {pipelineLeads.length > 50 && (
-          <p className="text-xs text-muted-foreground mt-2 tabular-nums">Mostrando 50 de {pipelineLeads.length}. Use <Link href="/pipeline" className="text-primary hover:underline">Pipeline</Link> para ver tudo.</p>
+          <p className="text-xs text-muted-foreground mt-2 tabular-nums">Mostrando 50 de {pipelineLeads.length}. Use <Link href="/vendas/pipeline" className="text-primary hover:underline">Pipeline</Link> para ver tudo.</p>
         )}
       </section>
     </div>
   );
+}
+
+type OneOnOneItem = {
+  title: string;
+  detail: string;
+  tone: "danger" | "warning" | "success" | "neutral";
+};
+
+function buildOneOnOnePlan({
+  k,
+  totalLig,
+  ligacoes7d,
+  vencidas,
+  hoje,
+  semProximaAcao,
+}: {
+  k: KpiResp;
+  totalLig: number;
+  ligacoes7d: number;
+  vencidas: number;
+  hoje: number;
+  semProximaAcao: number;
+}): OneOnOneItem[] {
+  const items: OneOnOneItem[] = [];
+  if (vencidas > 0) {
+    items.push({
+      title: "Recuperar fila vencida",
+      detail: `${vencidas} lead(s) com proxima acao atrasada. Combine uma limpeza da fila antes de novas prospeccoes.`,
+      tone: "danger",
+    });
+  }
+  if (k.leads_ativos > 0 && ligacoes7d === 0) {
+    items.push({
+      title: "Retomar atividade comercial",
+      detail: `${k.leads_ativos} lead(s) ativos sem ligacoes registradas nos ultimos 7 dias.`,
+      tone: "warning",
+    });
+  }
+  if (semProximaAcao > 0) {
+    items.push({
+      title: "Fechar proximos passos",
+      detail: `${semProximaAcao} lead(s) no pipeline sem acao ou data definida.`,
+      tone: "warning",
+    });
+  }
+  if (k.qualificados > 0 && k.propostas === 0) {
+    items.push({
+      title: "Converter qualificados em proposta",
+      detail: `${k.qualificados} qualificado(s), mas nenhuma proposta aberta.`,
+      tone: "neutral",
+    });
+  }
+  if (k.leads_ativos === 0) {
+    items.push({
+      title: "Repor carteira",
+      detail: "Vendedor sem carteira ativa. Direcionar importacao, prospeccao ou redistribuicao de leads.",
+      tone: "warning",
+    });
+  }
+  if (items.length === 0) {
+    items.push({
+      title: "Rotina sob controle",
+      detail: totalLig > 0 ? "Use o 1:1 para revisar qualidade das conversas e proximas oportunidades." : "Sem alertas criticos no periodo selecionado.",
+      tone: "success",
+    });
+  }
+  return items.slice(0, 4);
+}
+
+function uniqueLeads(leads: LeadEnriched[]) {
+  const seen = new Set<number>();
+  return leads.filter((lead) => {
+    if (seen.has(lead.id)) return false;
+    seen.add(lead.id);
+    return true;
+  });
+}
+
+function OneOnOnePlan({
+  items,
+  leads,
+  filaHref,
+}: {
+  items: OneOnOneItem[];
+  leads: LeadEnriched[];
+  filaHref: string;
+}) {
+  return (
+    <section className="card p-4 mb-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground flex items-center gap-1">
+            <ClipboardList className="w-3.5 h-3.5" /> Plano de 1:1
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Use estes pontos para transformar o diagnostico em proximas acoes claras.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href={filaHref} className="btn-secondary text-xs">Abrir fila</Link>
+          <Link href="/vendas/pipeline" className="btn-ghost text-xs">Ver pipeline</Link>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 mt-4">
+        {items.map((item) => (
+          <div key={item.title} className={`rounded-lg border p-3 ${oneOnOneTone(item.tone)}`}>
+            <div className="font-medium text-sm">{item.title}</div>
+            <div className="text-xs mt-1 opacity-85">{item.detail}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-lg border border-border overflow-hidden">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-secondary/60 dark:bg-white/[0.03]">
+          <div className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground flex items-center gap-1">
+            <CalendarDays className="w-3.5 h-3.5" /> Leads para revisar
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">{leads.length}</span>
+        </div>
+        <div className="divide-y divide-border">
+          {leads.length === 0 && (
+            <div className="px-3 py-4 text-sm text-muted-foreground">Sem leads criticos para revisar neste momento.</div>
+          )}
+          {leads.map((lead) => (
+            <div key={lead.id} className="flex flex-col gap-2 px-3 py-3 text-sm md:grid md:grid-cols-[1fr_1fr_auto] md:items-center md:gap-3">
+              <div className="min-w-0">
+                <Link href={`/vendas/pipeline/${lead.id}`} className="font-medium hover:text-primary truncate block">
+                  {lead.empresa || lead.nome || "(sem nome)"}
+                </Link>
+                {lead.crm_stage && <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{lead.crm_stage}</div>}
+              </div>
+              <div className="text-xs text-muted-foreground min-w-0">
+                {lead.proxima_acao ?? "Sem proxima acao"}
+                {lead.data_proxima_acao && (
+                  <span className={lead.urgencia === "vencida" ? "text-destructive font-medium" : lead.urgencia === "hoje" ? "text-warning-500 font-medium" : ""}>
+                    {" "}em {new Date(lead.data_proxima_acao).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                  </span>
+                )}
+              </div>
+              <Link href={`/vendas/pipeline/${lead.id}`} className="btn-ghost text-xs w-fit md:justify-self-end">Abrir</Link>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function oneOnOneTone(tone: OneOnOneItem["tone"]) {
+  const tones = {
+    danger: "border-destructive/25 bg-destructive/10 text-destructive",
+    warning: "border-warning-500/25 bg-warning-500/10 text-warning-500",
+    success: "border-success-500/25 bg-success-500/10 text-success-500",
+    neutral: "border-border bg-muted/30 text-foreground",
+  };
+  return tones[tone];
 }
 
 function KPI({ title, v, icon, tone = "neutral" }: { title: string; v: string | number; icon: React.ReactNode; tone?: "neutral" | "success" | "warning" }) {

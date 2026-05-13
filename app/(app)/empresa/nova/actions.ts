@@ -78,5 +78,5 @@ export async function criarNovaEmpresa(nome: string) {
   });
 
   revalidatePath("/", "layout");
-  redirect("/equipe");
+  redirect("/gestao/equipe");
 }

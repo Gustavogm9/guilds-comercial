@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, Mail, Plus, Trash2 } from "lucide-react";
+import { Bot, ClipboardCheck, Mail, Plus, Target, Trash2, Users } from "lucide-react";
 import { finalizarOnboarding } from "@/app/onboarding/actions";
 import { formatCNPJ, isValidCNPJ } from "@/lib/utils/br-fiscal";
 import { PAISES, getPais, validarTaxId, labelTaxId } from "@/lib/utils/i18n-fiscal";
@@ -13,6 +13,21 @@ type InviteDraft = {
   email: string;
   role: Role;
 };
+
+const OBJETIVOS = [
+  { value: "gerar_pipeline", labelKey: "onboarding.objetivo_pipeline" },
+  { value: "organizar_time", labelKey: "onboarding.objetivo_time" },
+  { value: "aumentar_conversao", labelKey: "onboarding.objetivo_conversao" },
+  { value: "previsibilidade", labelKey: "onboarding.objetivo_previsibilidade" },
+] as const;
+
+const TAMANHOS_TIME = ["1", "2-5", "6-15", "16+"] as const;
+
+const CADENCIAS = [
+  { value: "outbound_email", labelKey: "onboarding.cadencia_outbound" },
+  { value: "whatsapp_followup", labelKey: "onboarding.cadencia_whatsapp" },
+  { value: "pos_venda", labelKey: "onboarding.cadencia_pos_venda" },
+] as const;
 
 export default function OnboardingWizard({ nome, empresa, userId }: { nome: string; empresa: string; userId: string }) {
   const router = useRouter();
@@ -29,6 +44,9 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
   useEffect(() => setUiLocale(getClientLocale()), []);
   const t = getT(uiLocale);
   const [segmento, setSegmento] = useState("");
+  const [objetivoPrincipal, setObjetivoPrincipal] = useState("gerar_pipeline");
+  const [tamanhoTime, setTamanhoTime] = useState("2-5");
+  const [cadenciaInicial, setCadenciaInicial] = useState("outbound_email");
   const [razaoSocial, setRazaoSocial] = useState("");
   const [taxId, setTaxId] = useState("");
   const [dor, setDor] = useState("");
@@ -48,6 +66,9 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
       if (saved.step) setStep(saved.step);
       if (saved.pais) setPais(saved.pais);
       if (saved.segmento) setSegmento(saved.segmento);
+      if (saved.objetivoPrincipal) setObjetivoPrincipal(saved.objetivoPrincipal);
+      if (saved.tamanhoTime) setTamanhoTime(saved.tamanhoTime);
+      if (saved.cadenciaInicial) setCadenciaInicial(saved.cadenciaInicial);
       if (saved.razaoSocial) setRazaoSocial(saved.razaoSocial);
       if (saved.taxId) setTaxId(saved.taxId);
       if (saved.dor) setDor(saved.dor);
@@ -64,10 +85,11 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
     if (!restored.current) return; // aguarda restauração antes de persistir
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        step, pais, segmento, razaoSocial, taxId, dor, cargo, convites, habilitarIA, gerarDemo,
+        step, pais, segmento, objetivoPrincipal, tamanhoTime, cadenciaInicial,
+        razaoSocial, taxId, dor, cargo, convites, habilitarIA, gerarDemo,
       }));
     } catch { /* ignora erro de quota */ }
-  }, [step, pais, segmento, razaoSocial, taxId, dor, cargo, convites, habilitarIA, gerarDemo, STORAGE_KEY]);
+  }, [step, pais, segmento, objetivoPrincipal, tamanhoTime, cadenciaInicial, razaoSocial, taxId, dor, cargo, convites, habilitarIA, gerarDemo, STORAGE_KEY]);
 
   // Validação delegada por país: BR valida CNPJ por DV, outros aceitam livre.
   const taxIdValido = useMemo(() => validarTaxId(taxId, pais), [taxId, pais]);
@@ -88,6 +110,9 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
         idioma_padrao: paisInfo.idioma_padrao,
         moeda_padrao: paisInfo.moeda_padrao,
         segmento,
+        objetivo_principal: objetivoPrincipal,
+        tamanho_time: tamanhoTime,
+        cadencia_inicial: cadenciaInicial,
         dor_principal: dor,
         cargo_foco: cargo,
         razao_social: razaoSocial.trim() || undefined,
@@ -171,6 +196,24 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
                 <option value="Outro">Outro</option>
               </select>
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="label mb-1">{t("onboarding.objetivo_label")}</label>
+                <select className="input-base" value={objetivoPrincipal} onChange={(e) => setObjetivoPrincipal(e.target.value)}>
+                  {OBJETIVOS.map((objetivo) => (
+                    <option key={objetivo.value} value={objetivo.value}>{t(objetivo.labelKey)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label mb-1">{t("onboarding.tamanho_time_label")}</label>
+                <select className="input-base" value={tamanhoTime} onChange={(e) => setTamanhoTime(e.target.value)}>
+                  {TAMANHOS_TIME.map((tamanho) => (
+                    <option key={tamanho} value={tamanho}>{tamanho}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div>
               <label className="label mb-1">
                 {t("onboarding.razao_social_label")} <span className="text-muted-foreground font-normal normal-case">{t("onboarding.razao_social_hint")}</span>
@@ -232,6 +275,15 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
                 value={dor}
                 onChange={(e) => setDor(e.target.value)}
               />
+            </div>
+            <div>
+              <label className="label mb-1">{t("onboarding.cadencia_inicial_label")}</label>
+              <select className="input-base" value={cadenciaInicial} onChange={(e) => setCadenciaInicial(e.target.value)}>
+                {CADENCIAS.map((cadencia) => (
+                  <option key={cadencia.value} value={cadencia.value}>{t(cadencia.labelKey)}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1 normal-case">{t("onboarding.cadencia_inicial_hint")}</p>
             </div>
           </div>
           <div className="flex gap-4 mt-8">
@@ -299,6 +351,18 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
           <h2 className="text-2xl font-bold text-foreground mb-2">{t("onboarding.setup_final")}</h2>
           <p className="text-muted-foreground mb-6">{t("onboarding.setup_final_sub")}</p>
 
+          <div className="rounded-lg border border-border bg-muted/30 p-4 mb-4">
+            <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold mb-3 flex items-center gap-1.5">
+              <ClipboardCheck className="w-3.5 h-3.5" /> {t("onboarding.resumo_operacao")}
+            </div>
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <SummaryItem icon={<Target className="w-4 h-4" />} label={t("onboarding.objetivo_label")} value={labelByValue(OBJETIVOS, objetivoPrincipal, t)} />
+              <SummaryItem icon={<Users className="w-4 h-4" />} label={t("onboarding.tamanho_time_label")} value={tamanhoTime} />
+              <SummaryItem icon={<Mail className="w-4 h-4" />} label={t("onboarding.cadencia_inicial_label")} value={labelByValue(CADENCIAS, cadenciaInicial, t)} />
+              <SummaryItem icon={<Plus className="w-4 h-4" />} label={t("onboarding.convites_resumo")} value={String(convitesValidos.length)} />
+            </div>
+          </div>
+
           <div className="space-y-3">
             <label className="flex items-start gap-3 p-4 rounded-lg border border-border cursor-pointer hover:bg-muted/40 transition-colors">
               <input
@@ -339,6 +403,27 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function labelByValue(
+  items: ReadonlyArray<{ value: string; labelKey: string }>,
+  value: string,
+  t: (key: string) => string
+) {
+  const item = items.find((entry) => entry.value === value);
+  return item ? t(item.labelKey) : value;
+}
+
+function SummaryItem({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <div className="text-primary mt-0.5">{icon}</div>
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">{label}</div>
+        <div className="text-foreground truncate">{value}</div>
+      </div>
     </div>
   );
 }

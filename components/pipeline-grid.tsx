@@ -32,7 +32,7 @@ function LeadCardReadOnly({ lead, t }: { lead: LeadEnriched; t: (k: string) => s
 
   return (
     <Link
-      href={`/pipeline/${lead.id}`}
+      href={`/vendas/pipeline/${lead.id}`}
       className="card p-4 hover:border-primary/50 hover:shadow-stripe-sm transition-all block group"
     >
       <div className="flex items-start justify-between gap-1">

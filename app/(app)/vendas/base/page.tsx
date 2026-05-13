@@ -102,7 +102,7 @@ export default async function BasePage(
           <a href={`/api/v1/leads/export?tab=${tab}&q=${encodeURIComponent(q)}&resp=${respFiltro}&temp=${tempFiltro}&prioridade=${prioridadeFiltro}&stage=${stageFiltro}`} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs inline-flex items-center gap-1.5">
             <Download className="w-3.5 h-3.5"/> Exportar CSV
           </a>
-          <Link href="/base/importar" className="btn-secondary text-xs inline-flex items-center gap-1.5">
+          <Link href="/vendas/base/importar" className="btn-secondary text-xs inline-flex items-center gap-1.5">
             <Upload className="w-3.5 h-3.5"/> {t("base.btn_importar_csv")}
           </Link>
           <NovoLeadModal profiles={profs} />
@@ -111,11 +111,11 @@ export default async function BasePage(
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border dark:border-white/[0.06] mb-4">
-        <Tab href={`/base?tab=bruta`} active={tab === "bruta"}
+        <Tab href={`/vendas/base?tab=bruta`} active={tab === "bruta"}
              icon={<Inbox className="w-3.5 h-3.5"/>} label={t("base.tab_bruta")} count={countBruta ?? 0} />
-        <Tab href={`/base?tab=qualificada`} active={tab === "qualificada"}
+        <Tab href={`/vendas/base?tab=qualificada`} active={tab === "qualificada"}
              icon={<CheckCircle2 className="w-3.5 h-3.5"/>} label={t("base.tab_qualificada")} count={countQual ?? 0} />
-        <Tab href={`/base?tab=todos`} active={tab === "todos"}
+        <Tab href={`/vendas/base?tab=todos`} active={tab === "todos"}
              icon={<Search className="w-3.5 h-3.5"/>} label={"Todos"} count={countTodos ?? 0} />
       </div>
 

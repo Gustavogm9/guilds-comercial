@@ -8,10 +8,10 @@ import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 
 const NAV = [
   { href: "/hoje",     i18nKey: "mobile_nav.hoje",     icon: Home },
-  { href: "/pipeline", i18nKey: "mobile_nav.pipeline", icon: Kanban },
-  { href: "/funil",    i18nKey: "mobile_nav.funil",    icon: BarChart3 },
-  { href: "/base",     i18nKey: "mobile_nav.base",     icon: Search },
-  { href: "/raio-x",   i18nKey: "mobile_nav.raio_x",   icon: Activity },
+  { href: "/vendas/pipeline", i18nKey: "mobile_nav.pipeline", icon: Kanban },
+  { href: "/growth/funil",    i18nKey: "mobile_nav.funil",    icon: BarChart3 },
+  { href: "/vendas/base",     i18nKey: "mobile_nav.base",     icon: Search },
+  { href: "/growth/raio-x",   i18nKey: "mobile_nav.raio_x",   icon: Activity },
 ];
 
 export default function MobileNav() {

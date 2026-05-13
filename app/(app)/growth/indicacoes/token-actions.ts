@@ -100,8 +100,8 @@ export async function gerarTokenEmbaixador(input: {
     },
   });
 
-  revalidatePath("/indicacoes");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath("/growth/indicacoes");
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
 
   return { token: data!.token, token_id: data!.id };
 }
@@ -141,8 +141,8 @@ export async function revogarTokenEmbaixador(token_id: number) {
     payload: { token_id },
   });
 
-  revalidatePath("/indicacoes");
-  revalidatePath(`/pipeline/${tokenRow.lead_id}`);
+  revalidatePath("/growth/indicacoes");
+  revalidatePath(`/vendas/pipeline/${tokenRow.lead_id}`);
 }
 
 /**
@@ -169,5 +169,5 @@ export async function atualizarMensagemToken(input: {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
-  revalidatePath("/indicacoes");
+  revalidatePath("/growth/indicacoes");
 }

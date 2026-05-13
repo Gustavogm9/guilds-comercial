@@ -30,7 +30,7 @@ export default async function PropostaPage(props: { params: Promise<{ leadId: st
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
-      <Link href={`/pipeline/${leadId}`} className="btn-ghost text-xs mb-3">
+      <Link href={`/vendas/pipeline/${leadId}`} className="btn-ghost text-xs mb-3">
         <ChevronLeft className="w-3.5 h-3.5" /> Voltar ao lead
       </Link>
 

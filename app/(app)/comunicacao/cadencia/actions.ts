@@ -44,7 +44,7 @@ export async function salvarMensagemPassoEnviada(input: {
   if (error) throw new Error(error.message);
 
   revalidatePath("/cadencia");
-  revalidatePath(`/pipeline/${input.leadId}`);
+  revalidatePath(`/vendas/pipeline/${input.leadId}`);
   return { ok: true };
 }
 
@@ -99,7 +99,7 @@ export async function marcarPassoCadencia(
 
   revalidatePath("/cadencia");
   revalidatePath("/hoje");
-  revalidatePath("/pipeline");
+  revalidatePath("/vendas/pipeline");
 
   // Quando o lead responde, sugerimos qualificação imediata
   // O componente frontend usa esse flag para exibir um popover contextual
@@ -162,7 +162,7 @@ export async function adiarPassoCadencia(cadenciaId: number, dias: number) {
  *   - RECRIA os 6 passos D0/D3/D7/D11/D16/D30 com data_prevista a partir de hoje.
  *
  * Usa `upsert` com `onConflict: "lead_id,passo"` — bate com o padrão de
- * `app/(app)/base/actions.ts` quando promove lead pra pipeline.
+ * `app/(app)/vendas/base/actions.ts` quando promove lead pra pipeline.
  */
 export async function iniciarCadenciaManual(leadId: number) {
   const t = getT(await getServerLocale());
@@ -207,8 +207,8 @@ export async function iniciarCadenciaManual(leadId: number) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/cadencia");
-  revalidatePath("/pipeline");
-  revalidatePath(`/pipeline/${leadId}`);
+  revalidatePath("/vendas/pipeline");
+  revalidatePath(`/vendas/pipeline/${leadId}`);
   return { ok: true };
 }
 

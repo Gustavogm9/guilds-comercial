@@ -155,7 +155,7 @@ export default async function CanaisPage() {
                         <div className={`w-7 h-7 rounded-lg grid place-items-center ${meta.color}`}>
                           <Icon className="w-3.5 h-3.5"/>
                         </div>
-                        <Link href={`/base?tab=bruta&canal=${encodeURIComponent(nome)}`}
+                        <Link href={`/vendas/base?tab=bruta&canal=${encodeURIComponent(nome)}`}
                               className="font-medium hover:text-primary">
                           {nome}
                         </Link>

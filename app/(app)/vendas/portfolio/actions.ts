@@ -227,7 +227,7 @@ export async function salvarProposta(input: {
     .single();
 
   revalidatePath("/portfolio");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
   return { ok: !error, id: data?.id, erro: error?.message };
 }
 

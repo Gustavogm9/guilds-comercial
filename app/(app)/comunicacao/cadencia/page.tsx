@@ -249,7 +249,7 @@ function CadenciaCard({ c, hoje }: { c: CadenciaRow; hoje: string }) {
       {/* Lead nome + stage */}
       <div className="flex items-start justify-between gap-2">
         <Link
-          href={`/pipeline/${c.lead_id}`}
+          href={`/vendas/pipeline/${c.lead_id}`}
           prefetch
           className="font-medium text-sm text-foreground hover:text-primary transition-colors truncate flex-1 min-w-0"
           style={{ letterSpacing: "-0.13px" }}

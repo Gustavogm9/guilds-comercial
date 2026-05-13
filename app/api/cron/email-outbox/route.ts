@@ -189,7 +189,7 @@ function buildIndicacaoPortalRecebida(row: OutboxRow, appUrl: string) {
   const orgNome = escapeHtml(p.org_nome ?? "");
   const respNome = p.responsavel_nome ? escapeHtml(p.responsavel_nome) : "";
 
-  const indicacoesUrl = `${appUrl}/indicacoes`;
+  const indicacoesUrl = `${appUrl}/growth/indicacoes`;
 
   if (en) {
     return {

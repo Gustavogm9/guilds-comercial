@@ -70,8 +70,8 @@ export async function ofertarRaioX(input: {
     payload: { acao: "ofertado", preco: input.preco_lista ?? 97, gratuito: input.gratuito ?? false },
   });
 
-  revalidatePath("/raio-x");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath("/growth/raio-x");
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
 }
 
 /** Marca Raio-X como pago */
@@ -100,8 +100,8 @@ export async function marcarPago(raio_x_id: number, lead_id: number) {
     tipo: "raio_x", payload: { acao: "pago" },
   });
 
-  revalidatePath("/raio-x");
-  revalidatePath(`/pipeline/${lead_id}`);
+  revalidatePath("/growth/raio-x");
+  revalidatePath(`/vendas/pipeline/${lead_id}`);
 }
 
 /** Salva resultado do diagnóstico */
@@ -166,8 +166,8 @@ export async function salvarResultado(input: {
     console.warn("[webhook] Falha ao disparar webhook em salvarResultado", err);
   }
 
-  revalidatePath("/raio-x");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath("/growth/raio-x");
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
 }
 
 import { dispatchWebhook } from "@/lib/webhooks";

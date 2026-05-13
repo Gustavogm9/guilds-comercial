@@ -92,7 +92,7 @@ export default async function AlertasPage() {
                   </p>
                   <p className="text-[11px] text-muted-foreground/80 mt-1">
                     Lead vinculado: {" "}
-                    <Link href={`/pipeline/${a.lead_id}`} className="text-primary hover:underline">
+                    <Link href={`/vendas/pipeline/${a.lead_id}`} className="text-primary hover:underline">
                       {a.lead_empresa}
                     </Link>
                   </p>

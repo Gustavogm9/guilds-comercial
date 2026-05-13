@@ -64,7 +64,7 @@ export default function ExpansoesAtrasadasAlert({ expansoes }: { expansoes: Expa
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
           >
             <div className="flex-1 min-w-0">
-              <Link href={`/pipeline/${e.cliente_lead_id}`} className="text-sm font-medium hover:text-warning-500 transition-colors truncate block">
+              <Link href={`/vendas/pipeline/${e.cliente_lead_id}`} className="text-sm font-medium hover:text-warning-500 transition-colors truncate block">
                 {e.titulo}
               </Link>
               <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
@@ -77,7 +77,7 @@ export default function ExpansoesAtrasadasAlert({ expansoes }: { expansoes: Expa
                 <span className="tabular-nums">{fmtBRL(e.valor_potencial)}</span>
               </div>
             </div>
-            <Link href={`/pipeline/${e.cliente_lead_id}`} className="btn-secondary text-xs" prefetch>
+            <Link href={`/vendas/pipeline/${e.cliente_lead_id}`} className="btn-secondary text-xs" prefetch>
               <Rocket className="w-3 h-3" aria-hidden="true" /> Trabalhar
             </Link>
           </li>

@@ -141,7 +141,7 @@ export default function CadenciaPassoActions({
             Lead respondeu! Quer qualificá-lo agora?
           </span>
           <Link
-            href={`/pipeline/${sugestaoLeadId}`}
+            href={`/vendas/pipeline/${sugestaoLeadId}`}
             className="text-[10px] font-semibold text-primary hover:underline shrink-0"
             onClick={() => setSugestaoLeadId(null)}
           >

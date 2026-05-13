@@ -603,7 +603,7 @@ export default function ImportarCsvClient({
                </button>
             )}
             <button onClick={reset} className="btn-secondary text-sm">{t("base.import_outro_arquivo")}</button>
-            <Link href="/base?tab=bruta" className="btn-primary text-sm">{t("base.import_ver_base")}</Link>
+            <Link href="/vendas/base?tab=bruta" className="btn-primary text-sm">{t("base.import_ver_base")}</Link>
           </div>
         </div>
       )}
