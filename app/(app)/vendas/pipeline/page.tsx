@@ -1,13 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
 import KanbanBoard from "@/components/kanban-board";
 import PipelineGrid from "@/components/pipeline-grid";
 import PipelineToolbar from "@/components/pipeline-toolbar";
+import NovoLeadModal from "@/components/novo-lead-modal";
 import type { LeadEnriched } from "@/lib/types";
 import { ETAPAS_PIPELINE_VISIVEL } from "@/lib/lists";
-import { Plus } from "lucide-react";
 import { getServerLocale, getT } from "@/lib/i18n";
 import VendasTabs from "../vendas-tabs";
 
@@ -84,6 +83,7 @@ export default async function PipelinePage(
   // Extrair segmentos únicos para o filtro
   const segmentos = [...new Set((leadsFiltrados).map((l: any) => l.segmento).filter(Boolean))].sort() as string[];
   const todosProdutos = (produtosData ?? []) as { id: number; nome: string }[];
+  const profs = membros.map(m => ({ id: m.profile_id, display_name: m.display_name }));
   const viewMode = searchParams.view === "list" ? "list" : "kanban";
 
   return (
@@ -97,7 +97,7 @@ export default async function PipelinePage(
           <h1 className="text-2xl font-semibold tracking-tight">{t("paginas.pipeline_titulo")}</h1>
           <p className="text-sm text-muted-foreground">{t("paginas.pipeline_sub")}</p>
         </div>
-        <Link href="/base" className="btn-primary text-xs"><Plus className="w-3.5 h-3.5"/> {t("modais.novo_lead")}</Link>
+        <NovoLeadModal profiles={profs} />
       </header>
 
       {/* FR-CRM-05/07/08 — Toolbar com busca, filtros e export */}

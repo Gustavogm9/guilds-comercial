@@ -354,8 +354,8 @@ export async function transferirCarteira(
   }
 
   revalidatePath("/equipe");
-  revalidatePath("/pipeline");
-  revalidatePath("/base");
+  revalidatePath("/vendas/pipeline");
+  revalidatePath("/vendas/base");
   revalidatePath("/hoje");
 
   return { total: data?.length ?? 0 };

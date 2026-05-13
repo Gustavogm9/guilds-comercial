@@ -63,7 +63,7 @@ export default function ExpansionSection({
             Receita gerada vendendo mais para quem já é cliente. NRR &gt; 100% = você cresce sem novo lead.
           </p>
         </div>
-        <Link href="/comunicacao/pos-venda" className="btn-secondary text-xs whitespace-nowrap">
+        <Link href="/comunicacao/pos-venda?tab=expansoes" className="btn-secondary text-xs whitespace-nowrap">
           Pós-venda <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </header>
@@ -76,7 +76,7 @@ export default function ExpansionSection({
             Clientes saudáveis (NPS alto + onboarding ok) são candidatos naturais a upsell.
             Comece pela aba Saúde em /pos-venda.
           </p>
-          <Link href="/comunicacao/pos-venda" className="btn-secondary text-xs">
+          <Link href="/comunicacao/pos-venda?tab=saude" className="btn-secondary text-xs">
             Ver clientes <ArrowRight className="w-3 h-3" aria-hidden="true" />
           </Link>
         </div>

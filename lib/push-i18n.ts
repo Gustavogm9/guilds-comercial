@@ -37,6 +37,10 @@ const TEMPLATES: Record<Locale, Record<PushEvento, Template>> = {
       title: "{{empresa}} respondeu sua mensagem",
       body: "{{lead_nome}} acabou de interagir. Hora de retomar.",
     },
+    health_risco_critico: {
+      title: "Risco critico detectado",
+      body: "{{empresa}} precisa de atencao agora.",
+    },
   },
   "en-US": {
     cadencia_vencendo: {
@@ -54,6 +58,10 @@ const TEMPLATES: Record<Locale, Record<PushEvento, Template>> = {
     lead_reabriu: {
       title: "{{empresa}} replied to your message",
       body: "{{lead_nome}} just engaged. Time to follow up.",
+    },
+    health_risco_critico: {
+      title: "Critical risk detected",
+      body: "{{empresa}} needs attention now.",
     },
   },
 };

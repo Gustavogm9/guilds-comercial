@@ -84,7 +84,7 @@ export default async function NewsletterPage(props: { searchParams: Promise<{ ta
           { k: "pausados", l: "Pausados" },
           { k: "remover", l: "Remover" },
         ].map(t => (
-          <Link key={t.k} href={`/newsletter?tab=${t.k}`}
+          <Link key={t.k} href={`/comunicacao/newsletter?tab=${t.k}`}
             className={`px-3 py-2 text-xs font-medium border-b-2 transition ${
               tab === t.k ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}>{t.l}</Link>
@@ -114,7 +114,7 @@ export default async function NewsletterPage(props: { searchParams: Promise<{ ta
                 return (
                   <tr key={n.id} className={`hover:bg-secondary/60 dark:hover:bg-white/[0.03] ${devido && n.status === "Ativo" ? "bg-warning-500/10" : ""}`}>
                     <td className="px-3 py-2">
-                      <Link href={`/pipeline/${n.lead_id}`} className="font-medium hover:text-primary">
+                      <Link href={`/vendas/pipeline/${n.lead_id}`} className="font-medium hover:text-primary">
                         {n.leads?.empresa || n.leads?.nome || "(?)"}
                       </Link>
                       <div className="text-[10px] text-muted-foreground">{n.leads?.segmento ?? "—"}</div>

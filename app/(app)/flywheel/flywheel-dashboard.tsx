@@ -235,7 +235,7 @@ export default function FlywheelDashboard({
             { label: "Taxa renovação", value: renovacoes?.taxa_renovacao_pct != null ? `${renovacoes.taxa_renovacao_pct}%` : "—" },
           ]}
           ctaLabel="Abrir renovações"
-          ctaHref="/comunicacao/pos-venda?tab=expansoes"
+          ctaHref="/comunicacao/pos-venda?tab=renovacoes"
         />
 
         {/* P6 — Portal embaixador */}

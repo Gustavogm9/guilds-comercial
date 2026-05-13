@@ -107,7 +107,7 @@ export default function AdvocacySection({
                     }`}>
                       {idx + 1}
                     </span>
-                    <Link href={`/pipeline/${e.embaixador_lead_id}`} className="font-medium hover:text-primary transition-colors flex-1 truncate">
+                    <Link href={`/vendas/pipeline/${e.embaixador_lead_id}`} className="font-medium hover:text-primary transition-colors flex-1 truncate">
                       {e.embaixador_empresa ?? e.embaixador_nome ?? `Lead #${e.embaixador_lead_id}`}
                     </Link>
                     <span className="text-xs text-muted-foreground tabular-nums">

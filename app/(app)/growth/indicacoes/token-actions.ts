@@ -101,7 +101,7 @@ export async function gerarTokenEmbaixador(input: {
   });
 
   revalidatePath("/indicacoes");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
 
   return { token: data!.token, token_id: data!.id };
 }
@@ -142,7 +142,7 @@ export async function revogarTokenEmbaixador(token_id: number) {
   });
 
   revalidatePath("/indicacoes");
-  revalidatePath(`/pipeline/${tokenRow.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${tokenRow.lead_id}`);
 }
 
 /**

@@ -17,7 +17,10 @@ import type {
 
 export const dynamic = "force-dynamic";
 
-export default async function PosVendaPage() {
+export default async function PosVendaPage(props: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const searchParams = await props.searchParams;
   const me = await getCurrentProfile();
   if (!me) return null;
 
@@ -114,6 +117,7 @@ export default async function PosVendaPage() {
     <PosVendaClient
       meId={me.id}
       isGestor={isGestor}
+      initialTab={searchParams.tab}
       onboardings={(onboardingsRes.data ?? []) as OnboardingPendente[]}
       templates={(templatesRes.data ?? []) as OnboardingTemplate[]}
       templateItens={(templateItensRes.data ?? []) as OnboardingTemplateItem[]}

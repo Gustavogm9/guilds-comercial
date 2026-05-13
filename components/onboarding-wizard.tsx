@@ -100,7 +100,7 @@ export default function OnboardingWizard({ nome, empresa, userId }: { nome: stri
       });
       // Limpa progresso salvo após conclusão bem-sucedida
       try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignora */ }
-      router.push("/hoje");
+      router.push("/hoje?welcome=1");
       router.refresh();
     } catch (e: any) {
       setErro(e.message || "Erro inesperado");

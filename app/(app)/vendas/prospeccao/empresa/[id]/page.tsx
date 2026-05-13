@@ -328,7 +328,7 @@ export default async function EmpresaDetalhePage(props: {
               <ul className="space-y-1.5">
                 {leadsRelacionados.map((l: any) => (
                   <li key={l.lead_id} className="text-xs">
-                    <Link href={`/pipeline/${l.lead_id}`} className="font-medium hover:text-primary block">
+                    <Link href={`/vendas/pipeline/${l.lead_id}`} className="font-medium hover:text-primary block">
                       {l.lead_empresa}
                     </Link>
                     <div className="text-[11px] text-muted-foreground">

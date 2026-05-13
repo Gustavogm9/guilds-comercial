@@ -171,7 +171,24 @@ export default async function CadenciaPage(
         <button type="submit" className="btn-secondary text-xs">Filtrar</button>
       </form>
 
+      {cadencias.length === 0 && (
+        <div className="card p-6 mb-4 text-center">
+          <MessageSquare className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" aria-hidden="true" />
+          <p className="text-sm text-foreground/80 mb-1">Nenhuma cadÃªncia encontrada para estes filtros.</p>
+          <p className="text-xs text-muted-foreground mb-3">
+            Inicie uma cadÃªncia em leads do pipeline ou limpe os filtros para ver o trabalho pendente.
+          </p>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <IniciarCadenciaModal />
+            <Link href="/vendas/pipeline" className="btn-secondary text-xs">
+              Ver pipeline
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Colunas por passo (kanban temporal) */}
+      {cadencias.length > 0 && (
       <div className="flex gap-3 overflow-x-auto pb-4">
         {PASSOS.map((p) => {
           const list = agrupado[p];
@@ -217,6 +234,7 @@ export default async function CadenciaPage(
           );
         })}
       </div>
+      )}
     </div>
   );
 }
@@ -249,7 +267,7 @@ function CadenciaCard({ c, hoje }: { c: CadenciaRow; hoje: string }) {
       {/* Lead nome + stage */}
       <div className="flex items-start justify-between gap-2">
         <Link
-          href={`/pipeline/${c.lead_id}`}
+          href={`/vendas/pipeline/${c.lead_id}`}
           prefetch
           className="font-medium text-sm text-foreground hover:text-primary transition-colors truncate flex-1 min-w-0"
           style={{ letterSpacing: "-0.13px" }}

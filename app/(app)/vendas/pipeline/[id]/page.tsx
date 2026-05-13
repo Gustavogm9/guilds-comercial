@@ -170,7 +170,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
-      <Link href="/pipeline" className="btn-ghost text-xs mb-3">
+      <Link href="/vendas/pipeline" className="btn-ghost text-xs mb-3">
         <ChevronLeft className="w-3.5 h-3.5"/> {t("pipeline.detail_voltar")}
       </Link>
 
@@ -199,7 +199,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
           </div>
         </div>
 
-        <div className="mt-4">
+        <div id="acoes-lead" className="mt-4 scroll-mt-24">
           <LeadDetailActions lead={lead} vendedor={me.display_name} />
           {/* Produtos de interesse — widget de tags de produto */}
           {todosProdutos.length > 0 && (
@@ -360,7 +360,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
             <div className="space-y-2">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Outras Oportunidades:</div>
               {outrasOportunidades.map(op => (
-                <Link key={op.id} href={`/pipeline/${op.id}`} className="flex items-center justify-between p-2 rounded hover:bg-secondary/40 border border-transparent hover:border-border/50 transition-colors">
+                <Link key={op.id} href={`/vendas/pipeline/${op.id}`} className="flex items-center justify-between p-2 rounded hover:bg-secondary/40 border border-transparent hover:border-border/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${STAGE_COLORS[op.crm_stage ?? "Base"]?.bg ?? "bg-border"}`} />
                     <div>
@@ -422,7 +422,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       )}
 
       {/* Cadência */}
-      <section className="mt-6">
+      <section id="cadencia" className="mt-6 scroll-mt-24">
         <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">
           {t("pipeline.detail_section_cadencia")}
         </h2>
@@ -462,7 +462,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       </section>
 
       {/* Ligações */}
-      <section className="mt-6">
+      <section id="ligacoes" className="mt-6 scroll-mt-24">
         <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
           <PhoneCall className="w-3.5 h-3.5"/> {t("pipeline.detail_section_ligacoes").replace("{{n}}", String((ligacoes ?? []).length))}
         </h2>
@@ -487,7 +487,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
       {/* Raio-X */}
       {(raiox ?? []).length > 0 && (
-        <section className="mt-6">
+        <section id="raiox" className="mt-6 scroll-mt-24">
           <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
             <FileText className="w-3.5 h-3.5"/> {t("pipeline.detail_section_raiox")}
           </h2>

@@ -46,7 +46,7 @@ function PipelineToolbarInner(props: Props) {
     if (value) params.set(key, value);
     else params.delete(key);
     startTransition(() => {
-      router.push(`/pipeline?${params.toString()}`, { scroll: false });
+      router.push(`/vendas/pipeline?${params.toString()}`, { scroll: false });
     });
   }
 
@@ -66,7 +66,7 @@ function PipelineToolbarInner(props: Props) {
   function limparTodos() {
     setBusca("");
     startTransition(() => {
-      router.push("/pipeline", { scroll: false });
+      router.push("/vendas/pipeline", { scroll: false });
     });
   }
 

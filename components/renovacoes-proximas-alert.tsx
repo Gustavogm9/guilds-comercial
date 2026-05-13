@@ -69,7 +69,7 @@ export default function RenovacoesProximasAlert({
             {fmtBRL(valorTotal)} em ARR no horizonte de 30d. Renovação fechada = receita garantida.
           </p>
         </div>
-        <Link href="/comunicacao/pos-venda" className="btn-ghost text-xs whitespace-nowrap" prefetch>
+        <Link href="/comunicacao/pos-venda?tab=renovacoes" className="btn-ghost text-xs whitespace-nowrap" prefetch>
           Ver todas <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
@@ -83,7 +83,7 @@ export default function RenovacoesProximasAlert({
               className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
             >
               <div className="flex-1 min-w-0">
-                <Link href={`/pipeline/${r.lead_id}`} className="text-sm font-medium hover:text-primary transition-colors truncate block">
+                <Link href={`/vendas/pipeline/${r.lead_id}`} className="text-sm font-medium hover:text-primary transition-colors truncate block">
                   {r.cliente_empresa ?? r.cliente_nome ?? `Lead #${r.lead_id}`}
                 </Link>
                 <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
@@ -101,7 +101,7 @@ export default function RenovacoesProximasAlert({
                   )}
                 </div>
               </div>
-              <Link href={`/pipeline/${r.lead_id}`} className="btn-secondary text-xs" prefetch>
+              <Link href={`/vendas/pipeline/${r.lead_id}`} className="btn-secondary text-xs" prefetch>
                 <Repeat className="w-3 h-3" aria-hidden="true" /> Trabalhar
               </Link>
             </li>
@@ -110,7 +110,7 @@ export default function RenovacoesProximasAlert({
       </ul>
 
       {restantes > 0 && (
-        <Link href="/comunicacao/pos-venda" className={`text-xs hover:underline mt-2 inline-block ${linkTone}`}>
+        <Link href="/comunicacao/pos-venda?tab=renovacoes" className={`text-xs hover:underline mt-2 inline-block ${linkTone}`}>
           + {restantes} próxima{restantes > 1 ? "s" : ""}
         </Link>
       )}

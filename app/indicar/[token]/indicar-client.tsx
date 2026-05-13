@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import {
   Sparkles, Send, CheckCircle2, AlertCircle, Loader2, Plus, X,
@@ -159,6 +160,7 @@ export default function IndicarClient({
         {/* Logo da org (se configurado — branding) */}
         {branding?.logo_url && (
           <div className="text-center mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- origem do logo e dinamica por cliente */}
             <img
               src={branding.logo_url}
               alt={branding.organizacao_nome ?? "Logo"}
@@ -386,7 +388,7 @@ export default function IndicarClient({
               Compartilhar este link via QR code
             </summary>
             <div className="mt-3 text-center">
-              <img
+              <Image
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.href)}`}
                 alt="QR code do link de indicação"
                 className="mx-auto rounded-lg border border-border bg-card p-2"

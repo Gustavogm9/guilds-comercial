@@ -44,7 +44,7 @@ export async function salvarMensagemPassoEnviada(input: {
   if (error) throw new Error(error.message);
 
   revalidatePath("/cadencia");
-  revalidatePath(`/pipeline/${input.leadId}`);
+  revalidatePath(`/vendas/pipeline/${input.leadId}`);
   return { ok: true };
 }
 
@@ -99,7 +99,7 @@ export async function marcarPassoCadencia(
 
   revalidatePath("/cadencia");
   revalidatePath("/hoje");
-  revalidatePath("/pipeline");
+  revalidatePath("/vendas/pipeline");
 
   // Quando o lead responde, sugerimos qualificação imediata
   // O componente frontend usa esse flag para exibir um popover contextual
@@ -207,8 +207,8 @@ export async function iniciarCadenciaManual(leadId: number) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/cadencia");
-  revalidatePath("/pipeline");
-  revalidatePath(`/pipeline/${leadId}`);
+  revalidatePath("/vendas/pipeline");
+  revalidatePath(`/vendas/pipeline/${leadId}`);
   return { ok: true };
 }
 

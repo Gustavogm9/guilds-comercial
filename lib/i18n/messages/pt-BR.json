@@ -647,7 +647,8 @@
                        "funil":  "Funil",
                        "base":  "Base",
                        "raio_x":  "Raio-X",
-                       "cadencia":  "Cadências"
+                       "cadencia":  "Cadências",
+                       "ligacoes":  "Ligações"
                    },
     "trial":  {
                   "encerrado":  "Trial encerrado.",

@@ -40,12 +40,26 @@ export default async function BillingPage() {
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Status atual</div>
           <div className="mt-1 flex items-center gap-2 font-semibold">
             <CreditCard className="w-4 h-4 text-primary" />
-            {currentOrg?.billing_status === "trialing" ? "Trial" : currentOrg?.billing_status ?? "Nao configurado"}
+            {(() => {
+              const status = currentOrg?.billing_status;
+              if (status === "trialing") return "Trial";
+              if (status === "active") return "Ativo";
+              if (status === "past_due") return "Em atraso";
+              if (status === "canceled") return "Cancelado";
+              if (!status) return "Sem assinatura";
+              return status;
+            })()}
           </div>
           {trial.isTrial && (
             <div className={trial.expired ? "text-sm text-urgent-500 mt-1" : "text-sm text-muted-foreground mt-1"}>
               {trial.expired ? "Trial encerrado" : `${trial.daysLeft} dias restantes`}
             </div>
+          )}
+          {!currentOrg?.billing_status && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Sem assinatura ativa.{" "}
+              <a href="#planos" className="text-primary hover:underline">Escolher um plano abaixo</a>.
+            </p>
           )}
           {canOpenPortal && (
             <form action={abrirPortalCliente} className="mt-3">
@@ -60,7 +74,7 @@ export default async function BillingPage() {
         <AiOverageCard organizacaoId={orgId} />
       </section>
 
-      <section className="grid md:grid-cols-3 gap-4">
+      <section id="planos" className="grid md:grid-cols-3 gap-4">
         {PLANS.map((plan) => {
           const current = currentOrg?.plano === plan.code;
           const checkoutReady = isStripeConfiguredForPlan(plan.code, currency);
@@ -109,18 +123,20 @@ export default async function BillingPage() {
       <section className="mt-6 grid md:grid-cols-2 gap-4">
         <div className="card p-5">
           <div className="flex items-center gap-2 font-semibold mb-2">
-            <Sparkles className="w-4 h-4 text-primary" /> Proximo passo de monetizacao
+            <Sparkles className="w-4 h-4 text-primary" /> Como funciona a cobrança
           </div>
           <p className="text-sm text-muted-foreground">
-            Conectar Stripe Checkout, Customer Portal e webhooks de assinatura usando os campos ja preparados na organizacao.
+            Cobrança mensal via Stripe. Você pode trocar de plano a qualquer momento:
+            upgrade cobra a diferença proporcional; downgrade aplica no próximo ciclo. Cancelamento sem multa.
           </p>
         </div>
         <div className="card p-5">
           <div className="flex items-center gap-2 font-semibold mb-2">
-            <ShieldCheck className="w-4 h-4 text-success-500" /> Operacao
+            <ShieldCheck className="w-4 h-4 text-success-500" /> Limites e overage
           </div>
           <p className="text-sm text-muted-foreground">
-            Enquanto o checkout nao estiver ativo, gestores conseguem acompanhar trial, limites e preparar API/Webhooks.
+            Cada plano vem com limite mensal de IA. Acima disso cobramos overage no fim do ciclo.
+            Acompanhe o consumo no card acima e configure webhooks para ser avisado de eventos.
           </p>
           <Link href="/configuracoes/desenvolvedores" className="btn-secondary mt-4 text-sm">
             Abrir API & Webhooks

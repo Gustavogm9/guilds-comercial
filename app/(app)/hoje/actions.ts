@@ -81,7 +81,7 @@ export async function registrarLigacao(input: {
   });
 
   revalidatePath("/hoje");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
 }
 
 export async function registrarToque(input: {
@@ -120,7 +120,7 @@ export async function registrarToque(input: {
   });
 
   revalidatePath("/hoje");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
 }
 
 /** Etapas que exigem motivo obrigatório ao entrar. */
@@ -198,7 +198,7 @@ export async function moverEtapa(
       body: novaEtapa === "Fechado"
         ? "Parabéns! Atualize o valor real e o cliente é seu."
         : `Motivo: ${motivo ?? "—"}. Veja o detalhe.`,
-      url: `/pipeline/${lead_id}`,
+      url: `/vendas/pipeline/${lead_id}`,
       tag: `lead-${lead_id}-status`,
     }).catch((err) => console.warn("[push] moverEtapa", err));
   }
@@ -220,10 +220,10 @@ export async function moverEtapa(
     console.warn("[webhook] Falha ao disparar webhooks em moverEtapa", err);
   }
 
-  revalidatePath("/pipeline");
+  revalidatePath("/vendas/pipeline");
   revalidatePath("/hoje");
-  revalidatePath("/funil");
-  revalidatePath(`/pipeline/${lead_id}`);
+  revalidatePath("/growth/funil");
+  revalidatePath(`/vendas/pipeline/${lead_id}`);
 }
 
 /**
@@ -247,9 +247,9 @@ export async function atualizarPercepcao(lead_id: number, percepcao: PercepcaoVe
     payload: { para: percepcao },
   });
 
-  revalidatePath(`/pipeline/${lead_id}`);
+  revalidatePath(`/vendas/pipeline/${lead_id}`);
   revalidatePath("/hoje");
-  revalidatePath("/funil");
+  revalidatePath("/growth/funil");
 }
 
 /**
@@ -276,8 +276,8 @@ export async function marcarTomUltimaInteracao(lead_id: number, tom: TomInteraca
     .update({ tom_interacao: tom })
     .eq("id", ultima.id);
 
-  revalidatePath(`/pipeline/${lead_id}`);
-  revalidatePath("/funil");
+  revalidatePath(`/vendas/pipeline/${lead_id}`);
+  revalidatePath("/growth/funil");
 }
 
 export async function adiarAcao(lead_id: number, dias: number) {
@@ -310,6 +310,6 @@ export async function adiarAcao(lead_id: number, dias: number) {
   // Revalida /pipeline também — se user adiou pelo /hoje e abrir /pipeline em
   // outra aba, deve ver a data atualizada sem F5.
   revalidatePath("/hoje");
-  revalidatePath("/pipeline");
-  revalidatePath(`/pipeline/${lead_id}`);
+  revalidatePath("/vendas/pipeline");
+  revalidatePath(`/vendas/pipeline/${lead_id}`);
 }

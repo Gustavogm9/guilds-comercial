@@ -237,7 +237,7 @@ function HistoricoList({ comissoes, fmt, onMudarStatus, pending }: any) {
                 </span>
               </td>
               <td className="px-3 py-2 text-xs">
-                {c.lead ? <a href={`/pipeline/${c.lead.id}`} className="text-primary hover:underline">{c.lead.empresa ?? c.lead.nome}</a> : "—"}
+                {c.lead ? <a href={`/vendas/pipeline/${c.lead.id}`} className="text-primary hover:underline">{c.lead.empresa ?? c.lead.nome}</a> : "—"}
               </td>
               <td className="px-3 py-2 text-right tabular-nums text-xs">{fmt(Number(c.receita_base))}</td>
               <td className="px-3 py-2 text-right tabular-nums text-sm font-semibold text-success-500">{fmt(Number(c.valor_comissao))}</td>

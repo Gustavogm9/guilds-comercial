@@ -169,7 +169,7 @@ export default async function FunilProdutoPage({ params }: Params) {
                     return (
                       <Link
                         key={lp.lead_id}
-                        href={`/pipeline/${l.id}`}
+                        href={`/vendas/pipeline/${l.id}`}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
                       >
                         <div className="flex-1 min-w-0">
@@ -222,7 +222,7 @@ export default async function FunilProdutoPage({ params }: Params) {
               </div>
               <div className="space-y-2">
                 {lookalikeLeads.map((l: any) => (
-                  <Link href={`/pipeline/${l.id}`} key={l.id} className="block p-2 rounded bg-background border border-border hover:border-blue-500/50 transition-colors text-xs">
+                  <Link href={`/vendas/pipeline/${l.id}`} key={l.id} className="block p-2 rounded bg-background border border-border hover:border-blue-500/50 transition-colors text-xs">
                     <div className="font-medium flex justify-between">
                       <span className="truncate pr-2">{l.empresa || l.nome}</span>
                       <span className="text-blue-600 shrink-0 font-bold">{l.produto_scores[pid]}%</span>

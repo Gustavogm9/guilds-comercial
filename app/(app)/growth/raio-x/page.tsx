@@ -94,7 +94,7 @@ export default async function RaioXPage(props: { searchParams: Promise<{ tab?: s
           { k: "pagos",      l: "Pagos sem resultado" },
           { k: "concluidos", l: "Concluídos" },
         ].map(t => (
-          <Link key={t.k} href={`/raio-x?tab=${t.k}`}
+          <Link key={t.k} href={`/growth/raio-x?tab=${t.k}`}
             className={`px-3 py-2 text-xs font-medium border-b-2 transition ${
               tab === t.k ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}>{t.l}</Link>
@@ -134,7 +134,7 @@ export default async function RaioXPage(props: { searchParams: Promise<{ tab?: s
               {list.map(r => (
                 <tr key={r.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.03]">
                   <td className="px-3 py-2">
-                    <Link href={`/pipeline/${r.lead_id}`} className="font-medium hover:text-primary">
+                    <Link href={`/vendas/pipeline/${r.lead_id}`} className="font-medium hover:text-primary">
                       {r.leads?.empresa || r.leads?.nome || "(?)"}
                     </Link>
                     <div className="text-[10px] text-muted-foreground">{r.leads?.segmento ?? "—"}</div>

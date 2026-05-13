@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function TrocarSenhaPage() {
-  const supabase = createClient();
   const router = useRouter();
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
@@ -26,6 +25,7 @@ export default function TrocarSenhaPage() {
     }
 
     setLoading(true);
+    const supabase = createClient();
 
     // 1) Atualiza a senha
     const { error: pwError } = await supabase.auth.updateUser({

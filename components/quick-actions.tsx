@@ -102,6 +102,23 @@ export default function QuickActions({ lead }: { lead: LeadEnriched }) {
     return d.toISOString().slice(0, 10);
   }
 
+  function proximoWhatsApp() {
+    switch (lead.crm_stage) {
+      case "Prospecção":
+      case "Qualificado":
+        return { acao: "Enviar D3", dias: 3 };
+      case "Raio-X Ofertado":
+      case "Raio-X Feito":
+      case "Proposta":
+      case "Negociação":
+        return { acao: "Fazer follow-up", dias: 2 };
+      case "Call Marcada":
+        return { acao: "Confirmar call", dias: 1 };
+      default:
+        return { acao: "Ligar", dias: 2 };
+    }
+  }
+
   function showSucesso(msg: string) {
     setFeedback({ tipo: "sucesso", mensagem: msg });
   }
@@ -133,11 +150,12 @@ export default function QuickActions({ lead }: { lead: LeadEnriched }) {
   function handleWhatsApp() {
     start(async () => {
       try {
+        const proximo = proximoWhatsApp();
         await registrarToque({
           lead_id: lead.id,
           canal: "WhatsApp",
-          proxima_acao: "Enviar D3",
-          data_proxima_acao: dataAhead(3),
+          proxima_acao: proximo.acao,
+          data_proxima_acao: dataAhead(proximo.dias),
         });
         showSucesso(t("hoje.qa_toast_toque_registrado"));
       } catch (e) {
@@ -215,6 +233,7 @@ export default function QuickActions({ lead }: { lead: LeadEnriched }) {
           type="button"
           disabled={pending}
           onClick={handleWhatsApp}
+          title={`Registra WhatsApp e agenda: ${proximoWhatsApp().acao}`}
           className="btn-secondary text-xs"
         >
           {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}

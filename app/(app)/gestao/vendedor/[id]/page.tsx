@@ -240,7 +240,7 @@ export default async function VendedorPage(
                   return (
                     <tr key={l.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                       <td className="px-3 py-2">
-                        <Link href={`/pipeline/${l.id}`} className="font-medium hover:text-primary">
+                        <Link href={`/vendas/pipeline/${l.id}`} className="font-medium hover:text-primary">
                           {l.empresa || l.nome || "(sem nome)"}
                         </Link>
                         {l.nome && l.empresa && <div className="text-[11px] text-muted-foreground">{l.nome}</div>}
@@ -279,7 +279,7 @@ export default async function VendedorPage(
           </div>
         </div>
         {pipelineLeads.length > 50 && (
-          <p className="text-xs text-muted-foreground mt-2 tabular-nums">Mostrando 50 de {pipelineLeads.length}. Use <Link href="/pipeline" className="text-primary hover:underline">Pipeline</Link> para ver tudo.</p>
+          <p className="text-xs text-muted-foreground mt-2 tabular-nums">Mostrando 50 de {pipelineLeads.length}. Use <Link href="/vendas/pipeline" className="text-primary hover:underline">Pipeline</Link> para ver tudo.</p>
         )}
       </section>
     </div>

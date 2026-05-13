@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       evento: "cadencia_vencendo",
       title: tpl.title,
       body: tpl.body,
-      url: `/pipeline/${c.lead_id}`,
+      url: `/vendas/pipeline/${c.lead_id}`,
       tag: `cadencia-${c.id}`,
     });
     if (r.enviados > 0) enviados++;

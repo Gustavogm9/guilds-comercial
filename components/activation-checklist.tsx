@@ -33,7 +33,7 @@ type Props = {
 
 export default function ActivationChecklist({ role, marcos, userId }: Props) {
   const DISMISS_KEY = `guilds-activation-dismissed-${userId}`;
-  const [dismissed, setDismissed] = useState(true); // começa como true (oculto) até hidratar
+  const [dismissed, setDismissed] = useState<boolean | null>(null);
 
   useEffect(() => {
     try {
@@ -47,9 +47,6 @@ export default function ActivationChecklist({ role, marcos, userId }: Props) {
   const total = marcos.length;
   const tudo = totalFeitos === total;
 
-  // Se tudo completo, some silenciosamente
-  if (tudo || dismissed) return null;
-
   function dispensar() {
     try {
       localStorage.setItem(DISMISS_KEY, "1");
@@ -57,12 +54,41 @@ export default function ActivationChecklist({ role, marcos, userId }: Props) {
     setDismissed(true);
   }
 
+  function retomar() {
+    try {
+      localStorage.removeItem(DISMISS_KEY);
+    } catch { /* ignora */ }
+    setDismissed(false);
+  }
+
+  // Se tudo completo, some silenciosamente
+  if (tudo) return null;
+
   const roleLabel =
     role === "gestor" ? "Gestor" :
     role === "comercial" ? "Comercial" :
     "SDR";
 
   const progress = Math.round((totalFeitos / total) * 100);
+
+  if (dismissed === null) return null;
+
+  if (dismissed) {
+    return (
+      <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+        <span className="text-muted-foreground">
+          Setup incompleto: <strong className="text-foreground">{totalFeitos}/{total}</strong> marcos concluÃ­dos
+        </span>
+        <button
+          type="button"
+          onClick={retomar}
+          className="font-semibold text-primary hover:underline whitespace-nowrap"
+        >
+          Retomar setup
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="card p-4 mb-6 border-primary/20 bg-primary/[0.03] animate-in fade-in slide-in-from-top-2">

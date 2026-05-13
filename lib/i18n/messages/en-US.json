@@ -647,7 +647,8 @@
                        "funil":  "Funnel",
                        "base":  "Base",
                        "raio_x":  "Diagnosis",
-                       "cadencia":  "Cadences"
+                       "cadencia":  "Cadences",
+                       "ligacoes":  "Calls"
                    },
     "trial":  {
                   "encerrado":  "Trial ended.",

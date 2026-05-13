@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
  *   P2 — Onboarding + NPS      → /comunicacao/pos-venda?tab=onboarding|nps
  *   P3 — Health Score          → /comunicacao/pos-venda?tab=saude
  *   P4 — Expansão              → /comunicacao/pos-venda?tab=expansoes
- *   P5 — Renovação             → /comunicacao/pos-venda?tab=expansoes (com filtro tipo=renovacao)
+ *   P5 — Renovação             → /comunicacao/pos-venda?tab=renovacoes
  *   P6 — Portal embaixador     → /growth/indicacoes (tab embaixadores)
  *
  * Cada bloco mostra KPI principal + estado atual + CTA.

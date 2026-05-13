@@ -14,7 +14,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, X, Users, Target, BarChart2, Import, MessageSquare, PhoneCall, CheckCircle2 } from "lucide-react";
+import { ArrowRight, X, Users, Target, BarChart2, Import, MessageSquare, PhoneCall } from "lucide-react";
 
 type Role = "gestor" | "comercial" | "sdr";
 
@@ -37,9 +37,9 @@ const ROLE_CONFIG: Record<Role, {
       { icone: Target,    titulo: "Configure o CRM",    descricao: "Defina ICP, cadência e segmentos da organização." },
     ],
     marcos: [
-      { titulo: "Adicionar 1º lead ao pipeline", href: "/base" },
-      { titulo: "Convidar 1 membro do time",     href: "/equipe" },
-      { titulo: "Iniciar 1 cadência de outreach", href: "/cadencia" },
+      { titulo: "Adicionar 1º lead ao pipeline", href: "/vendas/base" },
+      { titulo: "Convidar 1 membro do time",     href: "/gestao/equipe" },
+      { titulo: "Iniciar 1 cadência de outreach", href: "/comunicacao/cadencia" },
     ],
   },
   comercial: {
@@ -53,9 +53,9 @@ const ROLE_CONFIG: Record<Role, {
       { icone: PhoneCall,     titulo: "Registre ligações",  descricao: "Log de calls com resumo e próxima ação." },
     ],
     marcos: [
-      { titulo: "Registrar 1º lead como responsável", href: "/base" },
-      { titulo: "Qualificar 1 lead no pipeline",      href: "/pipeline" },
-      { titulo: "Registrar 1ª ligação ou interação",  href: "/ligacoes" },
+      { titulo: "Registrar 1º lead como responsável", href: "/vendas/base" },
+      { titulo: "Qualificar 1 lead no pipeline",      href: "/vendas/pipeline" },
+      { titulo: "Registrar 1ª ligação ou interação",  href: "/comunicacao/ligacoes" },
     ],
   },
   sdr: {
@@ -69,9 +69,9 @@ const ROLE_CONFIG: Record<Role, {
       { icone: Target,        titulo: "Qualifique leads",   descricao: "Identifique os interessados e passe pro comercial." },
     ],
     marcos: [
-      { titulo: "Prospectar 1º lead na base",           href: "/base" },
-      { titulo: "Qualificar 1 lead com o comercial",    href: "/pipeline" },
-      { titulo: "Registrar 1ª resposta na cadência",    href: "/cadencia" },
+      { titulo: "Prospectar 1º lead na base",           href: "/vendas/base" },
+      { titulo: "Qualificar 1 lead com o comercial",    href: "/vendas/pipeline" },
+      { titulo: "Registrar 1ª resposta na cadência",    href: "/comunicacao/cadencia" },
     ],
   },
 };
@@ -86,11 +86,11 @@ export default function WelcomeWizard({ userId, role }: Props) {
   const router = useRouter();
   const config = ROLE_CONFIG[role] ?? ROLE_CONFIG.comercial;
 
-  function done() {
+  function done(destination = "/hoje") {
     try {
       localStorage.setItem(`guilds-welcome-done-${userId}`, "1");
     } catch { /* ignora */ }
-    router.push("/hoje");
+    router.push(destination);
   }
 
   return (
@@ -102,7 +102,7 @@ export default function WelcomeWizard({ userId, role }: Props) {
           {/* Header gradiente */}
           <div className={`bg-gradient-to-br ${config.cor} p-8 text-white relative`}>
             <button
-              onClick={done}
+              onClick={() => done()}
               className="absolute top-4 right-4 text-white/60 hover:text-white"
               aria-label="Pular boas-vindas"
             >
@@ -157,13 +157,18 @@ export default function WelcomeWizard({ userId, role }: Props) {
             {step === 1 && (
               <div className="space-y-3">
                 {config.marcos.map((marco, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-secondary/20">
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => done(marco.href)}
+                    className="w-full text-left flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-secondary/20 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                  >
                     <div className="w-7 h-7 rounded-full border-2 border-muted-foreground/30 grid place-items-center shrink-0 text-xs font-bold text-muted-foreground">
                       {i + 1}
                     </div>
                     <span className="text-sm text-foreground">{marco.titulo}</span>
-                    <CheckCircle2 className="w-4 h-4 text-muted-foreground/25 ml-auto shrink-0" />
-                  </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/40 ml-auto shrink-0" />
+                  </button>
                 ))}
                 <p className="text-xs text-muted-foreground text-center pt-2">
                   Você verá o progresso no cockpit do dia (/hoje) até completar todos.
@@ -194,7 +199,7 @@ export default function WelcomeWizard({ userId, role }: Props) {
                     Próximo <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
-                  <button onClick={done} className="btn-primary text-sm">
+                  <button onClick={() => done(config.marcos[0]?.href ?? "/hoje")} className="btn-primary text-sm">
                     Começar! 🎉
                   </button>
                 )}

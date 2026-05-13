@@ -48,7 +48,7 @@ export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje
             Health score &lt; 40. Liga, manda mensagem, marca uma call — antes que renove (ou não).
           </p>
         </div>
-        <Link href="/comunicacao/pos-venda" className="btn-ghost text-xs whitespace-nowrap" prefetch>
+        <Link href="/comunicacao/pos-venda?tab=saude" className="btn-ghost text-xs whitespace-nowrap" prefetch>
           Ver todos <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
@@ -60,7 +60,7 @@ export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
           >
             <div className="flex-1 min-w-0">
-              <Link href={`/pipeline/${l.lead_id}`} className="text-sm font-medium hover:text-destructive transition-colors truncate block">
+              <Link href={`/vendas/pipeline/${l.lead_id}`} className="text-sm font-medium hover:text-destructive transition-colors truncate block">
                 {l.lead_empresa ?? l.lead_nome ?? `Lead #${l.lead_id}`}
               </Link>
               <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums flex items-center gap-2">
@@ -77,7 +77,7 @@ export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje
             >
               <Eye className="w-3 h-3" aria-hidden="true" />
             </button>
-            <Link href={`/pipeline/${l.lead_id}`} className="btn-secondary text-xs" prefetch>
+            <Link href={`/vendas/pipeline/${l.lead_id}`} className="btn-secondary text-xs" prefetch>
               <Heart className="w-3 h-3" aria-hidden="true" /> Reativar
             </Link>
           </li>
@@ -85,7 +85,7 @@ export default function HealthEmRiscoAlert({ leads }: { leads: HealthEmRiscoHoje
       </ul>
 
       {restantes > 0 && (
-        <Link href="/comunicacao/pos-venda" className="text-xs text-destructive hover:underline mt-2 inline-block">
+        <Link href="/comunicacao/pos-venda?tab=saude" className="text-xs text-destructive hover:underline mt-2 inline-block">
           + {restantes} em risco
         </Link>
       )}

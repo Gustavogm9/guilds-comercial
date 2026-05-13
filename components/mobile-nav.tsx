@@ -1,17 +1,17 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Kanban, Search, Activity, BarChart3 } from "lucide-react";
+import { Home, Kanban, Search, MessageSquare, PhoneCall } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 
 const NAV = [
   { href: "/hoje",     i18nKey: "mobile_nav.hoje",     icon: Home },
-  { href: "/pipeline", i18nKey: "mobile_nav.pipeline", icon: Kanban },
-  { href: "/funil",    i18nKey: "mobile_nav.funil",    icon: BarChart3 },
-  { href: "/base",     i18nKey: "mobile_nav.base",     icon: Search },
-  { href: "/raio-x",   i18nKey: "mobile_nav.raio_x",   icon: Activity },
+  { href: "/vendas/pipeline", i18nKey: "mobile_nav.pipeline", icon: Kanban },
+  { href: "/comunicacao/cadencia", i18nKey: "mobile_nav.cadencia", icon: MessageSquare },
+  { href: "/comunicacao/ligacoes", i18nKey: "mobile_nav.ligacoes", icon: PhoneCall },
+  { href: "/vendas/base",     i18nKey: "mobile_nav.base",     icon: Search },
 ];
 
 export default function MobileNav() {

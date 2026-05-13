@@ -134,7 +134,7 @@ export async function criarPedidoIndicacao(input: {
   }
 
   revalidatePath("/indicacoes");
-  revalidatePath(`/pipeline/${input.lead_id}`);
+  revalidatePath(`/vendas/pipeline/${input.lead_id}`);
   revalidatePath("/hoje");
 }
 
@@ -313,9 +313,9 @@ export async function responderPedidoIndicacao(input: {
 
   revalidatePath("/indicacoes");
   revalidatePath("/hoje");
-  revalidatePath("/base");
-  revalidatePath("/funil");
-  revalidatePath(`/pipeline/${pedido.lead_id}`);
+  revalidatePath("/vendas/base");
+  revalidatePath("/growth/funil");
+  revalidatePath(`/vendas/pipeline/${pedido.lead_id}`);
 
   return {
     indicacoes_criadas: indicacoesValidadas.length,
@@ -453,7 +453,7 @@ export async function criarIndicacaoManual(input: {
   }
 
   revalidatePath("/indicacoes");
-  revalidatePath("/base");
+  revalidatePath("/vendas/base");
   return { indicacao_id: indicacaoRow!.id, lead_id: leadId };
 }
 
@@ -556,7 +556,7 @@ export async function converterIndicacaoEmLead(indicacao_id: number) {
   });
 
   revalidatePath("/indicacoes");
-  revalidatePath("/base");
+  revalidatePath("/vendas/base");
   return { lead_id: leadRow!.id };
 }
 

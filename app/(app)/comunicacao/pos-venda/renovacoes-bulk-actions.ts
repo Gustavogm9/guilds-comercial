@@ -97,7 +97,7 @@ export async function bulkAtualizarRenovacoes(
   }
 
   revalidatePath("/comunicacao/pos-venda");
-  revalidatePath("/funil");
+  revalidatePath("/growth/funil");
   revalidatePath("/flywheel");
 
   return { atualizados, erros };

@@ -61,7 +61,7 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
         reset();
         setOpen(false);
         // Bug 6: se foi direto p/ pipeline, abre a tela do lead recém-criado
-        if (direto && id) router.push(`/pipeline/${id}`);
+        if (direto && id) router.push(`/vendas/pipeline/${id}`);
         else router.refresh();
       } catch (e) {
         setErro(e instanceof Error ? e.message : t("base.row_toast_erro"));

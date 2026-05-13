@@ -22,7 +22,7 @@ type EtapaConfig = {
   bgCor: string;
   borderCor: string;
   /** Link para a ação — se null, apenas exibe a dica */
-  href?: string;
+  href?: string | ((leadId: number) => string);
   hrefLabel?: string;
 };
 
@@ -44,7 +44,8 @@ const ETAPA_CONFIG: Record<string, EtapaConfig> = {
     cor: "text-sky-600 dark:text-sky-300",
     bgCor: "bg-sky-100/80 dark:bg-sky-500/15",
     borderCor: "border-sky-200/70 dark:border-sky-500/25",
-    hrefLabel: "Acessar script do Raio-X →",
+    href: "#acoes-lead",
+    hrefLabel: "Ofertar Raio-X →",
   },
   "Raio-X Ofertado": {
     acao: "Fazer follow-up da oferta do Raio-X",
@@ -53,6 +54,8 @@ const ETAPA_CONFIG: Record<string, EtapaConfig> = {
     cor: "text-indigo-600 dark:text-indigo-300",
     bgCor: "bg-indigo-100/80 dark:bg-indigo-500/15",
     borderCor: "border-indigo-200/70 dark:border-indigo-500/25",
+    href: "#cadencia",
+    hrefLabel: "Fazer follow-up →",
   },
   "Raio-X Feito": {
     acao: "Agendar call de revisão do Raio-X",
@@ -71,6 +74,8 @@ const ETAPA_CONFIG: Record<string, EtapaConfig> = {
     cor: "text-amber-600 dark:text-amber-300",
     bgCor: "bg-amber-100/80 dark:bg-amber-500/15",
     borderCor: "border-amber-200/70 dark:border-amber-500/25",
+    href: "#ligacoes",
+    hrefLabel: "Registrar resultado →",
   },
   "Diagnóstico Pago": {
     acao: "Elaborar e enviar proposta comercial",
@@ -79,6 +84,7 @@ const ETAPA_CONFIG: Record<string, EtapaConfig> = {
     cor: "text-orange-600 dark:text-orange-300",
     bgCor: "bg-orange-100/80 dark:bg-orange-500/15",
     borderCor: "border-orange-200/70 dark:border-orange-500/25",
+    href: (leadId) => `/proposta/${leadId}`,
     hrefLabel: "Gerar proposta com IA →",
   },
   "Proposta": {
@@ -88,6 +94,8 @@ const ETAPA_CONFIG: Record<string, EtapaConfig> = {
     cor: "text-rose-600 dark:text-rose-300",
     bgCor: "bg-rose-100/80 dark:bg-rose-500/15",
     borderCor: "border-rose-200/70 dark:border-rose-500/25",
+    href: (leadId) => `/proposta/${leadId}`,
+    hrefLabel: "Abrir proposta →",
   },
   "Negociação": {
     acao: "Fechar negociação",
@@ -96,6 +104,8 @@ const ETAPA_CONFIG: Record<string, EtapaConfig> = {
     cor: "text-pink-600 dark:text-pink-300",
     bgCor: "bg-pink-100/80 dark:bg-pink-500/15",
     borderCor: "border-pink-200/70 dark:border-pink-500/25",
+    href: "#acoes-lead",
+    hrefLabel: "Atualizar etapa →",
   },
 };
 
@@ -113,9 +123,10 @@ export default function NextActionCard({ crmStage, leadId }: Props) {
   const Icon = config.icone;
 
   // Resolve href: se começa com '#', é âncora local na página do lead
-  const resolvedHref = config.href?.startsWith("#")
-    ? `${config.href}` // âncora na página atual
-    : config.href;
+  const href = typeof config.href === "function" ? config.href(leadId) : config.href;
+  const resolvedHref = href?.startsWith("#")
+    ? `${href}` // âncora na página atual
+    : href;
 
   return (
     <div className={`mt-4 flex items-start gap-3 p-3.5 rounded-xl border ${config.bgCor} ${config.borderCor}`}>
@@ -141,21 +152,7 @@ export default function NextActionCard({ crmStage, leadId }: Props) {
               >
                 {config.hrefLabel} <ArrowRight className="w-3 h-3" />
               </Link>
-            ) : (
-              // Ação especial: link para proposta IA ou script interno
-              crmStage === "Diagnóstico Pago" ? (
-                <Link
-                  href={`/proposta/${leadId}`}
-                  className={`inline-flex items-center gap-1 text-xs font-semibold ${config.cor} hover:underline`}
-                >
-                  {config.hrefLabel} <ArrowRight className="w-3 h-3" />
-                </Link>
-              ) : (
-                <span className={`inline-flex items-center gap-1 text-xs font-semibold ${config.cor}`}>
-                  {config.hrefLabel}
-                </span>
-              )
-            )}
+            ) : null}
           </div>
         )}
       </div>

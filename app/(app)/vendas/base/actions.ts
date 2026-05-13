@@ -146,8 +146,8 @@ export async function criarLead(input: {
     console.warn("[webhook] Falha ao disparar webhook em criarLead", err);
   }
 
-  revalidatePath("/base");
-  if (direto) revalidatePath("/pipeline");
+  revalidatePath("/vendas/base");
+  if (direto) revalidatePath("/vendas/pipeline");
   return data!.id;
 }
 
@@ -370,7 +370,7 @@ export async function importarLeadsEmMassa(
     }
   }
 
-  revalidatePath("/base");
+  revalidatePath("/vendas/base");
   return { criados, atualizados, ignorados: sem_empresa, sem_empresa, duplicados, erros };
 }
 
@@ -403,7 +403,7 @@ export async function qualificarBase(input: {
     payload: { fit: input.fit_icp, decisor: input.decisor ?? null },
   });
 
-  revalidatePath("/base");
+  revalidatePath("/vendas/base");
 }
 
 /** Promove um lead da base → pipeline */
@@ -434,9 +434,9 @@ export async function promoverParaPipeline(lead_id: number, proxima_acao: string
     payload: { etapa: "Prospecção" },
   });
 
-  revalidatePath("/base");
-  revalidatePath("/pipeline");
-  redirect(`/pipeline/${lead_id}`);
+  revalidatePath("/vendas/base");
+  revalidatePath("/vendas/pipeline");
+  redirect(`/vendas/pipeline/${lead_id}`);
 }
 
 /**
@@ -478,8 +478,8 @@ export async function arquivarLead(
     },
   });
 
-  revalidatePath("/base");
-  revalidatePath("/funil");
+  revalidatePath("/vendas/base");
+  revalidatePath("/growth/funil");
 }
 
 /** Atribui responsável a um lead */
@@ -496,8 +496,8 @@ export async function atribuirResponsavel(lead_id: number, responsavel_id: strin
     lead_id, ator_id: user?.id ?? null,
     tipo: "responsavel_alterado", payload: { para: responsavel_id },
   });
-  revalidatePath("/base");
-  revalidatePath("/pipeline");
+  revalidatePath("/vendas/base");
+  revalidatePath("/vendas/pipeline");
 }
 
 /** Enriquecimento de Lead via IA (Copiloto) */
@@ -549,7 +549,7 @@ export async function enriquecerLead(lead_id: number) {
     tipo: "enriquecido_ia", payload: { dados: enrichedData },
   });
 
-  revalidatePath("/base");
+  revalidatePath("/vendas/base");
 }
 
 export async function editarLeadInline(
@@ -599,5 +599,5 @@ export async function editarLeadInline(
     throw new Error("Erro ao atualizar lead: " + error.message);
   }
 
-  revalidatePath("/base");
+  revalidatePath("/vendas/base");
 }

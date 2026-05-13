@@ -28,6 +28,11 @@ import type { OrgRecompensaConfig, RecompensasResumo, RecompensaTipo } from "@/l
 type Tab = "pendentes" | "indicacoes" | "embaixadores" | "recompensas";
 type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
 type T = (key: string) => string;
+const TABS_VALIDAS: ReadonlyArray<Tab> = ["pendentes", "indicacoes", "embaixadores", "recompensas"];
+
+function isTab(value: unknown): value is Tab {
+  return typeof value === "string" && (TABS_VALIDAS as readonly string[]).includes(value);
+}
 
 /**
  * /indicacoes — feature de advocacy / funil borboleta.
@@ -47,6 +52,7 @@ type T = (key: string) => string;
 export default function IndicacoesClient({
   meId,
   isGestor,
+  initialTab,
   pendentes,
   indicacoes,
   embaixadores,
@@ -58,6 +64,7 @@ export default function IndicacoesClient({
 }: {
   meId: string;
   isGestor: boolean;
+  initialTab?: string;
   pendentes: PedidoIndicacaoEnriched[];
   indicacoes: IndicacaoEnriched[];
   embaixadores: TopEmbaixador[];
@@ -67,7 +74,7 @@ export default function IndicacoesClient({
   recompensaConfig: OrgRecompensaConfig | null;
   recompensasResumo: RecompensasResumo | null;
 }) {
-  const [tab, setTab] = useState<Tab>("pendentes");
+  const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : "pendentes");
   const [locale, setLocale] = useState<Locale>("pt-BR");
   useEffect(() => setLocale(getClientLocale()), []);
   const t = getT(locale);
@@ -207,7 +214,8 @@ function TabBtn({ v, cur, set, icon, label }: {
 }) {
   const active = v === cur;
   return (
-    <button
+    <Link
+      href={`/growth/indicacoes?tab=${v}`}
       role="tab"
       aria-selected={active}
       onClick={() => set(v)}
@@ -216,7 +224,7 @@ function TabBtn({ v, cur, set, icon, label }: {
       }`}
     >
       {icon} {label}
-    </button>
+    </Link>
   );
 }
 
@@ -296,7 +304,7 @@ function PendentesTab({ pendentes, t, locale, onSucesso, onErro }: {
             {pendentes.map((p) => (
               <tr key={p.pedido_id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                 <td className="px-3 py-2 font-medium">
-                  <Link href={`/pipeline/${p.lead_id}`} className="hover:text-primary transition-colors">
+                  <Link href={`/vendas/pipeline/${p.lead_id}`} className="hover:text-primary transition-colors">
                     {p.lead_empresa ?? p.lead_nome ?? `Lead #${p.lead_id}`}
                   </Link>
                 </td>
@@ -582,14 +590,14 @@ function IndicacoesTab({ indicacoes, t, locale }: {
                 <div className="font-medium text-sm">{i.indicado_nome}</div>
                 {i.indicado_empresa && <div className="text-xs text-muted-foreground">{i.indicado_empresa}</div>}
                 {i.lead_convertido_id && (
-                  <Link href={`/pipeline/${i.lead_convertido_id}`} className="text-[10px] text-primary hover:underline">
+                  <Link href={`/vendas/pipeline/${i.lead_convertido_id}`} className="text-[10px] text-primary hover:underline">
                     Ver lead →
                   </Link>
                 )}
               </td>
               <td className="px-3 py-2 text-xs text-muted-foreground">
                 {i.embaixador_lead_id ? (
-                  <Link href={`/pipeline/${i.embaixador_lead_id}`} className="hover:text-primary transition-colors">
+                  <Link href={`/vendas/pipeline/${i.embaixador_lead_id}`} className="hover:text-primary transition-colors">
                     {i.embaixador_empresa ?? i.embaixador_nome ?? "—"}
                   </Link>
                 ) : (
@@ -664,7 +672,7 @@ function EmbaixadoresTab({ embaixadores, tokensEmbaixador, baseUrl, t, locale }:
               <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">{idx + 1}</td>
               <td className="px-3 py-2">
                 <Link
-                  href={`/pipeline/${e.embaixador_lead_id}`}
+                  href={`/vendas/pipeline/${e.embaixador_lead_id}`}
                   className="font-medium hover:text-primary transition-colors"
                 >
                   {e.embaixador_empresa ?? e.embaixador_nome ?? `Lead #${e.embaixador_lead_id}`}
@@ -828,7 +836,7 @@ function RecompensasTab({ recompensas, historicoPagas, isGestor, config, resumo,
                   <tr key={r.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                     <td className="px-3 py-2 text-xs">
                       {r.embaixador_lead_id ? (
-                        <Link href={`/pipeline/${r.embaixador_lead_id}`} className="hover:text-primary">
+                        <Link href={`/vendas/pipeline/${r.embaixador_lead_id}`} className="hover:text-primary">
                           {r.embaixador_empresa ?? r.embaixador_nome}
                         </Link>
                       ) : (
@@ -837,7 +845,7 @@ function RecompensasTab({ recompensas, historicoPagas, isGestor, config, resumo,
                     </td>
                     <td className="px-3 py-2 text-xs">
                       {r.lead_convertido_id ? (
-                        <Link href={`/pipeline/${r.lead_convertido_id}`} className="hover:text-primary">
+                        <Link href={`/vendas/pipeline/${r.lead_convertido_id}`} className="hover:text-primary">
                           {r.lead_convertido_empresa ?? r.indicado_nome}
                         </Link>
                       ) : (

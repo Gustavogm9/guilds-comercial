@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { parseImpersonationCookieValue } from "@/lib/impersonation";
 
 /**
  * Supabase SSR client com cookies do Next.
@@ -42,9 +43,9 @@ export const createClient = () => {
 
     try {
       const store = await cookies();
-      const targetUserId = store.get("x-impersonate-user")?.value;
-      
-      if (targetUserId && targetUserId !== res.data.user.id) {
+      const impersonation = parseImpersonationCookieValue(store.get("x-impersonate-user")?.value);
+
+      if (impersonation && impersonation.adminId === res.data.user.id && impersonation.targetUserId !== res.data.user.id) {
         // Return a mocked User object that looks like the target user
         return {
           ...res,
@@ -52,10 +53,10 @@ export const createClient = () => {
             ...res.data,
             user: {
               ...res.data.user,
-              id: targetUserId,
+              id: impersonation.targetUserId,
               // Mark it for UI or internal logic if needed
               _is_impersonated: true,
-              _real_admin_id: res.data.user.id,
+              _real_admin_id: impersonation.adminId,
             } as any
           }
         };

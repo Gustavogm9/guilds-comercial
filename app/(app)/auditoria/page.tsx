@@ -164,7 +164,7 @@ export default async function AuditoriaPage(
                   </span>
                   {e.lead_empresa && (
                     <Link
-                      href={`/pipeline/${e.lead_id}`}
+                      href={`/vendas/pipeline/${e.lead_id}`}
                       className="truncate hover:text-foreground"
                     >
                       → {e.lead_empresa}

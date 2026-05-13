@@ -47,7 +47,7 @@ export default function NpsPendenteAlert({ npsList }: { npsList: NpsPendenteHoje
             Coleta a nota pra fechar o ciclo do funil borboleta — promotores viram embaixadores.
           </p>
         </div>
-        <Link href="/comunicacao/pos-venda" className="btn-ghost text-xs whitespace-nowrap" prefetch>
+        <Link href="/comunicacao/pos-venda?tab=nps" className="btn-ghost text-xs whitespace-nowrap" prefetch>
           Ver todos <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
@@ -59,14 +59,14 @@ export default function NpsPendenteAlert({ npsList }: { npsList: NpsPendenteHoje
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border"
           >
             <div className="flex-1 min-w-0">
-              <Link href={`/pipeline/${n.lead_id}`} className="text-sm font-medium hover:text-warning-500 transition-colors truncate block">
+              <Link href={`/vendas/pipeline/${n.lead_id}`} className="text-sm font-medium hover:text-warning-500 transition-colors truncate block">
                 {n.lead_empresa ?? n.lead_nome ?? `Lead #${n.lead_id}`}
               </Link>
               <div className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                 Solicitado há {n.dias_pendente}d
               </div>
             </div>
-            <Link href="/comunicacao/pos-venda" className="btn-secondary text-xs" prefetch>
+            <Link href="/comunicacao/pos-venda?tab=nps" className="btn-secondary text-xs" prefetch>
               <Star className="w-3 h-3" aria-hidden="true" />
               Registrar
             </Link>
@@ -75,7 +75,7 @@ export default function NpsPendenteAlert({ npsList }: { npsList: NpsPendenteHoje
       </ul>
 
       {restantes > 0 && (
-        <Link href="/comunicacao/pos-venda" className="text-xs text-warning-500 hover:underline mt-2 inline-block">
+        <Link href="/comunicacao/pos-venda?tab=nps" className="text-xs text-warning-500 hover:underline mt-2 inline-block">
           + {restantes} pendente{restantes > 1 ? "s" : ""}
         </Link>
       )}

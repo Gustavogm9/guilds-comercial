@@ -55,6 +55,11 @@ interface RenovacaoLead {
 }
 type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
 type T = (key: string) => string;
+const TABS_VALIDAS: ReadonlyArray<Tab> = ["onboarding", "nps", "saude", "expansoes", "renovacoes", "templates"];
+
+function isTab(value: unknown): value is Tab {
+  return typeof value === "string" && (TABS_VALIDAS as readonly string[]).includes(value);
+}
 
 /**
  * /pos-venda — fase P2 do flywheel.
@@ -67,6 +72,7 @@ type T = (key: string) => string;
 export default function PosVendaClient({
   meId,
   isGestor,
+  initialTab,
   onboardings,
   templates,
   templateItens,
@@ -81,6 +87,7 @@ export default function PosVendaClient({
 }: {
   meId: string;
   isGestor: boolean;
+  initialTab?: string;
   onboardings: OnboardingPendente[];
   templates: OnboardingTemplate[];
   templateItens: OnboardingTemplateItem[];
@@ -93,7 +100,10 @@ export default function PosVendaClient({
   expansoesHistorico: Expansao[];
   renovacoesLeads: Array<RenovacaoLead>;
 }) {
-  const [tab, setTab] = useState<Tab>("onboarding");
+  const tabInicial: Tab = isTab(initialTab) && (initialTab !== "templates" || isGestor)
+    ? initialTab
+    : "onboarding";
+  const [tab, setTab] = useState<Tab>(tabInicial);
   const [locale, setLocale] = useState<Locale>("pt-BR");
   useEffect(() => setLocale(getClientLocale()), []);
   const t = getT(locale);
@@ -250,7 +260,8 @@ function TabBtn({ v, cur, set, icon, label }: {
 }) {
   const active = v === cur;
   return (
-    <button
+    <Link
+      href={`/comunicacao/pos-venda?tab=${v}`}
       role="tab"
       aria-selected={active}
       onClick={() => set(v)}
@@ -259,7 +270,7 @@ function TabBtn({ v, cur, set, icon, label }: {
       }`}
     >
       {icon} {label}
-    </button>
+    </Link>
   );
 }
 
@@ -292,7 +303,7 @@ function OnboardingTab({ onboardings, t, locale }: {
           {onboardings.map((o) => (
             <tr key={o.checklist_id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
               <td className="px-3 py-2 font-medium">
-                <Link href={`/pipeline/${o.lead_id}`} className="hover:text-primary transition-colors">
+                <Link href={`/vendas/pipeline/${o.lead_id}`} className="hover:text-primary transition-colors">
                   {o.lead_empresa ?? o.lead_nome ?? `Lead #${o.lead_id}`}
                 </Link>
               </td>
@@ -400,7 +411,7 @@ function NpsTab({ responses, t, locale, onSucesso, onErro }: {
             {responses.map((n) => (
               <tr key={n.id} className="hover:bg-secondary/60 dark:hover:bg-white/[0.04]">
                 <td className="px-3 py-2">
-                  <Link href={`/pipeline/${n.lead_id}`} className="hover:text-primary transition-colors">
+                  <Link href={`/vendas/pipeline/${n.lead_id}`} className="hover:text-primary transition-colors">
                     Lead #{n.lead_id}
                   </Link>
                 </td>
@@ -977,7 +988,7 @@ function SaudeTab({ scores, resumo, t, locale }: {
             {scores.map((s) => (
               <tr key={s.lead_id} className={`hover:bg-secondary/60 dark:hover:bg-white/[0.04] ${s.categoria === "em_risco" ? "bg-destructive/[0.03]" : ""}`}>
                 <td className="px-3 py-2 font-medium">
-                  <Link href={`/pipeline/${s.lead_id}`} className="hover:text-primary transition-colors">
+                  <Link href={`/vendas/pipeline/${s.lead_id}`} className="hover:text-primary transition-colors">
                     {s.lead_empresa ?? s.lead_nome ?? `Lead #${s.lead_id}`}
                   </Link>
                 </td>
@@ -1165,7 +1176,7 @@ function ExpansoesTab({
               <ul className="space-y-0.5">
                 {sugestoes.map((s) => (
                   <li key={s.lead_id}>
-                    <Link href={`/pipeline/${s.lead_id}`} className="text-primary hover:underline">
+                    <Link href={`/vendas/pipeline/${s.lead_id}`} className="text-primary hover:underline">
                       {s.lead_empresa ?? s.lead_nome ?? `Lead #${s.lead_id}`}
                     </Link>
                     {" "}— score {s.health_score}
@@ -1195,7 +1206,7 @@ function ExpansoesTab({
                 return (
                   <tr key={e.id} className={`hover:bg-secondary/60 dark:hover:bg-white/[0.04] ${atrasada ? "bg-warning-500/[0.03]" : ""}`}>
                     <td className="px-3 py-2">
-                      <Link href={`/pipeline/${e.cliente_lead_id}`} className="font-medium hover:text-primary transition-colors">
+                      <Link href={`/vendas/pipeline/${e.cliente_lead_id}`} className="font-medium hover:text-primary transition-colors">
                         {e.cliente_empresa ?? e.cliente_nome ?? `Lead #${e.cliente_lead_id}`}
                       </Link>
                     </td>
@@ -1295,7 +1306,7 @@ function ExpansoesTab({
                 {historico.map((h) => (
                   <tr key={h.id}>
                     <td className="px-3 py-1.5">
-                      <Link href={`/pipeline/${h.cliente_lead_id}`} className="hover:text-primary">
+                      <Link href={`/vendas/pipeline/${h.cliente_lead_id}`} className="hover:text-primary">
                         {h.titulo}
                       </Link>
                     </td>
@@ -1814,7 +1825,7 @@ function RenovacoesBulkTab({
                   return (
                     <tr key={l.id} className={hasEdit ? "bg-warning-500/5" : "hover:bg-secondary/40"}>
                       <td className="px-3 py-2">
-                        <Link href={`/pipeline/${l.id}`} className="font-medium hover:text-primary transition-colors">
+                        <Link href={`/vendas/pipeline/${l.id}`} className="font-medium hover:text-primary transition-colors">
                           {l.empresa ?? l.nome ?? `Lead #${l.id}`}
                         </Link>
                       </td>

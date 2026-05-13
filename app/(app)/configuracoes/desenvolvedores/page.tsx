@@ -4,6 +4,8 @@ import { Terminal } from "lucide-react";
 import { ApiKeysManager, WebhooksManager } from "./client-components";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export default async function DevelopersPage() {
   const session = await requireActiveOrg();
   

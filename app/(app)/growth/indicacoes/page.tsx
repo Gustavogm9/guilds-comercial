@@ -93,16 +93,17 @@ export default async function IndicacoesPage(props: {
       <GrowthTabs isGestor={isGestor} />
       <IndicacoesClient
         meId={me.id}
-      isGestor={isGestor}
-      pendentes={(pendentesRes.data ?? []) as PedidoIndicacaoEnriched[]}
-      indicacoes={(indicacoesRes.data ?? []) as IndicacaoEnriched[]}
-      embaixadores={(embaixadoresRes.data ?? []) as TopEmbaixador[]}
-      kpis={(kpisRes.data ?? null) as AdvocacyKpis | null}
-      tokensEmbaixador={(tokensRes.data ?? []) as EmbaixadorToken[]}
-      baseUrl={baseUrl}
-      recompensaConfig={(recompensaConfigRes.data ?? null) as OrgRecompensaConfig | null}
-      recompensasResumo={(recompensasResumoRes.data ?? null) as RecompensasResumo | null}
-    />
+        isGestor={isGestor}
+        initialTab={searchParams.tab}
+        pendentes={(pendentesRes.data ?? []) as PedidoIndicacaoEnriched[]}
+        indicacoes={(indicacoesRes.data ?? []) as IndicacaoEnriched[]}
+        embaixadores={(embaixadoresRes.data ?? []) as TopEmbaixador[]}
+        kpis={(kpisRes.data ?? null) as AdvocacyKpis | null}
+        tokensEmbaixador={(tokensRes.data ?? []) as EmbaixadorToken[]}
+        baseUrl={baseUrl}
+        recompensaConfig={(recompensaConfigRes.data ?? null) as OrgRecompensaConfig | null}
+        recompensasResumo={(recompensasResumoRes.data ?? null) as RecompensasResumo | null}
+      />
     </div>
   );
 }
