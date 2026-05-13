@@ -28,10 +28,16 @@ function normalizarConvites(convites: Array<{ email: string; role: Role }>) {
 
 const IDIOMAS_VALIDOS = new Set(["pt-BR", "en-US"]);
 const MOEDAS_VALIDAS = new Set(["BRL", "USD", "EUR", "GBP"]);
+const OBJETIVOS_VALIDOS = new Set(["gerar_pipeline", "organizar_time", "aumentar_conversao", "previsibilidade"]);
+const TAMANHOS_TIME_VALIDOS = new Set(["1", "2-5", "6-15", "16+"]);
+const CADENCIAS_VALIDAS = new Set(["outbound_email", "whatsapp_followup", "pos_venda"]);
 const PAIS_REGEX = /^[A-Z]{2}$/;
 
 export async function finalizarOnboarding(dados: {
   segmento: string;
+  objetivo_principal?: string;
+  tamanho_time?: string;
+  cadencia_inicial?: string;
   dor_principal: string;
   cargo_foco: string;
   gerarDemo: boolean;
@@ -110,6 +116,12 @@ export async function finalizarOnboarding(dados: {
 
   // Cap de tamanho em campos free-text (evita payloads gigantes pra DB)
   const segmentoFinal = (dados.segmento || "").slice(0, 80).trim() || null;
+  const objetivoFinal = dados.objetivo_principal && OBJETIVOS_VALIDOS.has(dados.objetivo_principal)
+    ? dados.objetivo_principal : "gerar_pipeline";
+  const tamanhoTimeFinal = dados.tamanho_time && TAMANHOS_TIME_VALIDOS.has(dados.tamanho_time)
+    ? dados.tamanho_time : "2-5";
+  const cadenciaInicialFinal = dados.cadencia_inicial && CADENCIAS_VALIDAS.has(dados.cadencia_inicial)
+    ? dados.cadencia_inicial : "outbound_email";
   const dorFinal = (dados.dor_principal || "").slice(0, 500).trim() || null;
   const cargoFocoFinal = (dados.cargo_foco || "").slice(0, 80).trim() || null;
 
@@ -190,7 +202,7 @@ export async function finalizarOnboarding(dados: {
       valor_potencial: 5000,
       responsavel_id: user.id,
       data_primeiro_contato: new Date().toISOString().slice(0, 10),
-      proxima_acao: "Enviar D0",
+      proxima_acao: proximaAcaoDemo(cadenciaInicialFinal),
       data_proxima_acao: new Date().toISOString().slice(0, 10),
     });
   }
@@ -226,6 +238,9 @@ export async function finalizarOnboarding(dados: {
     payload: {
       segmento: segmentoFinal,
       cargo_foco: cargoFocoFinal,
+      objetivo_principal: objetivoFinal,
+      tamanho_time: tamanhoTimeFinal,
+      cadencia_inicial: cadenciaInicialFinal,
       gerar_demo: dados.gerarDemo,
       convites: convites.length,
       ia_habilitada: dados.habilitarIA ?? true,
@@ -233,4 +248,10 @@ export async function finalizarOnboarding(dados: {
   });
 
   return { sucesso: true, organizacao_id: org.id };
+}
+
+function proximaAcaoDemo(cadencia: string) {
+  if (cadencia === "whatsapp_followup") return "Enviar WhatsApp de abertura";
+  if (cadencia === "pos_venda") return "Agendar check-in de sucesso";
+  return "Enviar D0";
 }
