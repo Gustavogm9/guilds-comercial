@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";

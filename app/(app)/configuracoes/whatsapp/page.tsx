@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { redirect } from "next/navigation";
