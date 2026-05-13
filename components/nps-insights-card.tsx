@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Loader2, AlertCircle, Sparkles, TrendingUp, TrendingDown } from "lucide-react";
 import { analisarComentariosNps } from "@/app/(app)/growth/indicacoes/script-actions";
 
@@ -20,7 +20,7 @@ export default function NpsInsightsCard() {
   const [erro, setErro] = useState<string | null>(null);
   const [expandido, setExpandido] = useState(false);
 
-  function carregar() {
+  const carregar = useCallback(() => {
     setErro(null);
     startTransition(async () => {
       try {
@@ -30,13 +30,13 @@ export default function NpsInsightsCard() {
         setErro(e instanceof Error ? e.message : "Erro");
       }
     });
-  }
+  }, [startTransition]);
 
   useEffect(() => {
     if (expandido && !insights && !pending) {
       carregar();
     }
-  }, [expandido]);
+  }, [carregar, expandido, insights, pending]);
 
   return (
     <div className="card p-4 mb-4">

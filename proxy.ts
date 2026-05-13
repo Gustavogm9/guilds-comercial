@@ -40,8 +40,14 @@ export async function proxy(req: NextRequest) {
     "/api/auth",
     "/api/billing",
     "/api/convite",
+    "/api/cron",
+    "/api/push",
     "/api/v1",
+    "/api/webhooks",
     "/auth/callback",
+    "/indicar",
+    "/lp",
+    "/nps",
     "/aceitar-convite", // página pública de signup via convite
   ];
   const publicPaths = new Set([

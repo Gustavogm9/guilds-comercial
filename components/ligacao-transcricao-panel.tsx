@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Upload, FileAudio, Loader2, Check, AlertCircle, ChevronDown, ChevronUp, Sparkles, ListChecks, AlertTriangle, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -38,7 +38,7 @@ export default function LigacaoTranscricaoPanel({ leadId }: { leadId: number }) 
   const [feedback, setFeedback] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [expandido, setExpandido] = useState<number | null>(null);
 
-  async function carregar() {
+  const carregar = useCallback(async () => {
     setCarregando(true);
     try {
       const sb = createClient();
@@ -74,9 +74,9 @@ export default function LigacaoTranscricaoPanel({ leadId }: { leadId: number }) 
     } finally {
       setCarregando(false);
     }
-  }
+  }, [leadId]);
 
-  useEffect(() => { carregar(); }, [leadId]);
+  useEffect(() => { carregar(); }, [carregar]);
 
   async function uploadAudio(ligacaoId: number, file: File) {
     setUploading(ligacaoId);

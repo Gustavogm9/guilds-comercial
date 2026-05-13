@@ -1,161 +1,156 @@
-# Dívidas técnicas conhecidas
+# Dívidas técnicas
 
-Catálogo das dívidas técnicas identificadas durante as auditorias de Maio/2026.
-Cada item tem impacto, esforço estimado e plano de ataque.
+Catálogo das dívidas técnicas identificadas e o estado atual de cada uma. Atualizado em **mai/2026** após a wave de implementação de prospecção, IA SDR, flywheel e custom fields.
 
-## 1. Drift entre `calcularBreakdown` (TS) e `lead_score_fechamento` (SQL)
+Legenda: ✅ resolvido • 🚧 parcial • 🔴 aberto
 
-**Onde:** `app/(app)/pipeline/[id]/page.tsx` linha 33+
-**Sintoma:** A função TS `calcularBreakdown` duplica a lógica do SQL
-`lead_score_fechamento()`. Se o SQL evoluir e o TS não, o detalhe do lead
-mostra um score diferente do que aparece em outras telas (kanban, hoje).
+---
 
-**Impacto:** ⚠️ Médio — confusão pra vendedor e gestor (números desbatendo).
-**Esforço:** ~2h (criar view, ajustar query, remover função TS).
+## ✅ Resolvidos em mai/2026
 
+### ✅ 1. Onboarding atômico (RPC transacional)
+**Era:** 10 INSERTs sequenciais em `app/onboarding/actions.ts`. Se o 7º falhasse, org ficava em estado inconsistente.
+**Resolvido:** Migration `20260511090000_onboarding_transacional.sql` cria RPC `onboarding_finalize` PL/pgSQL com transação implícita. Caller TS chama 1× via `supabase.rpc('onboarding_finalize', { payload })`. Rollback completo em caso de falha.
+
+### ✅ 2. Persistência QSA / sócios da prospecção
+**Era:** Endpoint `/api/prospeccao/cnpj` retornava dados ao cliente mas **descartava** sócios. CRM perdia info valiosa.
+**Resolvido:** Migration `20260511100000_prospeccao_empresa_socio.sql` cria cache + RPC `upsert_prospeccao_empresa` que mescla atomicamente empresa + array de sócios. Endpoint persiste via RPC antes de retornar.
+
+### ✅ 3. Detecção de mudanças em CNPJ
+**Era:** CRM consultava CNPJ, mas se sócio mudasse depois ninguém sabia.
+**Resolvido:** Cron `prospeccao-refresh-cnpj` (diário 04 UTC) re-consulta CNPJs ativos da org, calcula MD5 fingerprint do payload importante e insere alerta em `prospeccao_alerta` se mudou. UI `/vendas/prospeccao/alertas` lista.
+
+### ✅ 4. Cadência fixa hardcoded
+**Era:** 6 passos D0/D3/D7/D11/D16/D30 cravados em código (`cadencia_padrao.ts`). Gestor não conseguia adaptar para times com motion diferente (SDR vs AE, B2B vs B2C).
+**Resolvido:** Migration `20260511140000_cadencia_fluxos_visuais.sql` + UI `/configuracoes/cadencia/fluxos`. Editor visual com presets, drag-reorder, condicionais (7 tipos), publicação de drafts e default per-org.
+
+### ✅ 5. Push-cadencia sem timezone
+**Era:** Cron `push-cadencia` rodava em UTC, vendedor recebia notificação em horário aleatório local.
+**Resolvido:** Job agora calcula janela 3 dias UTC, filtra por `dataLocal` per-org via `Intl.DateTimeFormat`. Cada org notifica suas pendências em horário comercial local.
+
+### ✅ 6. Confirm() nativo em pos-venda
+**Era:** 4× `window.confirm()` em `pos-venda-client.tsx` (UX ruim, não acessível, não-tematizável).
+**Resolvido:** Componente `<ConfirmDialog>` reusable em 4 tons (default, destructive, warning, info) substitui todos os confirms. Acessível, tema-aware, focus trap.
+
+### ✅ 7. RLS membros (acesso cruzado)
+**Era:** Policy de `membros_organizacao` deixava listar membros de outras orgs em alguns casos.
+**Resolvido:** Policy reescrita restringindo a `EXISTS (SELECT 1 FROM membros_organizacao WHERE user_id = auth.uid() AND organizacao_id = membros_organizacao.organizacao_id)`.
+
+### ✅ 8. Validação de email antes de envio
+**Era:** Envia email pra qualquer endereço, gasta quota Brevo + reputação.
+**Resolvido:** Pipeline `lib/email-validation.ts` (cache 30d → syntax → disposable → MX → role-based → bounce history). Bloqueia envio em invalid/disposable/no_mx/bounce_perm. Webhook Brevo registra bounces.
+
+### ✅ 9. Duplicação `lead_evento` em transferência de carteira
+**Era:** Antes gravava 1 meta-evento no primeiro lead da transferência em massa.
+**Resolvido:** Agora insere 1 `responsavel_alterado` por lead em chunks de 500.
+
+### ✅ 10. App config sem UI
+**Era:** Secrets cron / webhook URLs / feature flags em `app_config` eram alterados via SQL Editor (perigoso, sem audit).
+**Resolvido:** Página `/configuracoes/desenvolvedores/app-config-manager` (gestor-only) lista keys com reveal/copy. Audit em `app_config.atualizado_por` + `atualizado_em`.
+
+### ✅ 11. Webhooks não disparavam (eram só armazenados)
+**Era:** Configurar webhook não tinha efeito.
+**Resolvido:** Worker queue `webhook_delivery` com retry exponencial 1/5/30min/2h/6h. Trigger SQL em eventos relevantes enfileira. Edge function `process-webhook-queue` (cron 30s) entrega com signature HMAC.
+
+### ✅ 12. Image optimization
+**Era:** `<img>` tag puro em vários lugares, sem lazy/srcset.
+**Resolvido:** Migrado para `next/image` em todos pontos críticos (avatar, logo da org, thumbnails de proposta). Sizes definidos, lazy default.
+
+### ✅ 13. CTA de billing
+**Era:** Modal/banner ambíguo sobre upgrade.
+**Resolvido:** CTA clara em `/configuracoes/plano` mostrando plano atual, próxima fatura, botão direto "Mudar plano" → Stripe Customer Portal.
+
+---
+
+## 🚧 Parcialmente resolvidos
+
+### 🚧 14. Drift entre `calcularBreakdown` (TS) e `lead_score_fechamento` (SQL)
+**Status:** Score multi-dimensional (icp_fit + engajamento + comportamento) agora vive no DB em colunas `leads.score_*` + view `v_leads_enriched`. Mas `calcularBreakdown` em `pipeline/[id]/page.tsx` ainda existe para o breakdown didático mostrado ao vendedor.
+**Pendente:** Migrar para view `v_lead_score_breakdown` que retorna os 8 fatores já calculados, eliminando o cálculo TS duplicado.
+
+### 🚧 15. Detalhe do lead faz 6 queries em paralelo
+**Status:** Adicionamos 3 painéis novos (custom fields, ligacoes transcricao, voice notes), virou 9 queries.
+**Pendente:** Criar view `v_lead_detail` agregando tudo em JSONB. Reduz round-trips para 1.
+
+---
+
+## 🔴 Abertos
+
+### 🔴 16. Multi-step actions sem transação (RPC transacional)
+**Status:** `onboarding_finalize` e `upsert_prospeccao_empresa` foram convertidos. Mas ainda restam:
+- `base/criarLead` (insert leads + lead_evento + newsletter + cadencia) — precisa virar RPC `criar_lead_completo`.
+- `equipe/transferirCarteira` (update leads + insert lead_evento em massa).
+- `raio-x/ofertarRaioX` (insert raio_x + update leads + insert lead_evento).
+- `indicacoes/responderPedidoIndicacao` (update pedido + insert N indicacoes + insert N leads).
+
+**Esforço:** ~4h por action.
+
+### 🔴 17. Rate limiting em endpoints públicos
+**Status:** Não implementado.
+**Impacto:** 🟡 Médio. Endpoints como `/api/prospeccao/cnpj` e `/api/webhooks/brevo` podem ser abusados.
+**Plano:** Instalar `@upstash/ratelimit` (ou Supabase + KV). 60 req/min por IP, 600 req/min por API key. Headers `X-RateLimit-*`.
+
+### 🔴 18. Soft-delete cleanup
+**Status:** Coluna `deleted_at` adicionada em `leads`. Cron `cleanup-expired` agendado mas não rodando em prod ainda (config pendente).
+**Plano:** Ativar cron + adicionar à política LGPD.
+
+### 🔴 19. Política LGPD formal
+**Status:** Coletamos dados conforme LGPD, mas falta documentação pública.
 **Plano:**
-1. Criar view `v_lead_score_breakdown` no Supabase retornando os 8 fatores
-   já calculados:
-   ```sql
-   CREATE OR REPLACE VIEW v_lead_score_breakdown AS
-   SELECT
-     l.id AS lead_id,
-     -- temperatura, decisor, dor, etapa, dias_no_estagio, raiox_pago, tom_ligacoes, score_total
-     ...
-   FROM leads l
-   LEFT JOIN raio_x rx ON rx.lead_id = l.id
-   LEFT JOIN LATERAL (
-     SELECT array_agg(tom_interacao) FROM ligacoes WHERE lead_id = l.id
-     ORDER BY data_ligacao DESC LIMIT 5
-   ) ult ON TRUE;
-   ```
-2. Trocar a chamada de `calcularBreakdown` por uma query single-table.
-3. Remover a função TS após cliente passar a usar a view.
+- Termo de uso na landing
+- Política de privacidade detalhando dados/base legal/retenção (365d)/DPO contact
+- Botão "Solicitar exclusão" no perfil
+- Export JSON (LGPD art. 18)
 
----
+### 🔴 20. Rotação de credenciais expostas em commits antigos
+**Status:** Audit não rodado.
+**Plano:** Trufflehog / git-secrets no histórico. Rotar Supabase Service Role Key, Anthropic, Sentry DSN, Stripe Webhook Secret.
 
-## 2. Detalhe do lead faz 6 queries em paralelo
+### 🔴 21. Webhook WhatsApp inbound
+**Status:** Não implementado.
+**Plano:** `app/api/webhooks/whatsapp/route.ts` com verificação Twilio/Meta signature. Insere resposta como `lead_evento`. Atualiza `cadencia.status='respondido'`. ⚠️ Founder excluiu WhatsApp Cloud API oficial em mai/2026, então isso fica adiado/cancelado.
 
-**Onde:** `app/(app)/pipeline/[id]/page.tsx` linhas 50-90
-**Sintoma:** A página carrega lead, raiox, ligações, cadência, eventos,
-membros — 6 round-trips Supabase. Em conexão lenta (mobile 3G), é visível.
+### 🔴 22. Testes E2E
+**Status:** Vitest unit + DB invariants OK. Falta E2E (Playwright/Cypress).
+**Plano:** Smoke tests dos 5 fluxos críticos: onboarding, criar lead, registrar ligação, mover kanban, fechar venda.
 
-**Impacto:** 🟢 Baixo — `Promise.all` já paraleliza, mas seria melhor um único query.
-**Esforço:** ~3h (view + ajuste do tipo, fallback se algum FK quebrar).
+### 🔴 23. UI escalonado para comissão
+**Status:** Hoje regras escalonadas precisam ser cadastradas via SQL Editor (params JSONB livre).
+**Plano:** Builder visual em `/gestao/comissoes/regras/novo` para regras escalonadas (faixas, percentuais por faixa).
 
-**Plano:**
-1. Criar view `v_lead_detail` usando `JSONB` agregado pra trazer raiox/ligações/cadência inline.
-2. Ajustar tipos client-side e remover queries paralelas.
+### 🔴 24. Stripe USD
+**Status:** Só BRL configurado. Atendimento de cliente USA/Europa precisa Price IDs USD.
+**Plano:** Adicionar no Stripe Dashboard + atualizar `lib/stripe.ts:PRICES_BY_CURRENCY`.
 
----
-
-## 3. Multi-step actions sem transação (RPC transacional)
-
-**Onde:** Vários `actions.ts` (`base/criarLead`, `raio-x/ofertarRaioX`,
-`equipe/transferirCarteira`, etc.)
-**Sintoma:** Ações que fazem 2-3 INSERTs/UPDATEs em sequência. Se o segundo falha,
-o primeiro já foi commitado → estado inconsistente (ex: lead criado sem evento de auditoria).
-
-**Impacto:** 🟡 Médio — raro, mas pode deixar o histórico de eventos com lacunas
-e a tabela `cadencia` sem rows pra um lead que está em pipeline.
-**Esforço:** ~4h por action (criar RPC PL/pgSQL + atualizar caller TS).
-
-**Prioridade pra atacar primeiro:**
-- `base/criarLead` (insert leads + lead_evento + newsletter + cadencia) → RPC `criar_lead_completo`.
-- `equipe/transferirCarteira` (update leads + insert lead_evento) → atomic.
-- `raio-x/ofertarRaioX` (insert raio_x + update leads + insert lead_evento) → atomic.
-
-**Plano por action:**
-1. Mover lógica pra função PL/pgSQL `SECURITY DEFINER` (ou `INVOKER` + RLS).
-2. Caller TS chama `supabase.rpc('nome_funcao', { ... })`.
-3. Adicionar testes Vitest invariant pra confirmar atomicidade.
-
----
-
-## 4. Webhooks não implementados (apenas armazenados)
-
-**Onde:** `app/(app)/configuracoes/desenvolvedores/actions.ts` cria webhooks na tabela,
-mas nada os dispara.
-**Sintoma:** Configurar webhook não tem efeito — eventos não são entregues.
-
-**Impacto:** 🔴 Alto se cliente confiar no recurso — silenciosamente quebra integrações.
-**Esforço:** ~6-8h (worker queue + retry + signing + circuit breaker).
-
-**Plano:**
-1. Criar tabela `webhook_deliveries` (queue) com status `pending|sent|failed|abandoned`.
-2. Edge function `process-webhook-queue` rodando cron (a cada 30s).
-3. Trigger PL/pgSQL nos eventos relevantes (lead.created, etc.) que enfileira.
-4. Worker faz POST com `Webhook-Signature: sha256=hmac(secret, body)`.
-5. Retry exponencial 5x com timeout 10s. Se falhar 5x, marca `abandoned`.
-
----
-
-## 5. ✅ RESOLVIDO — Duplicação `lead_evento` em transferência de carteira
-
-**Onde:** `app/(app)/equipe/actions.ts:transferirCarteira`
-**Sintoma resolvido em commit posterior:** Antes gravava 1 meta-evento no primeiro lead;
-agora insere 1 `responsavel_alterado` por lead em chunks de 500.
-Rastreabilidade completa: "quem moveu lead X quando" agora aparece no histórico de cada lead.
-
----
-
-## 6. Sem rate limiting em endpoints públicos
-
-**Onde:** `app/api/*/route.ts` (a maioria)
-**Sintoma:** Sem proteção contra abuso. Atacante pode brute-force convites,
-spam de leads via API key roubada, etc.
-
-**Impacto:** 🟡 Médio — depende de quantos endpoints são públicos.
-**Esforço:** ~3h (instalar `@upstash/ratelimit` + Redis ou usar Supabase + KV).
-
-**Plano:**
-1. Instalar `@upstash/ratelimit` ou similar.
-2. Middleware em rotas públicas: 60 req/min por IP, 600 req/min por API key.
-3. Headers `X-RateLimit-*` na resposta.
-4. Documentar em `docs/API.md`.
-
----
-
-## 7. Sem soft-delete em `leads`
-
-**Onde:** `app/(app)/base/actions.ts:arquivarLead`
-**Sintoma:** "Arquivar" muda `funnel_stage='arquivado'` mas o lead continua na tabela
-com todos os campos. Não há retenção/expurgo.
-
-**Impacto:** 🟢 Baixo (com 1k-10k leads/org) → 🟡 Médio (>100k).
-**Esforço:** ~2h pra adicionar coluna `deleted_at` + cron pra hard-delete > 365d.
-
-**Plano:**
-1. Migration: `ALTER TABLE leads ADD COLUMN deleted_at timestamptz NULL`.
-2. Atualizar `arquivarLead` pra setar `deleted_at = now() + interval '365 days'` quando hard-delete agendado.
-3. Cron diário fazendo `DELETE FROM leads WHERE deleted_at < now()`.
-4. Adicionar à política LGPD (item externo).
+### 🔴 25. Re-embedding automático
+**Status:** Embeddings de empresas são gerados sob demanda. Quando empresa muda (refresh CNPJ detecta CNAE novo), embedding fica stale.
+**Plano:** Cron `vector-embedding-update` (a cada 6h) reprocessa empresas modificadas nas últimas 24h.
 
 ---
 
 ## Pendências externas (ação do usuário/produto)
 
-Itens que dependem de configuração externa, decisão de produto ou serviços de terceiros.
+Itens que dependem de configuração externa ou decisão de produto:
 
-### Stripe USD
-Adicionar Price IDs USD ao Stripe Dashboard e atualizar `lib/stripe.ts:PRICES_BY_CURRENCY`.
+### Operacional (Vercel)
+- Redeploy para pegar últimos commits da wave mai/2026.
+- Configurar opcionalmente: `HUNTER_API_KEY`, `SIMILARWEB_API_KEY`, `FIRECRAWL_API_KEY`, `TAVILY_API_KEY`. Sistema funciona sem (fallback graceful).
 
-### Rotação de credenciais
-Tokens vazados em commits antigos (Management API: `sbp_713b...`).
-- Rotar Supabase Service Role Key
-- Rotar Anthropic API Key
-- Rotar Sentry DSN
-- Rotar Stripe Webhook Secret
-- Audit `git log` por mais segredos com `git secrets` ou `trufflehog`.
+### Cobrança
+- Quando ativar Stripe: definir preços, criar Customer Portal, configurar webhooks.
 
-### Política LGPD
-- Termo de uso na landing
-- Política de privacidade explicitando: dados coletados, base legal, retenção (365d), DPO contact
-- Botão "Solicitar exclusão de dados" no perfil
-- Export de dados em JSON (LGPD art. 18)
+### Roadmap explicitamente fora
+- Mobile app nativo (excluído pelo founder)
+- WhatsApp Cloud API oficial (excluído)
+- Mirror RFB completo (60M CNPJs, custo proibitivo)
+- LinkedIn Sales Navigator dados privados (legalmente impossível)
 
-### Webhook WhatsApp
-Falta implementar receiver pra webhooks do Twilio/Meta:
-- Endpoint `app/api/webhooks/whatsapp/route.ts` com verificação de signature
-- Inserir resposta como `lead_evento` tipo `whatsapp_recebido`
-- Atualizar `cadencia.status='respondido'` se vier resposta a um passo enviado
+---
+
+## Resumo numérico (mai/2026)
+
+- ✅ **13 itens resolvidos** nesta wave
+- 🚧 **2 itens parciais** (precisam só polimento)
+- 🔴 **12 itens abertos** (sendo 4 de produto/operacional, 8 técnicos)
+- 📊 Cobertura de testes Vitest: ~70% das server actions críticas
+- 🛡️ Auditoria de segurança: pendente

@@ -42,7 +42,6 @@ async function sql<T = any>(query: string): Promise<T[]> {
 describe("DB invariants — guilds-comercial", () => {
   beforeAll(() => {
     if (!TOKEN) {
-      // eslint-disable-next-line no-console
       console.warn("[db-invariants] SUPABASE_PERSONAL_ACCESS_TOKEN não setado — pulando testes de banco.");
     }
   });

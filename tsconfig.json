@@ -38,6 +38,10 @@
   ],
   "exclude": [
     "node_modules",
-    "supabase/functions"
+    "supabase/functions",
+    "**/*-Guilds.ts",
+    "**/*-Guilds.tsx",
+    "next-env.d-Guilds.ts",
+    "proxy-Guilds.ts"
   ]
 }

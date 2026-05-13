@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { createImpersonationCookieValue, IMPERSONATION_COOKIE_MAX_AGE } from "@/lib/impersonation";
 
 export async function iniciarImpersonificacao(targetUserId: string) {
   const supabase = createClient();
@@ -52,9 +53,10 @@ export async function iniciarImpersonificacao(targetUserId: string) {
   });
 
   // Define o cookie (1 hora de duração, igual no psych-harmony)
+  const signedCookie = createImpersonationCookieValue({ adminId, targetUserId });
   const cookieStore = await cookies();
-  cookieStore.set("x-impersonate-user", targetUserId, {
-    maxAge: 60 * 60,
+  cookieStore.set("x-impersonate-user", signedCookie, {
+    maxAge: IMPERSONATION_COOKIE_MAX_AGE,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     path: "/",
