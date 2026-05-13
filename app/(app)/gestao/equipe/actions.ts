@@ -17,6 +17,11 @@ async function requireGestorOrg() {
 
 const ROLES_VALIDOS: Role[] = ["gestor", "comercial", "sdr"];
 
+function revalidateEquipePaths() {
+  revalidatePath("/equipe");
+  revalidatePath("/gestao/equipe");
+}
+
 /**
  * Bug 1+2: garante que sempre há ao menos 1 gestor ativo.
  * Lança se a operação tiraria o último gestor da org.
@@ -67,7 +72,7 @@ export async function alterarRoleMembro(profile_id: string, novoRole: Role) {
     .eq("organizacao_id", orgId)
     .eq("profile_id", profile_id);
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
 
 export async function desativarMembro(profile_id: string) {
@@ -83,7 +88,7 @@ export async function desativarMembro(profile_id: string) {
     .eq("organizacao_id", orgId)
     .eq("profile_id", profile_id);
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
 
 export async function reativarMembro(profile_id: string) {
@@ -94,12 +99,36 @@ export async function reativarMembro(profile_id: string) {
     .eq("organizacao_id", orgId)
     .eq("profile_id", profile_id);
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
 
 /** ============ CONVITES ============ */
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function enviarConvitePorEmail(input: {
+  supabase: ReturnType<typeof createClient>;
+  orgId: string;
+  inviterId?: string | null;
+  inviterEmail?: string | null;
+  email: string;
+  token: string;
+  role: Role;
+}) {
+  const [{ data: org }, { data: profile }] = await Promise.all([
+    input.supabase.from("organizacoes").select("nome").eq("id", input.orgId).maybeSingle(),
+    input.supabase.from("profiles").select("display_name").eq("id", input.inviterId ?? "").maybeSingle(),
+  ]);
+
+  const inviteUrl = `${getAppUrl()}/api/convite/${input.token}`;
+  return sendInviteEmail({
+    email: input.email,
+    orgName: org?.nome ?? "sua organizacao",
+    inviterName: profile?.display_name ?? input.inviterEmail ?? "Um gestor",
+    inviteUrl,
+    role: input.role,
+  });
+}
 
 export async function criarConvite(input: {
   email: string;
@@ -159,19 +188,15 @@ export async function criarConvite(input: {
 
   if (error) throw error;
 
-  const [{ data: org }, { data: profile }] = await Promise.all([
-    supabase.from("organizacoes").select("nome").eq("id", orgId).maybeSingle(),
-    supabase.from("profiles").select("display_name").eq("id", user?.id ?? "").maybeSingle(),
-  ]);
-
-  const inviteUrl = `${getAppUrl()}/api/convite/${convite!.token}`;
   let emailSent = false;
   try {
-    const result = await sendInviteEmail({
+    const result = await enviarConvitePorEmail({
+      supabase,
+      orgId,
+      inviterId: user?.id,
+      inviterEmail: user?.email,
       email,
-      orgName: org?.nome ?? "sua organizacao",
-      inviterName: profile?.display_name ?? user?.email ?? "Um gestor",
-      inviteUrl,
+      token: convite!.token,
       role: input.role,
     });
     emailSent = result.sent;
@@ -179,8 +204,51 @@ export async function criarConvite(input: {
     console.error("Erro ao enviar convite:", err);
   }
 
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
   return { token: convite!.token, expira_em: convite!.expira_em, email_sent: emailSent };
+}
+
+export async function reenviarConvite(convite_id: number) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { orgId } = await requireGestorOrg();
+
+  const { data: convite, error } = await supabase
+    .from("convites")
+    .select("id, email, role, token, expira_em, aceito_em")
+    .eq("id", convite_id)
+    .eq("organizacao_id", orgId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!convite) throw new Error("Convite nao encontrado.");
+  if (convite.aceito_em) throw new Error("Este convite ja foi aceito.");
+  if (new Date(convite.expira_em) <= new Date()) {
+    throw new Error("Convite expirado. Revogue e crie um novo convite.");
+  }
+
+  let emailSent = false;
+  try {
+    const result = await enviarConvitePorEmail({
+      supabase,
+      orgId,
+      inviterId: user?.id,
+      inviterEmail: user?.email,
+      email: convite.email,
+      token: convite.token,
+      role: convite.role as Role,
+    });
+    emailSent = result.sent;
+  } catch (err) {
+    console.error("Erro ao reenviar convite:", err);
+  }
+
+  revalidateEquipePaths();
+  return {
+    token: convite.token,
+    expira_em: convite.expira_em,
+    email_sent: emailSent,
+  };
 }
 
 export async function revogarConvite(convite_id: number) {
@@ -191,7 +259,7 @@ export async function revogarConvite(convite_id: number) {
     .eq("id", convite_id)
     .eq("organizacao_id", orgId);
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
 
 /** ============ SEGMENTOS / TERRITÓRIOS ============ */
@@ -220,7 +288,7 @@ export async function adicionarSegmentoVendedor(profile_id: string, segmento: st
     segmento: seg,
   }, { onConflict: "organizacao_id,profile_id,segmento" });
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
 
 export async function removerSegmentoVendedor(segmento_id: number) {
@@ -231,7 +299,7 @@ export async function removerSegmentoVendedor(segmento_id: number) {
     .eq("id", segmento_id)
     .eq("organizacao_id", orgId);
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
 
 /** ============ METAS INDIVIDUAIS ============ */
@@ -272,7 +340,7 @@ export async function definirMetaIndividual(input: {
     ...input,
   }, { onConflict: "organizacao_id,profile_id,periodo_tipo,periodo_inicio" });
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
 
 export async function removerMetaIndividual(meta_id: number) {
@@ -283,7 +351,7 @@ export async function removerMetaIndividual(meta_id: number) {
     .eq("id", meta_id)
     .eq("organizacao_id", orgId);
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
 
 /** ============ CARTEIRAS (transferência em massa) ============ */
@@ -353,7 +421,7 @@ export async function transferirCarteira(
     }
   }
 
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
   revalidatePath("/pipeline");
   revalidatePath("/base");
   revalidatePath("/hoje");
@@ -381,5 +449,5 @@ export async function atualizarConfigOrg(input: {
     updated_at: new Date().toISOString(),
   }, { onConflict: "organizacao_id" });
   if (error) throw error;
-  revalidatePath("/equipe");
+  revalidateEquipePaths();
 }
