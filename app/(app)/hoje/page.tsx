@@ -527,14 +527,13 @@ function LeadRow({ l, t, locale }: {
             {l.nome ? `${l.nome} · ` : ""}
             {l.cargo ? `${l.cargo} · ` : ""}
             {l.segmento ?? "—"}
-            {l.proxima_acao && <span className="ml-2 text-foreground/80">→ {l.proxima_acao}</span>}
-            {l.data_proxima_acao && <span className="ml-2 tabular-nums">({fmt(l.data_proxima_acao, locale)})</span>}
             {l.dias_sem_tocar > 0 && (
               <span className="ml-2 tabular-nums">
                 · {t("hoje.lead_dias_sem_tocar").replace("{{n}}", String(l.dias_sem_tocar))}
               </span>
             )}
           </div>
+          <NextActionCue lead={l} t={t} locale={locale} />
         </div>
         <div className="flex items-center gap-2">
           <QuickActions lead={l} />
@@ -545,6 +544,49 @@ function LeadRow({ l, t, locale }: {
         <BriefingPreCall leadId={l.id} empresa={l.empresa} nome={l.nome} segmento={l.segmento} dorPrincipal={l.dor_principal} observacoes={l.observacoes} />
       )}
     </li>
+  );
+}
+
+function NextActionCue({ lead, t, locale }: {
+  lead: LeadEnriched;
+  t: (k: string) => string;
+  locale: Locale;
+}) {
+  const action = lead.proxima_acao?.trim();
+  const today = new Date().toISOString().slice(0, 10);
+  const dueDate = lead.data_proxima_acao;
+  const overdue = Boolean(dueDate && dueDate < today);
+  const dueToday = Boolean(dueDate && dueDate === today);
+  const missing = !action;
+  const tone = missing || overdue
+    ? "border-destructive/25 bg-destructive/5 text-destructive"
+    : dueToday
+      ? "border-warning-500/25 bg-warning-500/5 text-warning-500"
+      : "border-border bg-muted/30 text-foreground";
+  const label = missing
+    ? t("hoje.proxima_acao_definir")
+    : overdue
+      ? t("hoje.proxima_acao_vencida")
+      : dueToday
+        ? t("hoje.proxima_acao_hoje")
+        : t("hoje.proxima_acao_proxima");
+
+  return (
+    <div className={`mt-3 rounded-lg border px-3 py-2 ${tone}`}>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.12em] font-semibold">{label}</div>
+          <div className="text-sm font-medium truncate text-foreground">
+            {action || t("hoje.sem_proxima_acao")}
+          </div>
+        </div>
+        {dueDate && (
+          <div className="text-xs tabular-nums text-muted-foreground shrink-0">
+            {fmt(dueDate, locale)}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
