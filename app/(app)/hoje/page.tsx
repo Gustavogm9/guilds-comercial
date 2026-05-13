@@ -270,22 +270,22 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
 
   if (role === "gestor") {
     marcos = [
-      { id: "lead", label: "Adicionar o 1º lead ao pipeline", feito: countLeads > 0, href: "/base", hrefLabel: "Ir para a base →" },
-      { id: "membro", label: "Convidar 1 membro do time", feito: countMembros > 1, href: "/equipe", hrefLabel: "Ir para equipe →" },
-      { id: "cadencia", label: "Iniciar 1 cadência de outreach", feito: countCadencia > 0, href: "/cadencia", hrefLabel: "Ver cadência →" },
+      { id: "lead", label: "Adicionar o 1º lead ao pipeline", feito: countLeads > 0, href: "/vendas/base", hrefLabel: "Ir para a base →" },
+      { id: "membro", label: "Convidar 1 membro do time", feito: countMembros > 0, href: "/gestao/equipe", hrefLabel: "Ir para equipe →" },
+      { id: "cadencia", label: "Iniciar 1 cadência de outreach", feito: countCadencia > 0, href: "/comunicacao/cadencia", hrefLabel: "Ver cadência →" },
     ];
   } else if (role === "comercial") {
     marcos = [
-      { id: "lead", label: "Registrar 1º lead como responsável", feito: countLeads > 0, href: "/base", hrefLabel: "Ir para a base →" },
-      { id: "qualificado", label: "Qualificar 1 lead (mover no pipeline)", feito: leadsQualificados > 0, href: "/pipeline", hrefLabel: "Ver pipeline →" },
-      { id: "ligacao", label: "Registrar 1ª ligação ou interação", feito: countLigacoes > 0, href: "/ligacoes", hrefLabel: "Registrar ligação →" },
+      { id: "lead", label: "Registrar 1º lead como responsável", feito: countLeads > 0, href: "/vendas/base", hrefLabel: "Ir para a base →" },
+      { id: "qualificado", label: "Qualificar 1 lead (mover no pipeline)", feito: leadsQualificados > 0, href: "/vendas/pipeline", hrefLabel: "Ver pipeline →" },
+      { id: "ligacao", label: "Registrar 1ª ligação ou interação", feito: countLigacoes > 0, href: "/comunicacao/ligacoes", hrefLabel: "Registrar ligação →" },
     ];
   } else {
     // sdr
     marcos = [
-      { id: "lead", label: "Prospectar 1º lead na base", feito: countLeads > 0, href: "/base", hrefLabel: "Ir para a base →" },
-      { id: "qualificado", label: "Qualificar 1 lead com o comercial", feito: leadsQualificados > 0, href: "/pipeline", hrefLabel: "Ver pipeline →" },
-      { id: "resposta", label: "Registrar 1ª resposta na cadência", feito: countRespostas > 0, href: "/cadencia", hrefLabel: "Ver cadência →" },
+      { id: "lead", label: "Prospectar 1º lead na base", feito: countLeads > 0, href: "/vendas/base", hrefLabel: "Ir para a base →" },
+      { id: "qualificado", label: "Qualificar 1 lead com o comercial", feito: leadsQualificados > 0, href: "/vendas/pipeline", hrefLabel: "Ver pipeline →" },
+      { id: "resposta", label: "Registrar 1ª resposta na cadência", feito: countRespostas > 0, href: "/comunicacao/cadencia", hrefLabel: "Ver cadência →" },
     ];
   }
 
@@ -372,8 +372,8 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
             <p className="text-xs text-muted-foreground mt-0.5">
               Você acaba de entrar como <span className="font-medium text-foreground capitalize">{role}</span>. Comece explorando
               {" "}<Link href="/hoje" className="text-primary hover:underline">seu cockpit diário</Link>,
-              {" "}<Link href="/base" className="text-primary hover:underline">a base de leads</Link> ou
-              {" "}<Link href="/pipeline" className="text-primary hover:underline">o pipeline</Link>.
+              {" "}<Link href="/vendas/base" className="text-primary hover:underline">a base de leads</Link> ou
+              {" "}<Link href="/vendas/pipeline" className="text-primary hover:underline">o pipeline</Link>.
             </p>
           </div>
           <Link href="/hoje" replace className="text-muted-foreground hover:text-foreground shrink-0" aria-label="Fechar">
@@ -428,13 +428,13 @@ export default async function HojePage(props: { searchParams: Promise<{ todos?: 
           </div>
           {/* Ações primárias */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/base/importar" className="btn-primary text-sm inline-flex items-center gap-2">
+            <Link href="/vendas/base/importar" className="btn-primary text-sm inline-flex items-center gap-2">
               <Upload className="w-4 h-4" /> Importar lista (CSV)
             </Link>
-            <Link href="/base" className="btn-secondary text-sm inline-flex items-center gap-2">
+            <Link href="/vendas/base" className="btn-secondary text-sm inline-flex items-center gap-2">
               <UserPlus className="w-4 h-4" /> Cadastrar lead
             </Link>
-            <Link href="/pipeline" className="btn-ghost text-sm inline-flex items-center gap-2">
+            <Link href="/vendas/pipeline" className="btn-ghost text-sm inline-flex items-center gap-2">
               <Kanban className="w-4 h-4" /> Ver pipeline
             </Link>
           </div>
@@ -510,7 +510,7 @@ function LeadRow({ l, t, locale }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Link
-              href={`/pipeline/${l.id}`}
+              href={`/vendas/pipeline/${l.id}`}
               className="font-medium text-foreground hover:text-primary truncate transition-colors"
               style={{ letterSpacing: "-0.13px" }}
             >
@@ -538,7 +538,7 @@ function LeadRow({ l, t, locale }: {
         </div>
         <div className="flex items-center gap-2">
           <QuickActions lead={l} />
-          <Link href={`/pipeline/${l.id}`} className="btn-ghost"><ChevronRight className="w-4 h-4"/></Link>
+          <Link href={`/vendas/pipeline/${l.id}`} className="btn-ghost"><ChevronRight className="w-4 h-4"/></Link>
         </div>
       </div>
       {l.crm_stage === "Call Marcada" && (
@@ -569,7 +569,7 @@ function TopRow({ l, t, locale, currency }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Link
-              href={`/pipeline/${l.id}`}
+              href={`/vendas/pipeline/${l.id}`}
               className="font-medium text-foreground hover:text-primary truncate transition-colors"
               style={{ letterSpacing: "-0.13px" }}
             >
@@ -602,7 +602,7 @@ function TopRow({ l, t, locale, currency }: {
             {t("hoje.de_total")} {Number(l.valor_potencial || 0).toLocaleString(locale, { style: "currency", currency, maximumFractionDigits: 0 })}
           </div>
         </div>
-        <Link href={`/pipeline/${l.id}`} className="btn-ghost shrink-0"><ChevronRight className="w-4 h-4"/></Link>
+        <Link href={`/vendas/pipeline/${l.id}`} className="btn-ghost shrink-0"><ChevronRight className="w-4 h-4"/></Link>
       </div>
     </li>
   );
