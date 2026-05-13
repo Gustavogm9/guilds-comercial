@@ -99,7 +99,7 @@ export async function definirRenovacao(input: {
   });
 
   revalidatePath(`/vendas/pipeline/${input.lead_id}`);
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath("/growth/funil");
   revalidatePath("/hoje");
 }
@@ -123,7 +123,7 @@ export async function rodarRenovacoesAgora(): Promise<{ org_count: number; total
   const rows = (data ?? []) as Array<{ organizacao_id: string; expansoes_criadas: number }>;
   const meu = rows.find((r) => r.organizacao_id === orgId);
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath("/growth/funil");
   revalidatePath("/hoje");
 

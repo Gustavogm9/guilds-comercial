@@ -6,7 +6,6 @@ import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import { Loader2 } from "lucide-react";
 
 function LoginForm() {
-  const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
@@ -23,6 +22,7 @@ function LoginForm() {
     e.preventDefault();
     setErro(null);
     setLoading(true);
+    const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setLoading(false);

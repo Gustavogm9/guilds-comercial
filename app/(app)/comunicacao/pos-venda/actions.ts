@@ -76,7 +76,7 @@ export async function criarTemplateOnboarding(input: {
     .single();
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   return { template_id: data!.id };
 }
 
@@ -122,7 +122,7 @@ export async function adicionarItemTemplate(input: {
   });
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
 }
 
 export async function removerItemTemplate(item_id: number) {
@@ -144,7 +144,7 @@ export async function removerItemTemplate(item_id: number) {
   const { error } = await supabase.from("onboarding_template_item").delete().eq("id", item_id);
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
 }
 
 // ===========================================================================
@@ -198,7 +198,7 @@ export async function marcarItemOnboarding(input: {
   // Auto-fecha checklist se todos os obrigatórios estão concluido/pulado
   await tentarFecharChecklist(supabase, checklist.checklist_id ?? item.checklist_id);
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath(`/vendas/pipeline/${checklist.lead_id}`);
 }
 
@@ -235,7 +235,7 @@ export async function fecharChecklistManual(checklist_id: number) {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
 }
 
 // ===========================================================================
@@ -272,7 +272,7 @@ export async function solicitarNps(input: {
   });
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath(`/vendas/pipeline/${input.lead_id}`);
 }
 
@@ -317,7 +317,7 @@ export async function responderNps(input: {
   //   - score <= 6 → grava lead_evento detrator_alerta
   //   - 7-8 → grava lead_evento neutro
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath(`/vendas/pipeline/${nps.lead_id}`);
   revalidatePath("/growth/funil");
   revalidatePath("/hoje");
@@ -336,5 +336,5 @@ export async function descartarNpsPendente(nps_id: number) {
     .is("score", null);
   if (error) throw error;
 
-  revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
 }

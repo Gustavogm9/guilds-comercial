@@ -192,7 +192,7 @@ export async function editarTemplate(
   if (insertErr) throw new Error(insertErr.message);
 
   revalidatePath("/configuracoes/cadencia");
-  revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   return { ok: true, novaVersao: (atual.versao ?? 1) + 1 };
 }
 

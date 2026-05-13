@@ -99,7 +99,7 @@ export default async function ProspeccaoPage({ searchParams }: Props) {
                 <span className="text-muted-foreground"> · {hipotesePre.segmentos.join(", ")}</span>
               ) : null}
             </div>
-            <a href="/prospeccao" className="ml-auto text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0">
+            <a href="/vendas/prospeccao" className="ml-auto text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0">
               Limpar filtro →
             </a>
           </div>

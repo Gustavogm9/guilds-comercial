@@ -39,7 +39,7 @@ const ROLE_CONFIG: Record<Role, {
     marcos: [
       { titulo: "Adicionar 1º lead ao pipeline", href: "/vendas/base" },
       { titulo: "Convidar 1 membro do time",     href: "/gestao/equipe" },
-      { titulo: "Iniciar 1 cadência de outreach", href: "/cadencia" },
+      { titulo: "Iniciar 1 cadência de outreach", href: "/comunicacao/cadencia" },
     ],
   },
   comercial: {
@@ -55,7 +55,7 @@ const ROLE_CONFIG: Record<Role, {
     marcos: [
       { titulo: "Registrar 1º lead como responsável", href: "/vendas/base" },
       { titulo: "Qualificar 1 lead no pipeline",      href: "/vendas/pipeline" },
-      { titulo: "Registrar 1ª ligação ou interação",  href: "/ligacoes" },
+      { titulo: "Registrar 1ª ligação ou interação",  href: "/comunicacao/ligacoes" },
     ],
   },
   sdr: {
@@ -71,7 +71,7 @@ const ROLE_CONFIG: Record<Role, {
     marcos: [
       { titulo: "Prospectar 1º lead na base",           href: "/vendas/base" },
       { titulo: "Qualificar 1 lead com o comercial",    href: "/vendas/pipeline" },
-      { titulo: "Registrar 1ª resposta na cadência",    href: "/cadencia" },
+      { titulo: "Registrar 1ª resposta na cadência",    href: "/comunicacao/cadencia" },
     ],
   },
 };
