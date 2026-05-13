@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
-import { Users, Target, TrendingUp, AlertCircle, DollarSign, Trophy, CheckCircle2, Circle, Rocket, ClipboardList } from "lucide-react";
+import { Users, Target, TrendingUp, AlertCircle, DollarSign, Trophy, CheckCircle2, Circle, Rocket, ClipboardList, PhoneCall, Calendar } from "lucide-react";
 import { getServerLocale, getT } from "@/lib/i18n";
 import GestaoTabs from "../gestao-tabs";
 
@@ -132,6 +132,8 @@ export default async function TimePage() {
       )}
 
       <ActivationChecklist ativacao={ativacao} onboarding={onboarding} />
+
+      <ManagerDiagnostics lista={lista} ligacoesPorResp={ligacoesPorResp} />
 
       {/* Meta semanal */}
       {metaSemana && (
@@ -307,6 +309,141 @@ function cadenciaLabel(value?: string | null) {
     pos_venda: "Pos-venda",
   };
   return value ? labels[value] ?? value : "Nao informado";
+}
+
+function ManagerDiagnostics({
+  lista,
+  ligacoesPorResp,
+}: {
+  lista: KpiResp[];
+  ligacoesPorResp: Map<string, { total: number; atenderam: number; qualif: number }>;
+}) {
+  const vendedores = lista.filter((k) => k.role !== "gestor");
+  const comVencidas = vendedores
+    .filter((k) => k.acoes_vencidas > 0)
+    .sort((a, b) => b.acoes_vencidas - a.acoes_vencidas);
+  const semLigacoes = vendedores
+    .filter((k) => k.leads_ativos > 0 && (ligacoesPorResp.get(k.id)?.total ?? 0) === 0)
+    .sort((a, b) => b.leads_ativos - a.leads_ativos);
+  const semCarteira = vendedores.filter((k) => k.leads_ativos === 0);
+  const foco = uniqueById([...comVencidas, ...semLigacoes, ...semCarteira]).slice(0, 4);
+
+  if (vendedores.length === 0) return null;
+
+  return (
+    <section className="card p-4 mb-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5" /> Diagnostico acionavel
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Priorize 1:1 e desbloqueios onde ha vencidas, baixa atividade ou carteira vazia.
+          </p>
+        </div>
+        <Link href="/hoje?todos=1" className="btn-secondary text-xs shrink-0">Ver fila do time</Link>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3 mt-4">
+        <DiagnosticTile
+          icon={<AlertCircle className="w-4 h-4" />}
+          label="Com acoes vencidas"
+          value={comVencidas.length}
+          detail={comVencidas[0] ? `${comVencidas[0].display_name}: ${comVencidas[0].acoes_vencidas}` : "Nenhuma vencida"}
+          tone={comVencidas.length > 0 ? "danger" : "success"}
+        />
+        <DiagnosticTile
+          icon={<PhoneCall className="w-4 h-4" />}
+          label="Sem ligacoes em 7d"
+          value={semLigacoes.length}
+          detail={semLigacoes[0] ? `${semLigacoes[0].display_name}: ${semLigacoes[0].leads_ativos} leads ativos` : "Atividade registrada"}
+          tone={semLigacoes.length > 0 ? "warning" : "success"}
+        />
+        <DiagnosticTile
+          icon={<Users className="w-4 h-4" />}
+          label="Sem carteira ativa"
+          value={semCarteira.length}
+          detail={semCarteira[0] ? semCarteira[0].display_name : "Todos com carteira"}
+          tone={semCarteira.length > 0 ? "warning" : "success"}
+        />
+      </div>
+
+      {foco.length > 0 ? (
+        <div className="mt-4 rounded-lg border border-border overflow-hidden">
+          <div className="hidden md:grid md:grid-cols-[1fr_1fr_auto] gap-3 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground bg-secondary/60 dark:bg-white/[0.03]">
+            <span>Proximo 1:1</span>
+            <span>Motivo</span>
+            <span className="text-right">Acao</span>
+          </div>
+          <div className="divide-y divide-border">
+            {foco.map((vendedor) => (
+              <div key={vendedor.id} className="flex flex-col gap-2 px-3 py-3 text-sm md:grid md:grid-cols-[1fr_1fr_auto] md:items-center md:gap-3 md:py-2">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{vendedor.display_name}</div>
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{vendedor.role}</div>
+                </div>
+                <div className="text-xs text-muted-foreground min-w-0">{diagnosticReason(vendedor, ligacoesPorResp)}</div>
+                <Link href={`/gestao/vendedor/${vendedor.id}`} className="btn-ghost text-xs w-fit md:justify-self-end">Abrir</Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-success-500/25 bg-success-500/10 px-3 py-2 text-sm text-success-500">
+          Nenhum vendedor com alerta imediato para 1:1.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function uniqueById(items: KpiResp[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+function diagnosticReason(vendedor: KpiResp, ligacoesPorResp: Map<string, { total: number; atenderam: number; qualif: number }>) {
+  const ligacoes = ligacoesPorResp.get(vendedor.id)?.total ?? 0;
+  if (vendedor.acoes_vencidas > 0) return `${vendedor.acoes_vencidas} acoes vencidas`;
+  if (vendedor.leads_ativos > 0 && ligacoes === 0) return "Carteira ativa sem ligacoes em 7d";
+  if (vendedor.leads_ativos === 0) return "Sem carteira ativa";
+  return "Acompanhar rotina";
+}
+
+function DiagnosticTile({
+  icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  detail: string;
+  tone: "success" | "warning" | "danger";
+}) {
+  const tones = {
+    success: "bg-success-500/10 text-success-500 border-success-500/25",
+    warning: "bg-warning-500/10 text-warning-500 border-warning-500/25",
+    danger: "bg-destructive/10 text-destructive border-destructive/25",
+  };
+  return (
+    <div className={`rounded-lg border p-3 ${tones[tone]}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-medium min-w-0">
+          {icon}
+          <span className="truncate">{label}</span>
+        </div>
+        <div className="text-xl font-semibold tabular-nums">{value}</div>
+      </div>
+      <div className="text-xs mt-1 opacity-80 truncate">{detail}</div>
+    </div>
+  );
 }
 
 function activationHref(onboarding: OnboardingContext, ativacao: AtivacaoOrg) {
