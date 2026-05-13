@@ -7,7 +7,6 @@ import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import { Loader2 } from "lucide-react";
 
 export default function CadastroPage() {
-  const supabase = createClient();
   const router = useRouter();
 
   const [nome, setNome] = useState("");
@@ -31,6 +30,7 @@ export default function CadastroPage() {
     setErro(null);
     setLoading(true);
 
+    const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
