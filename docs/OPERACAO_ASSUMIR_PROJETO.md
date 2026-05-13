@@ -12,8 +12,8 @@ disciplina operacional antes de producao ampla. A auditoria local validou:
 - Lint: `eslint .` passa com 2 warnings de performance em `<img>`.
 - Testes unitarios: 7 arquivos e 89 testes passam.
 - Build de producao: `next build` passa.
-- Testes Supabase/DB: bloqueados por `401 Unauthorized` na Management API com
-  o token disponivel nesta auditoria. Gerar novo PAT e rodar novamente.
+- Testes Supabase/DB: `vitest --config vitest.config.db.ts` passa com PAT valido
+  da Management API.
 - Risco operacional ativo: o repositorio esta dentro do OneDrive e a pasta `.git`
   esta parcialmente offline. Com isso, comandos Git falham com `fatal: mmap failed:
   Invalid argument` e alguns objetos retornam erro do provedor de nuvem.
@@ -82,7 +82,8 @@ disciplina operacional antes de producao ampla. A auditoria local validou:
 - Tirar o projeto do OneDrive ou criar clone limpo em pasta local.
 - Commitar a rodada de correcoes depois de recuperar Git.
 - Rodar `typecheck`, `lint`, `test`, `build` em ambiente limpo.
-- Rodar `test:db` com token Supabase novo.
+- Manter `test:db` como gate manual antes de deploys com migrations ou mudancas
+  de RLS.
 - Rotacionar todos os segredos expostos em conversa, arquivos locais ou historico.
 - Criar checklist de deploy em Vercel e Supabase.
 
