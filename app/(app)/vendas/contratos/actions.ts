@@ -282,6 +282,9 @@ export async function gerarContratoAction(input: {
     }
 
     revalidatePath("/vendas/contratos");
+    revalidatePath("/vendas/juridico");
+    revalidatePath("/comunicacao/pos-venda");
+    revalidatePath("/flywheel");
     revalidatePath(`/vendas/pipeline/${input.leadId}`);
   }
 

@@ -106,6 +106,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
     { data: timeline360 },
     { data: leadProdutosData },
     { data: todosProdutosData },
+    { data: contratoAtual },
   ] = await Promise.all([
     supabase.from("v_leads_enriched").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
     supabase.from("ligacoes").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("data_hora", { ascending: false }).limit(50),
@@ -135,12 +136,20 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       .eq("organizacao_id", orgId)
       .eq("ativo", true)
       .order("ordem"),
+    supabase.from("contratos")
+      .select("id, status, modo, versao_atual, updated_at")
+      .eq("organizacao_id", orgId)
+      .eq("lead_id", id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   if (!leadRow) notFound();
   const lead = leadRow as LeadEnriched;
   const leadProdutos = (leadProdutosData ?? []) as any[];
   const todosProdutos = (todosProdutosData ?? []) as { id: number; nome: string; categoria?: string }[];
+  const contrato = contratoAtual as { id: number; status: string; modo: string; versao_atual: number; updated_at: string | null } | null;
   const score = scoreRow as LeadScore | null;
   const stage = lead.crm_stage ? STAGE_COLORS[lead.crm_stage] : null;
   const stageLabel = lead.crm_stage ? t(`pipeline_etapas.${lead.crm_stage}`) : null;
@@ -245,11 +254,22 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold">Contrato pos-fechamento</h2>
-                  <p className="text-xs text-muted-foreground mt-1">Gere contrato por template DOCX, briefing juridico ou revisao.</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {contrato
+                      ? `Status: ${contrato.status} | ${contrato.modo} | v${contrato.versao_atual}`
+                      : "Gere contrato por template DOCX, briefing juridico ou revisao."}
+                  </p>
                 </div>
-                <Link href={`/vendas/contratos?lead=${lead.id}`} className="btn-primary text-xs shrink-0">
-                  <FileText className="w-3.5 h-3.5" /> Gerar contrato
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Link href={`/vendas/contratos?lead=${lead.id}`} className="btn-primary text-xs shrink-0">
+                    <FileText className="w-3.5 h-3.5" /> {contrato ? "Abrir contrato" : "Gerar contrato"}
+                  </Link>
+                  {contrato && (
+                    <Link href="/vendas/juridico" className="btn-secondary text-xs shrink-0">
+                      Monitor juridico
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
           )}

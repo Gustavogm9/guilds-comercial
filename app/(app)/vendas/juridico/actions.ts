@@ -67,6 +67,8 @@ export async function atualizarStatusContratoAction(formData: FormData) {
 
   revalidatePath("/vendas/juridico");
   revalidatePath("/vendas/contratos");
+  revalidatePath("/comunicacao/pos-venda");
+  revalidatePath("/flywheel");
 }
 
 export async function adicionarNotaJuridicaAction(formData: FormData) {
@@ -90,4 +92,6 @@ export async function adicionarNotaJuridicaAction(formData: FormData) {
 
   revalidatePath("/vendas/juridico");
   revalidatePath("/vendas/contratos");
+  revalidatePath("/comunicacao/pos-venda");
+  revalidatePath("/flywheel");
 }
