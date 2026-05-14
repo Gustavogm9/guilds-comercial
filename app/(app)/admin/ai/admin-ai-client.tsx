@@ -4,23 +4,23 @@ import { useRouter } from "next/navigation";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import Link from "next/link";
 import type { AiFeature, AiPrompt, AiProvider, AiUso30d, AiFeatureCodigo, AiProviderCodigo } from "@/lib/types";
-import type { LogRow } from "./page";
+import type { LogRow, PropostaSkillConfig } from "./page";
 import {
   toggleFeature, atualizarFeatureConfig, criarVersaoPrompt,
-  reverterParaVersao, atualizarProvider, checarApiKeyEnv,
+  reverterParaVersao, atualizarProvider, checarApiKeyEnv, salvarPropostaSkillConfig,
 } from "./actions";
 import {
   Bot, FileCode, Plug, Activity, ChevronRight, Save, RotateCcw,
-  CheckCircle2, XCircle, AlertCircle, Zap, DollarSign, Clock, Sparkles, FlaskConical,
+  CheckCircle2, XCircle, AlertCircle, Zap, DollarSign, Clock, Sparkles, FlaskConical, FileText,
 } from "lucide-react";
 import FewshotTab, { type FewshotExemplo } from "@/components/ai/fewshot-tab";
 import ExperimentosTab from "@/components/ai/experimentos-tab";
 
-type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos";
+type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos" | "propostas";
 
 export default function AdminAiClient({
   tab, featureAberta, features, providers, prompts, uso, logs,
-  fewshot, experimentos, resultadosExperimento,
+  fewshot, experimentos, resultadosExperimento, propostaSkillConfigs,
 }: {
   tab: Tab;
   featureAberta: string | null;
@@ -32,6 +32,7 @@ export default function AdminAiClient({
   fewshot: FewshotExemplo[];
   experimentos: any[];
   resultadosExperimento: any[];
+  propostaSkillConfigs: PropostaSkillConfig[];
 }) {
   const featuresLite = features.map((f) => ({ codigo: f.codigo, nome: f.nome }));
   const experimentosRodando = experimentos.filter((e) => e.status === "rodando").length;
@@ -62,6 +63,7 @@ export default function AdminAiClient({
         <TabBtn t="providers"    cur={tab} icon={<Plug className="w-3.5 h-3.5" />} label="Provedores" count={providers.filter(p => p.ativo).length} />
         <TabBtn t="fewshot"      cur={tab} icon={<Sparkles className="w-3.5 h-3.5" />} label="Few-shot" count={fewshot.length} />
         <TabBtn t="experimentos" cur={tab} icon={<FlaskConical className="w-3.5 h-3.5" />} label="A/B Testing" count={experimentosRodando} />
+        <TabBtn t="propostas"    cur={tab} icon={<FileText className="w-3.5 h-3.5" />} label="Propostas" count={propostaSkillConfigs.length} />
         <TabBtn t="logs"         cur={tab} icon={<Activity className="w-3.5 h-3.5" />} label="Logs" count={logs.length} />
       </nav>
 
@@ -70,6 +72,7 @@ export default function AdminAiClient({
       {tab === "providers"    && <ProvidersTab    providers={providers} />}
       {tab === "fewshot"      && <FewshotTab      exemplos={fewshot} features={featuresLite} />}
       {tab === "experimentos" && <ExperimentosTab experimentos={experimentos} prompts={prompts} features={featuresLite} resultados={resultadosExperimento} />}
+      {tab === "propostas"    && <PropostaSkillsTab configs={propostaSkillConfigs} />}
       {tab === "logs"         && <LogsTab         logs={logs} />}
     </div>
   );
@@ -385,6 +388,131 @@ function PromptEditor({ prompt, historico }: { prompt: AiPrompt; historico: AiPr
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// =============================================================
+// Aba: Propostas
+// =============================================================
+function PropostaSkillsTab({ configs }: { configs: PropostaSkillConfig[] }) {
+  const [pending, start] = useTransition();
+  const [id, setId] = useState<number | undefined>(configs[0]?.id);
+  const selecionada = configs.find((config) => config.id === id);
+  const [nome, setNome] = useState(selecionada?.nome ?? "Proposta consultiva");
+  const [formato, setFormato] = useState<PropostaSkillConfig["formato"]>(selecionada?.formato ?? "proposta_comercial");
+  const [skillChain, setSkillChain] = useState(selecionada?.skill_chain ?? "");
+  const [modeloReferencia, setModeloReferencia] = useState(selecionada?.modelo_referencia ?? "");
+  const [padrao, setPadrao] = useState(selecionada?.padrao ?? true);
+  const [ativo, setAtivo] = useState(selecionada?.ativo ?? true);
+  const router = useRouter();
+
+  function carregar(config?: PropostaSkillConfig) {
+    setId(config?.id);
+    setNome(config?.nome ?? "Proposta consultiva");
+    setFormato(config?.formato ?? "proposta_comercial");
+    setSkillChain(config?.skill_chain ?? "");
+    setModeloReferencia(config?.modelo_referencia ?? "");
+    setPadrao(config?.padrao ?? true);
+    setAtivo(config?.ativo ?? true);
+  }
+
+  function salvar() {
+    start(async () => {
+      await salvarPropostaSkillConfig({
+        id,
+        nome,
+        formato,
+        skill_chain: skillChain,
+        modelo_referencia: modeloReferencia,
+        padrao,
+        ativo,
+      });
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+      <aside className="card p-3">
+        <button onClick={() => carregar(undefined)} className="btn-primary text-xs w-full mb-3">
+          Nova configuracao
+        </button>
+        <div className="space-y-2">
+          {configs.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-2">Nenhuma skill configurada.</p>
+          ) : configs.map((config) => (
+            <button
+              key={config.id}
+              onClick={() => carregar(config)}
+              className={`w-full text-left rounded-lg border p-3 text-xs transition ${
+                id === config.id ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30"
+              }`}
+            >
+              <div className="font-semibold text-foreground">{config.nome}</div>
+              <div className="text-muted-foreground mt-1">{config.formato}</div>
+              <div className="flex gap-1 mt-2">
+                {config.padrao && <span className="pill-ok">padrao</span>}
+                {!config.ativo && <span className="pill-warn">inativa</span>}
+              </div>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <section className="card p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="label">Nome</span>
+            <input value={nome} onChange={(e) => setNome(e.target.value)} className="input-base text-sm" />
+          </label>
+          <label className="block">
+            <span className="label">Formato</span>
+            <select value={formato} onChange={(e) => setFormato(e.target.value as PropostaSkillConfig["formato"])} className="input-base text-sm">
+              <option value="proposta_comercial">Proposta comercial</option>
+              <option value="escopo_tecnico">Escopo tecnico / SOW</option>
+              <option value="email_executivo">Email executivo</option>
+              <option value="whatsapp_resumo">WhatsApp resumo</option>
+            </select>
+          </label>
+        </div>
+
+        <label className="block mt-3">
+          <span className="label">Sequencia de skills</span>
+          <textarea
+            value={skillChain}
+            onChange={(e) => setSkillChain(e.target.value)}
+            rows={10}
+            className="input-base text-xs font-mono"
+            placeholder="Cole aqui as skills validadas no Claude, em ordem."
+          />
+        </label>
+
+        <label className="block mt-3">
+          <span className="label">Modelo/referencia</span>
+          <textarea
+            value={modeloReferencia}
+            onChange={(e) => setModeloReferencia(e.target.value)}
+            rows={7}
+            className="input-base text-xs font-mono"
+            placeholder="Cole regras, estrutura aprovada, exemplos ou restricoes comerciais."
+          />
+        </label>
+
+        <div className="flex flex-wrap items-center gap-4 mt-4">
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={padrao} onChange={(e) => setPadrao(e.target.checked)} />
+            Padrao deste formato
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
+            Ativa
+          </label>
+          <button onClick={salvar} disabled={pending} className="btn-primary text-sm ml-auto">
+            <Save className="w-3.5 h-3.5" /> {pending ? "Salvando..." : "Salvar skills"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

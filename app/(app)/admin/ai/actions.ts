@@ -340,3 +340,59 @@ export async function atualizarProvider(input: {
   }
   revalidatePath("/admin/ai");
 }
+
+export async function salvarPropostaSkillConfig(input: {
+  id?: number;
+  nome: string;
+  formato: "proposta_comercial" | "escopo_tecnico" | "email_executivo" | "whatsapp_resumo";
+  skill_chain: string;
+  modelo_referencia?: string;
+  ativo?: boolean;
+  padrao?: boolean;
+}) {
+  const orgId = await requireGestor();
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const nome = input.nome.trim().slice(0, 120);
+  const skillChain = input.skill_chain.trim().slice(0, 12000);
+  if (!nome) throw new Error("Nome da configuracao e obrigatorio.");
+  if (!skillChain) throw new Error("Sequencia de skills e obrigatoria.");
+
+  const payload = {
+    nome,
+    formato: input.formato,
+    skill_chain: skillChain,
+    modelo_referencia: input.modelo_referencia?.trim().slice(0, 12000) || null,
+    ativo: input.ativo ?? true,
+    padrao: input.padrao ?? false,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (payload.padrao) {
+    await supabase
+      .from("proposta_skill_configs")
+      .update({ padrao: false })
+      .eq("organizacao_id", orgId)
+      .eq("formato", payload.formato);
+  }
+
+  if (input.id) {
+    const { error } = await supabase
+      .from("proposta_skill_configs")
+      .update(payload)
+      .eq("id", input.id)
+      .eq("organizacao_id", orgId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("proposta_skill_configs").insert({
+      ...payload,
+      organizacao_id: orgId,
+      criado_por: user?.id ?? null,
+    });
+    if (error) throw error;
+  }
+
+  revalidatePath("/admin/ai");
+  revalidatePath("/vendas/propostas");
+}

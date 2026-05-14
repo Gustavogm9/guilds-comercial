@@ -7,6 +7,7 @@ import PropostaWorkbench, {
   type LeadOpcao,
   type ProdutoOpcao,
   type PropostaRecente,
+  type PropostaSkillConfigOpcao,
 } from "./proposta-workbench";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export default async function PropostasPage({ searchParams }: PageProps) {
   const isGestor = role === "gestor";
   const supabase = createClient();
 
-  const [leadsResult, produtosResult, propostasResult] = await Promise.all([
+  const [leadsResult, produtosResult, propostasResult, skillConfigsResult] = await Promise.all([
     supabase
       .from("v_leads_enriched")
       .select("id, empresa, nome, segmento, dor_principal, valor_potencial, crm_stage, data_proposta, updated_at")
@@ -55,6 +56,13 @@ export default async function PropostasPage({ searchParams }: PageProps) {
       .eq("organizacao_id", orgId)
       .order("created_at", { ascending: false })
       .limit(30),
+    supabase
+      .from("proposta_skill_configs")
+      .select("id, nome, formato, skill_chain, modelo_referencia, padrao")
+      .eq("organizacao_id", orgId)
+      .eq("ativo", true)
+      .order("padrao", { ascending: false })
+      .order("created_at", { ascending: false }),
   ]);
 
   const leads: LeadOpcao[] = ((leadsResult.data ?? []) as Array<Record<string, unknown>>)
@@ -106,6 +114,17 @@ export default async function PropostasPage({ searchParams }: PageProps) {
       };
     });
 
+  const skillConfigs: PropostaSkillConfigOpcao[] = ((skillConfigsResult.data ?? []) as Array<Record<string, unknown>>)
+    .filter((config) => typeof config.id === "number" && typeof config.nome === "string" && typeof config.skill_chain === "string")
+    .map((config) => ({
+      id: Number(config.id),
+      nome: String(config.nome),
+      formato: typeof config.formato === "string" ? config.formato : "proposta_comercial",
+      skill_chain: String(config.skill_chain),
+      modelo_referencia: typeof config.modelo_referencia === "string" ? config.modelo_referencia : null,
+      padrao: Boolean(config.padrao),
+    }));
+
   const initialLeadId = Number(params.lead);
 
   return (
@@ -128,6 +147,7 @@ export default async function PropostasPage({ searchParams }: PageProps) {
         leads={leads}
         produtos={produtos}
         propostas={propostas}
+        skillConfigs={skillConfigs}
         initialLeadId={Number.isInteger(initialLeadId) ? initialLeadId : null}
       />
     </div>

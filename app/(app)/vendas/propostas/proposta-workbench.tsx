@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import clsx from "clsx";
 import {
   ArrowUpRight,
@@ -54,6 +54,15 @@ export type PropostaRecente = {
   link_proposta: string | null;
 };
 
+export type PropostaSkillConfigOpcao = {
+  id: number;
+  nome: string;
+  formato: string;
+  skill_chain: string;
+  modelo_referencia: string | null;
+  padrao: boolean;
+};
+
 type Formato = "proposta_comercial" | "escopo_tecnico" | "email_executivo" | "whatsapp_resumo";
 type Variacao = "conservadora" | "recomendada" | "premium";
 
@@ -61,6 +70,7 @@ type WorkbenchProps = {
   leads: LeadOpcao[];
   produtos: ProdutoOpcao[];
   propostas: PropostaRecente[];
+  skillConfigs: PropostaSkillConfigOpcao[];
   initialLeadId?: number | null;
 };
 
@@ -100,7 +110,7 @@ function dataCurta(value: string | null) {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(value));
 }
 
-export default function PropostaWorkbench({ leads, produtos, propostas, initialLeadId }: WorkbenchProps) {
+export default function PropostaWorkbench({ leads, produtos, propostas, skillConfigs, initialLeadId }: WorkbenchProps) {
   const leadInicial = initialLeadId && leads.some((lead) => lead.id === initialLeadId)
     ? initialLeadId
     : leads[0]?.id ?? null;
@@ -120,10 +130,14 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
   const [observacoes, setObservacoes] = useState("");
   const [skillChain, setSkillChain] = useState(SKILL_CHAIN_PADRAO);
   const [modeloReferencia, setModeloReferencia] = useState("");
+  const [skillConfigId, setSkillConfigId] = useState<number | null>(null);
+  const [pedidoMelhoria, setPedidoMelhoria] = useState("");
   const [texto, setTexto] = useState("");
   const [htmlPreview, setHtmlPreview] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const [invocationId, setInvocationId] = useState<number | null>(null);
+  const [propostaIdAtual, setPropostaIdAtual] = useState<number | null>(null);
+  const [versaoAtual, setVersaoAtual] = useState<number | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -154,6 +168,32 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
     [leadId, propostas]
   );
 
+  const skillConfigsDoFormato = useMemo(
+    () => skillConfigs.filter((config) => config.formato === formato),
+    [skillConfigs, formato]
+  );
+
+  useEffect(() => {
+    const config = skillConfigsDoFormato.find((item) => item.padrao) ?? skillConfigsDoFormato[0];
+    if (config) {
+      setSkillConfigId(config.id);
+      setSkillChain(config.skill_chain);
+      setModeloReferencia(config.modelo_referencia ?? "");
+    } else {
+      setSkillConfigId(null);
+      setSkillChain(SKILL_CHAIN_PADRAO);
+      setModeloReferencia("");
+    }
+  }, [formato, skillConfigsDoFormato]);
+
+  function aplicarSkillConfig(configId: number | null) {
+    setSkillConfigId(configId);
+    const config = skillConfigs.find((item) => item.id === configId);
+    if (!config) return;
+    setSkillChain(config.skill_chain);
+    setModeloReferencia(config.modelo_referencia ?? "");
+  }
+
   function gerar() {
     if (!leadId) {
       setErro("Selecione um lead para gerar a proposta.");
@@ -168,6 +208,7 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
       const resposta = await gerarPropostaAction({
         leadId,
         produtoId,
+        propostaId: propostaIdAtual,
         variacao,
         campos: {
           formato,
@@ -181,6 +222,7 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
           observacoes,
           skillChain,
           modeloReferencia,
+          pedidoMelhoria,
         },
       });
 
@@ -188,10 +230,14 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
         setTexto(resposta.texto);
         setHtmlPreview(resposta.html ?? null);
         setInvocationId(resposta.invocationId ?? null);
+        setPropostaIdAtual(resposta.propostaId ?? null);
+        setVersaoAtual(resposta.versao ?? null);
+        setPedidoMelhoria("");
       } else {
         setErro(resposta.erro ?? "Erro ao gerar proposta.");
         setTexto(resposta.texto ?? "");
         setHtmlPreview(resposta.html ?? null);
+        setPropostaIdAtual(resposta.propostaId ?? propostaIdAtual);
       }
     });
   }
@@ -375,6 +421,21 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
           </div>
 
           <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <label className="block lg:col-span-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Skill configurada</span>
+              <select
+                value={skillConfigId ?? ""}
+                onChange={(event) => aplicarSkillConfig(event.target.value ? Number(event.target.value) : null)}
+                className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="">Manual / padrao do sistema</option>
+                {skillConfigsDoFormato.map((config) => (
+                  <option key={config.id} value={config.id}>
+                    {config.nome}{config.padrao ? " (padrao)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Campo
               label="Sequencia de skills"
               value={skillChain}
@@ -415,7 +476,9 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
         {texto ? (
           <section className="card p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h2 className="text-sm font-semibold">Resultado gerado</h2>
+              <h2 className="text-sm font-semibold">
+                Resultado gerado {versaoAtual ? <span className="text-xs text-muted-foreground">v{versaoAtual}</span> : null}
+              </h2>
               <div className="flex items-center gap-2">
                 <AiOutputActions invocationId={invocationId} texto={texto} />
                 <button type="button" onClick={copiar} className="btn-secondary text-xs">
@@ -423,6 +486,25 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
                   {copiado ? "Copiado" : "Copiar"}
                 </button>
               </div>
+            </div>
+            <div className="mb-4 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
+              <Campo
+                label="Pedido de melhoria"
+                value={pedidoMelhoria}
+                onChange={setPedidoMelhoria}
+                placeholder="Ex: deixe mais executivo, inclua add-on de onboarding, reduza o escopo inicial"
+                multiline
+                rows={3}
+              />
+              <button
+                type="button"
+                onClick={gerar}
+                disabled={pending || !pedidoMelhoria.trim()}
+                className="btn-secondary text-sm h-10"
+              >
+                {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Gerar nova versao
+              </button>
             </div>
             {htmlPreview ? (
               <div className="mb-4">

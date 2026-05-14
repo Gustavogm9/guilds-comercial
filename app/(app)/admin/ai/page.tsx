@@ -9,7 +9,7 @@ import type { FewshotExemplo } from "@/components/ai/fewshot-tab";
 
 export const dynamic = "force-dynamic";
 
-type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos";
+type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos" | "propostas";
 
 export default async function AdminAiPage(
   props: {
@@ -37,6 +37,7 @@ export default async function AdminAiPage(
     { data: fewshotData },
     { data: experimentosData },
     { data: resultadosData },
+    { data: propostaSkillConfigs },
   ] = await Promise.all([
     supabase.from("ai_features").select("*").eq("organizacao_id", orgId),
     supabase.from("ai_features").select("*").is("organizacao_id", null),
@@ -47,6 +48,7 @@ export default async function AdminAiPage(
     supabase.from("ai_fewshot_exemplos").select("id, feature_codigo, segmento_org, segmento_lead, cargo_decisor, ticket_range, output, score, fonte, ativo, created_at").eq("organizacao_id", orgId).eq("ativo", true).order("score", { ascending: false }).limit(200),
     supabase.from("ai_prompt_experiments").select("*").eq("organizacao_id", orgId).order("started_at", { ascending: false }).limit(50),
     supabase.from("v_ai_experimento_resultado").select("*"),
+    supabase.from("proposta_skill_configs").select("*").eq("organizacao_id", orgId).order("padrao", { ascending: false }).order("created_at", { ascending: false }),
   ]);
 
   // Merge: org override se existir, senão global
@@ -81,6 +83,7 @@ export default async function AdminAiPage(
         fewshot={(fewshotData ?? []) as FewshotExemplo[]}
         experimentos={(experimentosData ?? []) as any}
         resultadosExperimento={resultados as any}
+        propostaSkillConfigs={(propostaSkillConfigs ?? []) as any}
       />
     </>
   );
@@ -100,4 +103,15 @@ export type LogRow = {
   erro_msg: string | null;
   input_vars: Record<string, unknown>;
   output_texto: string | null;
+};
+
+export type PropostaSkillConfig = {
+  id: number;
+  nome: string;
+  formato: "proposta_comercial" | "escopo_tecnico" | "email_executivo" | "whatsapp_resumo";
+  skill_chain: string;
+  modelo_referencia: string | null;
+  ativo: boolean;
+  padrao: boolean;
+  created_at: string;
 };

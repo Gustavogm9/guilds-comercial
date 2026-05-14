@@ -20,6 +20,7 @@ type CamposProposta = {
   validade?: string;
   skillChain?: string;
   modeloReferencia?: string;
+  pedidoMelhoria?: string;
 };
 
 function clean(value?: string | null, max = 1200) {
@@ -109,6 +110,7 @@ export async function gerarPropostaAction(input: {
   leadId: number;
   variacao: "conservadora" | "recomendada" | "premium";
   produtoId?: number | null;
+  propostaId?: number | null;
   campos?: CamposProposta;
 }) {
   if (!Number.isInteger(input.leadId) || input.leadId <= 0) {
@@ -199,7 +201,26 @@ export async function gerarPropostaAction(input: {
     `Validade: ${clean(campos.validade, 120) || "nao informado"}`,
     `Observacoes do vendedor: ${clean(campos.observacoes) || "nao informado"}`,
     `Modelo/referencia validada: ${clean(campos.modeloReferencia, 1500) || "nao informado"}`,
+    `Pedido de melhoria/correcao pos-geracao: ${clean(campos.pedidoMelhoria, 1500) || "nao informado"}`,
   ].join("\n");
+
+  const inputVars = {
+    leadId: input.leadId,
+    produtoId: input.produtoId ?? null,
+    variacao: input.variacao,
+    formato,
+    campos: {
+      objetivo: clean(campos.objetivo),
+      escopo: clean(campos.escopo),
+      entregas: clean(campos.entregas),
+      cronograma: clean(campos.cronograma, 500),
+      investimento: clean(campos.investimento, 500),
+      condicoes: clean(campos.condicoes, 700),
+      validade: clean(campos.validade, 120),
+      observacoes: clean(campos.observacoes),
+      pedidoMelhoria: clean(campos.pedidoMelhoria, 1500),
+    },
+  };
 
   const result = await invokeAI({
     feature: "gerar_proposta",
@@ -240,21 +261,100 @@ export async function gerarPropostaAction(input: {
   const dataFollowUp = new Date();
   dataFollowUp.setDate(dataFollowUp.getDate() + 3);
   const propostaLink = `/proposta/${input.leadId}`;
+  let persistedPropostaId: number | null = input.propostaId ?? null;
+  let persistedVersaoId: number | null = null;
+  let persistedVersao = 1;
 
   if (result.ok && me) {
-    const { error: propostaError } = await supabase.from("propostas").insert({
-      organizacao_id: orgId,
-      lead_id: input.leadId,
-      produto_id: input.produtoId ?? null,
-      criado_por: me.id,
-      variacao: input.variacao,
-      status: "rascunho",
-      texto_proposta: result.texto,
-      link_proposta: propostaLink,
-      data_envio: hoje,
-    });
-    if (propostaError) {
-      return { ok: false, texto: result.texto, html: htmlPreview, erro: propostaError.message, invocationId: result.invocationId };
+    let propostaId = persistedPropostaId;
+    let versao = 1;
+
+    if (propostaId) {
+      const { data: atual } = await supabase
+        .from("propostas")
+        .select("id, versao_atual")
+        .eq("id", propostaId)
+        .eq("organizacao_id", orgId)
+        .eq("lead_id", input.leadId)
+        .maybeSingle();
+      if (!atual) propostaId = null;
+      else {
+        versao = Number((atual as any).versao_atual ?? 1) + 1;
+        const { error: updatePropostaError } = await supabase
+          .from("propostas")
+          .update({
+            produto_id: input.produtoId ?? null,
+            variacao: input.variacao,
+            texto_proposta: result.texto,
+            html_proposta: htmlPreview,
+            input_vars: inputVars,
+            ultimo_pedido_melhoria: clean(campos.pedidoMelhoria, 1500) || null,
+            versao_atual: versao,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", propostaId)
+          .eq("organizacao_id", orgId);
+        if (updatePropostaError) {
+          return { ok: false, texto: result.texto, html: htmlPreview, erro: updatePropostaError.message, invocationId: result.invocationId };
+        }
+      }
+    }
+
+    if (!propostaId) {
+      const { data: novaProposta, error: propostaError } = await supabase.from("propostas").insert({
+        organizacao_id: orgId,
+        lead_id: input.leadId,
+        produto_id: input.produtoId ?? null,
+        criado_por: me.id,
+        variacao: input.variacao,
+        status: "rascunho",
+        texto_proposta: result.texto,
+        html_proposta: htmlPreview,
+        input_vars: inputVars,
+        ultimo_pedido_melhoria: clean(campos.pedidoMelhoria, 1500) || null,
+        versao_atual: 1,
+        link_proposta: propostaLink,
+        data_envio: hoje,
+      }).select("id").maybeSingle();
+      if (propostaError) {
+        return { ok: false, texto: result.texto, html: htmlPreview, erro: propostaError.message, invocationId: result.invocationId };
+      }
+      propostaId = novaProposta?.id ?? null;
+    }
+
+    let versaoId: number | null = null;
+    if (propostaId) {
+      persistedPropostaId = propostaId;
+      persistedVersao = versao;
+      const { data: versaoRow, error: versaoError } = await supabase.from("proposta_versoes").insert({
+        organizacao_id: orgId,
+        proposta_id: propostaId,
+        lead_id: input.leadId,
+        versao,
+        texto_proposta: result.texto,
+        html_proposta: htmlPreview,
+        input_vars: inputVars,
+        pedido_melhoria: clean(campos.pedidoMelhoria, 1500) || null,
+        ai_invocation_id: result.invocationId,
+        criado_por: me.id,
+      }).select("id").maybeSingle();
+      if (versaoError) {
+        return { ok: false, texto: result.texto, html: htmlPreview, erro: versaoError.message, invocationId: result.invocationId, propostaId };
+      }
+      versaoId = versaoRow?.id ?? null;
+      persistedVersaoId = versaoId;
+
+      if (clean(campos.pedidoMelhoria, 1500)) {
+        await supabase.from("proposta_feedback").insert({
+          organizacao_id: orgId,
+          proposta_id: propostaId,
+          versao_id: versaoId,
+          tipo: "melhoria",
+          conteudo: clean(campos.pedidoMelhoria, 1500),
+          resolvido: true,
+          criado_por: me.id,
+        });
+      }
     }
 
     const { error: leadError } = await supabase
@@ -282,5 +382,14 @@ export async function gerarPropostaAction(input: {
     revalidatePath("/hoje");
   }
 
-  return { ok: result.ok, texto: result.texto, html: htmlPreview, erro: result.erro, invocationId: result.invocationId };
+  return {
+    ok: result.ok,
+    texto: result.texto,
+    html: htmlPreview,
+    erro: result.erro,
+    invocationId: result.invocationId,
+    propostaId: persistedPropostaId,
+    versaoId: persistedVersaoId,
+    versao: persistedVersao,
+  };
 }
