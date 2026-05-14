@@ -5,7 +5,13 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, FileSignature, Scale, 
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import VendasTabs from "../vendas-tabs";
-import { adicionarNotaJuridicaAction, atualizarStatusContratoAction } from "./actions";
+import {
+  adicionarNotaJuridicaAction,
+  atualizarStatusContratoAction,
+  configurarVigenciaContratoAction,
+  enviarContratoClicksignAction,
+  prepararDocumentoContratoAction,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +31,12 @@ type ContratoJuridico = {
   ultimo_pedido_melhoria: string | null;
   data_envio: string | null;
   data_assinatura: string | null;
+  documento_nome: string | null;
+  clicksign_envelope_id: string | null;
+  clicksign_status: string | null;
+  signatario_nome: string | null;
+  signatario_email: string | null;
+  sla_revisao_due_at: string | null;
   created_at: string | null;
   updated_at: string | null;
   notas: NotaJuridica[];
@@ -45,6 +57,8 @@ type LeadFechado = {
   segmento: string | null;
   valor: number | null;
   data_fechamento: string | null;
+  email: string | null;
+  whatsapp: string | null;
 };
 
 function asNumber(value: unknown) {
@@ -90,6 +104,10 @@ function modoLabel(modo: string) {
   return "Template DOCX";
 }
 
+function estaAtrasado(value?: string | null) {
+  return Boolean(value && new Date(value).getTime() < Date.now());
+}
+
 export default async function JuridicoPage() {
   const me = await getCurrentProfile();
   if (!me) redirect("/login");
@@ -101,16 +119,16 @@ export default async function JuridicoPage() {
   const isGestor = role === "gestor";
   const supabase = createClient();
 
-  const [contratosResult, leadsResult, feedbackResult] = await Promise.all([
+  const [contratosResult, leadsResult, feedbackResult, metricasResult] = await Promise.all([
     supabase
       .from("contratos")
-      .select("id, lead_id, proposta_id, modo, status, versao_atual, template_docx_nome, ultimo_pedido_melhoria, data_envio, data_assinatura, created_at, updated_at")
+      .select("id, lead_id, proposta_id, modo, status, versao_atual, template_docx_nome, ultimo_pedido_melhoria, data_envio, data_assinatura, documento_nome, clicksign_envelope_id, clicksign_status, signatario_nome, signatario_email, sla_revisao_due_at, created_at, updated_at")
       .eq("organizacao_id", orgId)
       .order("updated_at", { ascending: false })
       .limit(200),
     supabase
       .from("v_leads_enriched")
-      .select("id, empresa, nome, segmento, valor_potencial, crm_stage, data_fechamento")
+      .select("id, empresa, nome, email, whatsapp, segmento, valor_potencial, crm_stage, data_fechamento")
       .eq("organizacao_id", orgId)
       .eq("crm_stage", "Fechado")
       .order("data_fechamento", { ascending: false, nullsFirst: false })
@@ -121,6 +139,11 @@ export default async function JuridicoPage() {
       .eq("organizacao_id", orgId)
       .order("created_at", { ascending: false })
       .limit(200),
+    supabase
+      .from("v_contratos_operacao")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .maybeSingle(),
   ]);
 
   const leads: LeadFechado[] = ((leadsResult.data ?? []) as Array<Record<string, unknown>>)
@@ -135,6 +158,8 @@ export default async function JuridicoPage() {
       segmento: typeof lead.segmento === "string" ? lead.segmento : null,
       valor: asNumber(lead.valor_potencial),
       data_fechamento: typeof lead.data_fechamento === "string" ? lead.data_fechamento : null,
+      email: typeof lead.email === "string" ? lead.email : null,
+      whatsapp: typeof lead.whatsapp === "string" ? lead.whatsapp : null,
     }));
 
   const leadPorId = new Map(leads.map((lead) => [lead.id, lead]));
@@ -173,6 +198,12 @@ export default async function JuridicoPage() {
         ultimo_pedido_melhoria: typeof contrato.ultimo_pedido_melhoria === "string" ? contrato.ultimo_pedido_melhoria : null,
         data_envio: typeof contrato.data_envio === "string" ? contrato.data_envio : null,
         data_assinatura: typeof contrato.data_assinatura === "string" ? contrato.data_assinatura : null,
+        documento_nome: typeof contrato.documento_nome === "string" ? contrato.documento_nome : null,
+        clicksign_envelope_id: typeof contrato.clicksign_envelope_id === "string" ? contrato.clicksign_envelope_id : null,
+        clicksign_status: typeof contrato.clicksign_status === "string" ? contrato.clicksign_status : null,
+        signatario_nome: typeof contrato.signatario_nome === "string" ? contrato.signatario_nome : null,
+        signatario_email: typeof contrato.signatario_email === "string" ? contrato.signatario_email : lead?.email ?? null,
+        sla_revisao_due_at: typeof contrato.sla_revisao_due_at === "string" ? contrato.sla_revisao_due_at : null,
         created_at: typeof contrato.created_at === "string" ? contrato.created_at : null,
         updated_at: typeof contrato.updated_at === "string" ? contrato.updated_at : null,
         notas: notasPorContrato.get(id) ?? [],
@@ -185,8 +216,10 @@ export default async function JuridicoPage() {
   const aguardandoAssinatura = contratos.filter((contrato) => contrato.status === "aguardando_assinatura");
   const assinados = contratos.filter((contrato) => contrato.status === "assinado");
   const foraPadrao = contratos.filter((contrato) => contrato.modo !== "contrato_template" || contrato.notas.some((nota) => !nota.resolvido));
+  const revisaoAtrasada = contratos.filter((contrato) => contrato.status !== "assinado" && contrato.status !== "cancelado" && estaAtrasado(contrato.sla_revisao_due_at));
   const filaRevisao = [...emRevisao, ...contratos.filter((contrato) => contrato.status === "rascunho")];
   const filaConcluidos = [...assinados, ...contratos.filter((contrato) => contrato.status === "cancelado")];
+  const metricas = (metricasResult.data ?? null) as { horas_media_revisao?: number | null; horas_media_assinatura?: number | null } | null;
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -213,7 +246,13 @@ export default async function JuridicoPage() {
         <Kpi icon={<Clock3 className="w-4 h-4" />} label="Em revisao" value={emRevisao.length} />
         <Kpi icon={<Send className="w-4 h-4" />} label="Assinatura" value={aguardandoAssinatura.length} />
         <Kpi icon={<CheckCircle2 className="w-4 h-4" />} label="Assinados" value={assinados.length} />
-        <Kpi icon={<AlertTriangle className="w-4 h-4" />} label="Fora do padrao" value={foraPadrao.length} />
+        <Kpi icon={<AlertTriangle className="w-4 h-4" />} label="SLA atrasado" value={revisaoAtrasada.length} />
+      </section>
+
+      <section className="grid md:grid-cols-3 gap-3 mb-6">
+        <MiniMetric label="Fora do padrao" value={foraPadrao.length.toString()} />
+        <MiniMetric label="Media revisao" value={metricas?.horas_media_revisao != null ? `${metricas.horas_media_revisao}h` : "-"} />
+        <MiniMetric label="Media assinatura" value={metricas?.horas_media_assinatura != null ? `${metricas.horas_media_assinatura}h` : "-"} />
       </section>
 
       {leadsSemContrato.length > 0 && (
@@ -283,6 +322,15 @@ function Kpi({ icon, label, value }: { icon: ReactNode; label: string; value: nu
   );
 }
 
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold mt-0.5">{value}</p>
+    </div>
+  );
+}
+
 function ColunaTitulo({ titulo, subtitulo }: { titulo: string; subtitulo: string }) {
   return (
     <div className="hidden lg:block">
@@ -324,7 +372,54 @@ function ContratoCard({ contrato, foco }: { contrato: ContratoJuridico; foco: "r
           <dt className="text-muted-foreground">Template</dt>
           <dd className="font-medium truncate">{contrato.template_docx_nome ?? "-"}</dd>
         </div>
+        <div>
+          <dt className="text-muted-foreground">SLA revisao</dt>
+          <dd className={estaAtrasado(contrato.sla_revisao_due_at) ? "font-medium text-destructive" : "font-medium"}>
+            {dataCurta(contrato.sla_revisao_due_at)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Clicksign</dt>
+          <dd className="font-medium truncate">{contrato.clicksign_status ?? (contrato.clicksign_envelope_id ? "enviado" : "-")}</dd>
+        </div>
       </dl>
+
+      <div className="grid gap-2 mb-3">
+        <form action={prepararDocumentoContratoAction}>
+          <input type="hidden" name="contratoId" value={contrato.id} />
+          <button type="submit" className="btn-secondary text-xs w-full">
+            Preparar documento
+          </button>
+        </form>
+        <details className="rounded-lg border border-border bg-background p-3">
+          <summary className="text-xs font-medium cursor-pointer">Enviar via Clicksign</summary>
+          <form action={enviarContratoClicksignAction} className="grid gap-2 mt-3">
+            <input type="hidden" name="contratoId" value={contrato.id} />
+            <input name="signatarioNome" defaultValue={contrato.signatario_nome ?? contrato.lead_nome} className="input-base text-xs" placeholder="Nome do signatario" />
+            <input name="signatarioEmail" defaultValue={contrato.signatario_email ?? ""} className="input-base text-xs" placeholder="email@cliente.com" />
+            <input name="signatarioTelefone" className="input-base text-xs" placeholder="Telefone/WhatsApp opcional" />
+            <input name="signatarioDocumento" className="input-base text-xs" placeholder="CPF/CNPJ opcional" />
+            <button type="submit" className="btn-primary text-xs">Criar envelope Clicksign</button>
+            <p className="text-[11px] text-muted-foreground">
+              Usa minuta TXT se o PDF/DOCX final ainda nao foi anexado ao contrato.
+            </p>
+          </form>
+        </details>
+        <details className="rounded-lg border border-border bg-background p-3">
+          <summary className="text-xs font-medium cursor-pointer">Vigencia e renovacao</summary>
+          <form action={configurarVigenciaContratoAction} className="grid gap-2 mt-3">
+            <input type="hidden" name="contratoId" value={contrato.id} />
+            <input name="vigenciaInicio" type="date" className="input-base text-xs" aria-label="Inicio da vigencia" />
+            <input name="vigenciaFim" type="date" className="input-base text-xs" aria-label="Fim da vigencia" required />
+            <input name="cicloMeses" type="number" min={1} max={60} defaultValue={12} className="input-base text-xs" placeholder="Ciclo em meses" />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input name="configurarRenovacao" type="checkbox" className="rounded border-border" />
+              Criar renovacao automatica no pos-venda
+            </label>
+            <button type="submit" className="btn-secondary text-xs">Salvar vigencia</button>
+          </form>
+        </details>
+      </div>
 
       {contrato.ultimo_pedido_melhoria && (
         <p className="text-xs rounded-md bg-muted p-2 mb-3">{contrato.ultimo_pedido_melhoria}</p>

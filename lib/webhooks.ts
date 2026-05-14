@@ -6,7 +6,12 @@ export type WebhookEventType =
   | 'lead.stage_changed'
   | 'lead.won'
   | 'lead.lost'
-  | 'raiox.completed';
+  | 'raiox.completed'
+  | 'contract.generated'
+  | 'contract.review_requested'
+  | 'contract.signature_requested'
+  | 'contract.signed'
+  | 'contract.canceled';
 
 const MAX_ATTEMPTS = 3;
 // Backoff em minutos por número de tentativa: 1, 5, 30 (total ~36min de retries antes de DLQ).
