@@ -8,6 +8,7 @@ import {
   Check,
   Copy,
   FileText,
+  ListChecks,
   Loader2,
   Mail,
   MessageSquareText,
@@ -76,6 +77,14 @@ const VARIACOES: Array<{ key: Variacao; label: string; desc: string }> = [
   { key: "premium", label: "Premium", desc: "Escopo completo e maior ticket" },
 ];
 
+const SKILL_CHAIN_PADRAO = [
+  "1. Diagnosticar contexto, etapa, dor principal e urgencia do lead.",
+  "2. Mapear impacto financeiro, valor percebido e risco de nao agir.",
+  "3. Escolher oferta principal, add-ons, upsell/cross-sell e cases aderentes.",
+  "4. Montar escopo, entregas, premissas, cronograma, investimento e proximos passos.",
+  "5. Revisar clareza, objeccoes, riscos comerciais e coerencia com o formato escolhido.",
+].join("\n");
+
 const moeda = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -109,7 +118,10 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
   const [condicoes, setCondicoes] = useState("");
   const [validade, setValidade] = useState("7 dias");
   const [observacoes, setObservacoes] = useState("");
+  const [skillChain, setSkillChain] = useState(SKILL_CHAIN_PADRAO);
+  const [modeloReferencia, setModeloReferencia] = useState("");
   const [texto, setTexto] = useState("");
+  const [htmlPreview, setHtmlPreview] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const [invocationId, setInvocationId] = useState<number | null>(null);
   const [copiado, setCopiado] = useState(false);
@@ -149,6 +161,7 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
     }
     setErro("");
     setTexto("");
+    setHtmlPreview(null);
     setInvocationId(null);
 
     startTransition(async () => {
@@ -166,15 +179,19 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
           condicoes,
           validade,
           observacoes,
+          skillChain,
+          modeloReferencia,
         },
       });
 
       if (resposta.ok) {
         setTexto(resposta.texto);
+        setHtmlPreview(resposta.html ?? null);
         setInvocationId(resposta.invocationId ?? null);
       } else {
         setErro(resposta.erro ?? "Erro ao gerar proposta.");
         setTexto(resposta.texto ?? "");
+        setHtmlPreview(resposta.html ?? null);
       }
     });
   }
@@ -357,6 +374,25 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
             <Campo label="Observacoes" value={observacoes} onChange={setObservacoes} placeholder="Tom, restricoes, decisor, concorrente, combinados" multiline />
           </div>
 
+          <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Campo
+              label="Sequencia de skills"
+              value={skillChain}
+              onChange={setSkillChain}
+              placeholder="Cole aqui as skills validadas no Claude, em ordem de execucao"
+              multiline
+              rows={7}
+            />
+            <Campo
+              label="Modelo validado"
+              value={modeloReferencia}
+              onChange={setModeloReferencia}
+              placeholder="Cole trechos, regras ou estrutura do modelo aprovado"
+              multiline
+              rows={7}
+            />
+          </div>
+
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-muted-foreground">
               {propostasDoLead.length > 0
@@ -388,6 +424,20 @@ export default function PropostaWorkbench({ leads, produtos, propostas, initialL
                 </button>
               </div>
             </div>
+            {htmlPreview ? (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <ListChecks className="w-3.5 h-3.5" />
+                  Preview HTML
+                </div>
+                <iframe
+                  title="Preview HTML da proposta"
+                  sandbox=""
+                  srcDoc={htmlPreview}
+                  className="w-full h-[520px] rounded-lg border border-border bg-white"
+                />
+              </div>
+            ) : null}
             <div className="rounded-lg border border-border bg-secondary/30 p-4 text-sm leading-relaxed whitespace-pre-wrap max-h-[620px] overflow-y-auto">
               {texto}
             </div>
@@ -435,12 +485,14 @@ function Campo({
   onChange,
   placeholder,
   multiline = false,
+  rows = 4,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   multiline?: boolean;
+  rows?: number;
 }) {
   const className = "mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30";
 
@@ -452,7 +504,7 @@ function Campo({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          rows={4}
+          rows={rows}
           className={className}
         />
       ) : (
