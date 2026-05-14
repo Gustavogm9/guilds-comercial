@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { FileSignature } from "lucide-react";
+import Link from "next/link";
+import { FileSignature, Scale } from "lucide-react";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import VendasTabs from "../vendas-tabs";
@@ -136,16 +137,21 @@ export default async function ContratosPage({ searchParams }: PageProps) {
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <VendasTabs isGestor={isGestor} />
 
-      <header className="flex items-start gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center text-primary shrink-0">
-          <FileSignature className="w-5 h-5" />
+      <header className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center text-primary shrink-0">
+            <FileSignature className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Contratos</h1>
+            <p className="text-sm text-muted-foreground">
+              Gere contrato por template, briefing juridico ou revisao a partir de propostas fechadas.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Contratos</h1>
-          <p className="text-sm text-muted-foreground">
-            Gere contrato por template, briefing juridico ou revisao a partir de propostas fechadas.
-          </p>
-        </div>
+        <Link href="/vendas/juridico" className="btn-secondary text-sm self-start">
+          <Scale className="w-4 h-4" /> Monitor juridico
+        </Link>
       </header>
 
       <ContratoWorkbench
