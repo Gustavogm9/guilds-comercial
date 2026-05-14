@@ -4,6 +4,7 @@ import { invokeAI } from "@/lib/ai/dispatcher";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import { getCurrentProfile } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 
 const VARIACOES_VALIDAS = ["conservadora", "recomendada", "premium"] as const;
 
@@ -78,8 +79,13 @@ export async function gerarPropostaAction(input: {
   });
 
   // Persiste proposta no histórico (mesmo em caso de sucesso parcial)
+  const hoje = new Date().toISOString().slice(0, 10);
+  const dataFollowUp = new Date();
+  dataFollowUp.setDate(dataFollowUp.getDate() + 3);
+  const propostaLink = `/proposta/${input.leadId}`;
+
   if (result.ok && me) {
-    await supabase.from("propostas").insert({
+    const { error: propostaError } = await supabase.from("propostas").insert({
       organizacao_id: orgId,
       lead_id: input.leadId,
       produto_id: input.produtoId ?? null,
@@ -87,8 +93,35 @@ export async function gerarPropostaAction(input: {
       variacao: input.variacao,
       status: "rascunho",
       texto_proposta: result.texto,
-      data_envio: new Date().toISOString().slice(0, 10),
+      link_proposta: propostaLink,
+      data_envio: hoje,
     });
+    if (propostaError) {
+      return { ok: false, texto: result.texto, erro: propostaError.message, invocationId: result.invocationId };
+    }
+
+    const { error: leadError } = await supabase
+      .from("leads")
+      .update({
+        funnel_stage: "pipeline",
+        crm_stage: "Proposta",
+        data_proposta: hoje,
+        link_proposta: propostaLink,
+        proxima_acao: "Fazer follow-up da proposta",
+        data_proxima_acao: dataFollowUp.toISOString().slice(0, 10),
+      })
+      .eq("id", input.leadId)
+      .eq("organizacao_id", orgId);
+    if (leadError) {
+      return { ok: false, texto: result.texto, erro: leadError.message, invocationId: result.invocationId };
+    }
+
+    revalidatePath(`/proposta/${input.leadId}`);
+    revalidatePath(`/vendas/pipeline/${input.leadId}`);
+    revalidatePath("/vendas/pipeline");
+    revalidatePath("/vendas/base");
+    revalidatePath("/vendas/portfolio");
+    revalidatePath("/hoje");
   }
 
   return { ok: result.ok, texto: result.texto, erro: result.erro, invocationId: result.invocationId };

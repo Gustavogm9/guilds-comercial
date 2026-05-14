@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Check, CreditCard, ShieldCheck, Sparkles } from "lucide-react";
-import { PLANS, getTrialState, priceLabelOf, type CurrencyCode } from "@/lib/billing";
+import { PLANS, getBillingAccessState, getTrialState, priceLabelOf, type CurrencyCode } from "@/lib/billing";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { abrirPortalCliente, iniciarCheckout } from "./actions";
@@ -15,7 +15,7 @@ export default async function BillingPage() {
   if (!orgId) redirect("/hoje");
 
   const role = await getCurrentRole();
-  if (role !== "gestor") redirect("/hoje");
+  const isGestor = role === "gestor";
 
   const supabase = createClient();
   const { data: org } = await supabase.from("organizacoes").select("*").eq("id", orgId).maybeSingle();
@@ -28,7 +28,8 @@ export default async function BillingPage() {
     moeda_padrao?: string | null;
   };
   const trial = getTrialState(currentOrg?.trial_ends_at, currentOrg?.billing_status);
-  const canOpenPortal = Boolean(currentOrg?.stripe_customer_id && process.env.STRIPE_SECRET_KEY);
+  const access = getBillingAccessState(currentOrg);
+  const canOpenPortal = isGestor && Boolean(currentOrg?.stripe_customer_id && process.env.STRIPE_SECRET_KEY);
   const moedaOrg = currentOrg?.moeda_padrao ?? "BRL";
   const currency: Currency = SUPPORTED_CURRENCIES.includes(moedaOrg as Currency)
     ? (moedaOrg as Currency) : "BRL";
@@ -69,6 +70,25 @@ export default async function BillingPage() {
         </div>
       </header>
 
+      {!access.allowed && (
+        <section className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <CreditCard className="mt-0.5 h-5 w-5 text-destructive" />
+            <div>
+              <h1 className="text-sm font-semibold text-destructive">Acesso limitado por billing</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {billingBlockedMessage(access.reason)}
+              </p>
+              {!isGestor && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Apenas gestores podem regularizar assinatura ou abrir o portal do cliente.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Consumo de IA do mês corrente */}
       <section className="mb-6">
         <AiOverageCard organizacaoId={orgId} />
@@ -77,7 +97,7 @@ export default async function BillingPage() {
       <section id="planos" className="grid md:grid-cols-3 gap-4">
         {PLANS.map((plan) => {
           const current = currentOrg?.plano === plan.code;
-          const checkoutReady = isStripeConfiguredForPlan(plan.code, currency);
+          const checkoutReady = isGestor && isStripeConfiguredForPlan(plan.code, currency);
           return (
             <article key={plan.code} className={`card p-5 flex flex-col ${plan.code === "growth" ? "ring-1 ring-primary/40 shadow-sm" : ""}`}>
               <div className="flex items-start justify-between gap-3">
@@ -112,7 +132,7 @@ export default async function BillingPage() {
                   disabled={current || !checkoutReady}
                   className={current ? "btn-secondary w-full" : checkoutReady ? "btn-primary w-full" : "btn-primary w-full opacity-70 cursor-not-allowed"}
                 >
-                  {current ? "Plano atual" : checkoutReady ? "Assinar plano" : "Checkout em configuracao"}
+                  {current ? "Plano atual" : checkoutReady ? "Assinar plano" : isGestor ? "Checkout em configuracao" : "Apenas gestor"}
                 </button>
               </form>
             </article>
@@ -154,4 +174,12 @@ function Limit({ label, value }: { label: string; value: number | "unlimited" })
       <div className="font-semibold">{value === "unlimited" ? "Ilimitado" : value.toLocaleString("pt-BR")}</div>
     </div>
   );
+}
+
+function billingBlockedMessage(reason: string) {
+  if (reason === "trial_expired") return "O trial terminou. Escolha um plano para liberar novamente o uso do sistema.";
+  if (reason === "past_due") return "A assinatura está em atraso. Atualize o pagamento no Stripe para reativar o acesso.";
+  if (reason === "canceled") return "A assinatura foi cancelada. Assine um plano para retomar a operação.";
+  if (reason === "inactive") return "Esta organização está desativada. Entre em contato com o suporte ou com o gestor da conta.";
+  return "Regularize o billing para continuar usando o sistema.";
 }

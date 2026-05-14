@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole, listarMembrosDaOrg } from "@/lib/supabase/org";
-import ConfigTabs from "../config-tabs";
 import LpsClient from "./lps-client";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +21,6 @@ export default async function LandingPagesPage() {
 
   return (
     <div className="max-w-5xl">
-      <ConfigTabs isGestor={true} />
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
           <FileText className="w-6 h-6 text-primary" aria-hidden="true" />

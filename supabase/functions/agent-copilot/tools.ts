@@ -8,6 +8,7 @@ export interface AgentContext {
   supabase: SupabaseClient;
   user_id: string;
   organization_id: string | null;
+  role?: string | null;
   user_name?: string;
   channel: string;
 }
@@ -32,6 +33,100 @@ export interface AgentTool {
   execute: ToolExecuteFn;
 }
 
+const VALID_CRM_STAGES = new Set([
+  "Prospecção",
+  "Qualificado",
+  "Raio-X Ofertado",
+  "Raio-X Feito",
+  "Call Marcada",
+  "Diagnóstico Pago",
+  "Proposta",
+  "Negociação",
+  "Fechado",
+  "Perdido",
+  "Nutrição",
+]);
+
+const DEFAULT_CRM_STAGE = "Prospecção";
+const DEFAULT_LEAD_PRODUTO_STATUS = "interesse";
+const VALID_FUNNEL_STAGES = new Set(["base_bruta", "base_qualificada", "pipeline", "arquivado"]);
+const VALID_WEBHOOK_EVENTS = new Set([
+  "lead.created",
+  "lead.updated",
+  "lead.qualified",
+  "lead.promoted",
+  "lead.archived",
+  "lead.won",
+  "lead.lost",
+  "stage.changed",
+  "responsavel.changed",
+  "proposta.sent",
+  "proposta.accepted",
+]);
+
+function randomHex(bytes = 32): string {
+  const values = new Uint8Array(bytes);
+  crypto.getRandomValues(values);
+  return Array.from(values, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function requireGestor(ctx: AgentContext): string {
+  if (ctx.role !== "gestor") {
+    throw new Error("Acao restrita a gestores da organizacao.");
+  }
+  return requireOrganization(ctx);
+}
+
+function isPrivateWebhookHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost")) return true;
+  if (h.endsWith(".internal") || h.endsWith(".local")) return true;
+  if (h.includes(":")) return true;
+
+  const match = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
+  const a = Number(match[1]);
+  const b = Number(match[2]);
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  return a >= 224;
+}
+
+function validateWebhookUrl(value: string): string {
+  const url = new URL(value);
+  if (url.protocol !== "https:") throw new Error("Use uma URL HTTPS para webhooks.");
+  if (isPrivateWebhookHost(url.hostname)) {
+    throw new Error("URL aponta para host privado/interno. Use um endpoint publico HTTPS.");
+  }
+  return url.toString();
+}
+
+function requireOrganization(ctx: AgentContext): string {
+  if (!ctx.organization_id) {
+    throw new Error("Organização ativa não encontrada para o usuário.");
+  }
+  return ctx.organization_id;
+}
+
+function normalizeCrmStage(stage?: string | null): string | null {
+  if (!stage) return null;
+  const trimmed = stage.trim();
+  return VALID_CRM_STAGES.has(trimmed) ? trimmed : null;
+}
+
+function normalizeFunnelStage(stage?: string | null): string | null {
+  if (!stage) return null;
+  const trimmed = stage.trim();
+  return VALID_FUNNEL_STAGES.has(trimmed) ? trimmed : null;
+}
+
 // ==============================================================================
 // 2. Definição das Tools (Ferramentas)
 // ==============================================================================
@@ -46,16 +141,17 @@ export const TOOLS: Record<string, AgentTool> = {
     parameters: {
       type: "object",
       properties: {
-        termo: { type: "string", description: "Nome, e-mail, telefone ou empresa do lead para buscar." }
+        termo: { type: "string", description: "Nome, e-mail, WhatsApp ou empresa do lead para buscar." }
       },
       required: ["termo"],
     },
     execute: async (args: { termo: string }, ctx) => {
+      const orgId = requireOrganization(ctx);
       const { data, error } = await ctx.supabase
         .from("leads")
-        .select("id, nome, empresa, telefone, email, crm_stage")
-        .eq("organizacao_id", ctx.organization_id)
-        .or(`nome.ilike.%${args.termo}%,empresa.ilike.%${args.termo}%,email.ilike.%${args.termo}%`)
+        .select("id, nome, empresa, whatsapp, email, crm_stage")
+        .eq("organizacao_id", orgId)
+        .or(`nome.ilike.%${args.termo}%,empresa.ilike.%${args.termo}%,email.ilike.%${args.termo}%,whatsapp.ilike.%${args.termo}%`)
         .limit(5);
       if (error) throw error;
       if (!data || data.length === 0) return { aviso: "Nenhum lead encontrado com este termo." };
@@ -71,21 +167,23 @@ export const TOOLS: Record<string, AgentTool> = {
       properties: {
         nome: { type: "string", description: "Nome do lead" },
         empresa: { type: "string", description: "Empresa do lead" },
-        telefone: { type: "string" },
+        whatsapp: { type: "string" },
         email: { type: "string" },
         produto_id: { type: "number", description: "ID do produto (se souber). Opcional." }
       },
       required: ["nome"],
     },
     execute: async (args: any, ctx) => {
+      const orgId = requireOrganization(ctx);
       const payload: any = {
-        organizacao_id: ctx.organization_id,
+        organizacao_id: orgId,
         nome: args.nome,
         empresa: args.empresa,
-        telefone: args.telefone,
+        whatsapp: args.whatsapp ?? null,
         email: args.email,
         responsavel_id: ctx.user_id,
-        crm_stage: "Lead",
+        crm_stage: DEFAULT_CRM_STAGE,
+        funnel_stage: "base_bruta",
         fonte: "copilot",
       };
       const { data: lead, error } = await ctx.supabase.from("leads").insert(payload).select("id").single();
@@ -93,11 +191,20 @@ export const TOOLS: Record<string, AgentTool> = {
       
       // Vincula ao produto se especificado
       if (args.produto_id) {
+        const { data: produto, error: produtoError } = await ctx.supabase
+          .from("produtos")
+          .select("id")
+          .eq("id", args.produto_id)
+          .eq("organizacao_id", orgId)
+          .eq("ativo", true)
+          .maybeSingle();
+        if (produtoError) throw produtoError;
+        if (!produto) throw new Error("Produto não encontrado ou inativo nesta organização.");
+
         await ctx.supabase.from("lead_produtos").insert({
           lead_id: lead.id,
           produto_id: args.produto_id,
-          status: "ativo",
-          atribuido_por: ctx.user_id
+          status: DEFAULT_LEAD_PRODUTO_STATUS,
         });
       }
       return { sucesso: true, lead_id: lead.id, mensagem: "Lead criado com sucesso." };
@@ -118,8 +225,18 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["lead_id", "tipo", "titulo"],
     },
     execute: async (args: any, ctx) => {
+      const orgId = requireOrganization(ctx);
+      const { data: lead, error: leadError } = await ctx.supabase
+        .from("leads")
+        .select("id")
+        .eq("id", args.lead_id)
+        .eq("organizacao_id", orgId)
+        .maybeSingle();
+      if (leadError) throw leadError;
+      if (!lead) throw new Error("Lead não encontrado nesta organização.");
+
       const payload = {
-        organizacao_id: ctx.organization_id,
+        organizacao_id: orgId,
         lead_id: args.lead_id,
         tipo: args.tipo,
         titulo: args.titulo,
@@ -139,6 +256,7 @@ export const TOOLS: Record<string, AgentTool> = {
       type: "object",
       properties: {
         lead_id: { type: "string" },
+        passo: { type: "string", description: "Passo da cadência: D0, D3, D7, D11, D16 ou D30. Opcional; se omitido, usa o próximo disponível." },
         canal: { type: "string", description: "'WhatsApp', 'Email', 'Ligação' ou 'Reunião'" },
         objetivo: { type: "string", description: "O que deve ser feito (ex: Retorno da proposta)" },
         data_prevista: { type: "string", description: "Data no formato YYYY-MM-DD" }
@@ -146,14 +264,37 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["lead_id", "canal", "objetivo", "data_prevista"],
     },
     execute: async (args: any, ctx) => {
+      const orgId = requireOrganization(ctx);
+      const { data: lead, error: leadError } = await ctx.supabase
+        .from("leads")
+        .select("id")
+        .eq("id", args.lead_id)
+        .eq("organizacao_id", orgId)
+        .maybeSingle();
+      if (leadError) throw leadError;
+      if (!lead) throw new Error("Lead não encontrado nesta organização.");
+
+      const validPassos = ["D0", "D3", "D7", "D11", "D16", "D30"];
+      let passo = typeof args.passo === "string" && validPassos.includes(args.passo) ? args.passo : null;
+      if (!passo) {
+        const { data: existentes, error: cadenciaError } = await ctx.supabase
+          .from("cadencia")
+          .select("passo")
+          .eq("lead_id", args.lead_id)
+          .eq("organizacao_id", orgId);
+        if (cadenciaError) throw cadenciaError;
+        const usados = new Set((existentes || []).map((item: any) => item.passo));
+        passo = validPassos.find((item) => !usados.has(item)) || "D30";
+      }
+
       const payload = {
-        organizacao_id: ctx.organization_id,
+        organizacao_id: orgId,
         lead_id: args.lead_id,
+        passo,
         canal: args.canal,
         objetivo: args.objetivo,
         data_prevista: args.data_prevista,
         status: "pendente",
-        criado_por: ctx.user_id
       };
       const { error } = await ctx.supabase.from("cadencia").insert(payload);
       if (error) throw error;
@@ -168,17 +309,26 @@ export const TOOLS: Record<string, AgentTool> = {
       type: "object",
       properties: {
         lead_id: { type: "string" },
-        crm_stage: { type: "string", description: "Estágios: Base, Prospecção, Qualificação, Negociação, Fechado, Perdido" },
-        funnel_stage: { type: "string", description: "Estágios finos: ex: base_bruta, contato_iniciado, pipeline, etc" }
+        crm_stage: { type: "string", description: "Estágios: Prospecção, Qualificado, Raio-X Ofertado, Raio-X Feito, Call Marcada, Diagnóstico Pago, Proposta, Negociação, Fechado, Perdido, Nutrição" },
+        funnel_stage: { type: "string", description: "Estágios: base_bruta, base_qualificada, pipeline, arquivado" }
       },
       required: ["lead_id"],
     },
     execute: async (args: any, ctx) => {
+      const orgId = requireOrganization(ctx);
       const update: any = {};
-      if (args.crm_stage) update.crm_stage = args.crm_stage;
-      if (args.funnel_stage) update.funnel_stage = args.funnel_stage;
+      if (args.crm_stage) {
+        const crmStage = normalizeCrmStage(args.crm_stage);
+        if (!crmStage) throw new Error(`crm_stage inválido: ${args.crm_stage}`);
+        update.crm_stage = crmStage;
+      }
+      if (args.funnel_stage) {
+        const funnelStage = normalizeFunnelStage(args.funnel_stage);
+        if (!funnelStage) throw new Error(`funnel_stage inválido: ${args.funnel_stage}`);
+        update.funnel_stage = funnelStage;
+      }
       
-      const { error } = await ctx.supabase.from("leads").update(update).eq("id", args.lead_id).eq("organizacao_id", ctx.organization_id);
+      const { error } = await ctx.supabase.from("leads").update(update).eq("id", args.lead_id).eq("organizacao_id", orgId);
       if (error) throw error;
       return { sucesso: true, mensagem: `Lead atualizado para etapa(s): ${JSON.stringify(update)}` };
     }
@@ -197,11 +347,12 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["lead_id"],
     },
     execute: async (args: any, ctx) => {
+      const orgId = requireOrganization(ctx);
       const update: any = {};
       if (args.temperatura) update.temperatura = args.temperatura;
       if (args.prioridade) update.prioridade = args.prioridade;
       
-      const { error } = await ctx.supabase.from("leads").update(update).eq("id", args.lead_id).eq("organizacao_id", ctx.organization_id);
+      const { error } = await ctx.supabase.from("leads").update(update).eq("id", args.lead_id).eq("organizacao_id", orgId);
       if (error) throw error;
       return { sucesso: true, mensagem: "Score do lead atualizado." };
     }
@@ -219,7 +370,16 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["cadencia_id"],
     },
     execute: async (args: any, ctx) => {
-      const { error } = await ctx.supabase.from("cadencia").update({ status: "concluido", notas_conclusao: args.notas || null, data_realizada: new Date().toISOString() }).eq("id", args.cadencia_id).eq("organizacao_id", ctx.organization_id);
+      const orgId = requireOrganization(ctx);
+      const { error } = await ctx.supabase
+        .from("cadencia")
+        .update({
+          status: "respondido",
+          observacoes: args.notas || null,
+          data_executada: new Date().toISOString().slice(0, 10),
+        })
+        .eq("id", args.cadencia_id)
+        .eq("organizacao_id", orgId);
       if (error) throw error;
       return { sucesso: true, mensagem: "Tarefa de cadência marcada como concluída." };
     }
@@ -236,7 +396,14 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["lead_id"],
     },
     execute: async (args: any, ctx) => {
-      const { data, error } = await ctx.supabase.from("lead_timeline").select("tipo, titulo, conteudo, created_at").eq("lead_id", args.lead_id).order("created_at", { ascending: false }).limit(5);
+      const orgId = requireOrganization(ctx);
+      const { data, error } = await ctx.supabase
+        .from("lead_timeline")
+        .select("tipo, titulo, conteudo, created_at")
+        .eq("lead_id", args.lead_id)
+        .eq("organizacao_id", orgId)
+        .order("created_at", { ascending: false })
+        .limit(5);
       if (error) throw error;
       return { eventos: data || [] };
     }
@@ -258,10 +425,12 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["nome_campanha"],
     },
     execute: async (args: any, ctx) => {
+      const orgId = requireOrganization(ctx);
       const payload = {
-        organizacao_id: ctx.organization_id,
+        organizacao_id: orgId,
         nome: args.nome_campanha,
         produto_id: args.produto_id || null,
+        criado_por: ctx.user_id,
         status: "aguardando",
         configuracao: {
           max_leads: args.max_leads || 15,
@@ -282,7 +451,8 @@ export const TOOLS: Record<string, AgentTool> = {
       properties: {},
     },
     execute: async (args: any, ctx) => {
-      const { data, error } = await ctx.supabase.from("campanhas_prospeccao").select("id, nome, status, criadas_total").eq("organizacao_id", ctx.organization_id).order("created_at", { ascending: false }).limit(5);
+      const orgId = requireOrganization(ctx);
+      const { data, error } = await ctx.supabase.from("campanhas_prospeccao").select("id, nome, status, leads_criados").eq("organizacao_id", orgId).order("created_at", { ascending: false }).limit(5);
       if (error) throw error;
       return { campanhas: data || [] };
     }
@@ -299,7 +469,8 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["campanha_id"],
     },
     execute: async (args: any, ctx) => {
-      const { error } = await ctx.supabase.from("campanhas_prospeccao").update({ status: "falha", error_log: "Cancelada pelo Copilot" }).eq("id", args.campanha_id).eq("organizacao_id", ctx.organization_id);
+      const orgId = requireOrganization(ctx);
+      const { error } = await ctx.supabase.from("campanhas_prospeccao").update({ status: "erro", erro_detalhes: "Cancelada pelo Copilot" }).eq("id", args.campanha_id).eq("organizacao_id", orgId);
       if (error) throw error;
       return { sucesso: true, mensagem: "Campanha cancelada com sucesso." };
     }
@@ -315,7 +486,14 @@ export const TOOLS: Record<string, AgentTool> = {
       properties: {},
     },
     execute: async (args: any, ctx) => {
-      const { data, error } = await ctx.supabase.from("produtos").select("id, nome, ticket_medio, tipo, status").eq("organizacao_id", ctx.organization_id).eq("status", "ativo").limit(10);
+      const orgId = requireOrganization(ctx);
+      const { data, error } = await ctx.supabase
+        .from("produtos")
+        .select("id, nome, categoria, valor_base, valor_max, recorrente, ativo")
+        .eq("organizacao_id", orgId)
+        .eq("ativo", true)
+        .order("ordem", { ascending: true })
+        .limit(10);
       if (error) throw error;
       return { produtos: data || [] };
     }
@@ -332,10 +510,25 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["produto_id"],
     },
     execute: async (args: any, ctx) => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/prospeccao-lookalike`, {
+      const orgId = requireOrganization(ctx);
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("NEXT_PUBLIC_SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceRoleKey) throw new Error("Variáveis SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY não configuradas.");
+
+      const { data: produto, error: produtoError } = await ctx.supabase
+        .from("produtos")
+        .select("id")
+        .eq("id", args.produto_id)
+        .eq("organizacao_id", orgId)
+        .eq("ativo", true)
+        .maybeSingle();
+      if (produtoError) throw produtoError;
+      if (!produto) throw new Error("Produto não encontrado ou inativo nesta organização.");
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/prospeccao-lookalike`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-        body: JSON.stringify({ action: "generate_icp", produto_id: args.produto_id, org_id: ctx.organization_id })
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({ action: "generate_icp", produto_id: args.produto_id, org_id: orgId })
       });
       if (!res.ok) throw new Error("Erro ao acionar o motor de lookalike");
       return { sucesso: true, mensagem: "Job de geração de ICP enfileirado para este produto." };
@@ -355,12 +548,22 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["lead_id", "produto_id"],
     },
     execute: async (args: any, ctx) => {
+      const orgId = requireOrganization(ctx);
+      const [{ data: lead, error: leadError }, { data: produto, error: produtoError }] = await Promise.all([
+        ctx.supabase.from("leads").select("id").eq("id", args.lead_id).eq("organizacao_id", orgId).maybeSingle(),
+        ctx.supabase.from("produtos").select("id").eq("id", args.produto_id).eq("organizacao_id", orgId).eq("ativo", true).maybeSingle(),
+      ]);
+      if (leadError) throw leadError;
+      if (produtoError) throw produtoError;
+      if (!lead) throw new Error("Lead não encontrado nesta organização.");
+      if (!produto) throw new Error("Produto não encontrado ou inativo nesta organização.");
+
       const payload = {
-        organizacao_id: ctx.organization_id,
+        organizacao_id: orgId,
         lead_id: args.lead_id,
         produto_id: args.produto_id,
-        valor_proposta: args.valor || 0,
-        status: "em_negociacao",
+        valor_total: args.valor || 0,
+        status: "enviada",
         criado_por: ctx.user_id
       };
       const { data, error } = await ctx.supabase.from("propostas").insert(payload).select("id").single();
@@ -376,12 +579,15 @@ export const TOOLS: Record<string, AgentTool> = {
       type: "object",
       properties: {
         proposta_id: { type: "number" },
-        status: { type: "string", description: "em_negociacao, aprovada, recusada" }
+        status: { type: "string", description: "rascunho, enviada, visualizada, aceita, recusada, expirada" }
       },
       required: ["proposta_id", "status"],
     },
     execute: async (args: any, ctx) => {
-      const { error } = await ctx.supabase.from("propostas").update({ status: args.status }).eq("id", args.proposta_id).eq("organizacao_id", ctx.organization_id);
+      const orgId = requireOrganization(ctx);
+      const validStatuses = new Set(["rascunho", "enviada", "visualizada", "aceita", "recusada", "expirada"]);
+      if (!validStatuses.has(args.status)) throw new Error(`Status de proposta inválido: ${args.status}`);
+      const { error } = await ctx.supabase.from("propostas").update({ status: args.status }).eq("id", args.proposta_id).eq("organizacao_id", orgId);
       if (error) throw error;
       return { sucesso: true, mensagem: `Proposta marcada como ${args.status}.` };
     }
@@ -397,7 +603,12 @@ export const TOOLS: Record<string, AgentTool> = {
       properties: {},
     },
     execute: async (args: any, ctx) => {
-      const { data, error } = await ctx.supabase.from("embaixador_tokens").select("id, contato_nome, email, telefone, token").eq("organizacao_id", ctx.organization_id).limit(10);
+      const orgId = requireOrganization(ctx);
+      const { data, error } = await ctx.supabase
+        .from("v_embaixador_tokens")
+        .select("id, lead_id, embaixador_nome, embaixador_empresa, token, total_indicacoes_recebidas")
+        .eq("organizacao_id", orgId)
+        .limit(10);
       if (error) throw error;
       return { embaixadores: data || [] };
     }
@@ -411,7 +622,13 @@ export const TOOLS: Record<string, AgentTool> = {
       properties: {},
     },
     execute: async (args: any, ctx) => {
-      const { data, error } = await ctx.supabase.from("pedidos_indicacao").select("id, nome_indicado, empresa_indicada, status").eq("organizacao_id", ctx.organization_id).eq("status", "pendente").limit(10);
+      const orgId = requireOrganization(ctx);
+      const { data, error } = await ctx.supabase
+        .from("indicacoes")
+        .select("id, indicado_nome, indicado_empresa, indicado_email, indicado_whatsapp, status")
+        .eq("organizacao_id", orgId)
+        .eq("status", "recebida")
+        .limit(10);
       if (error) throw error;
       return { indicacoes_pendentes: data || [] };
     }
@@ -423,27 +640,42 @@ export const TOOLS: Record<string, AgentTool> = {
     parameters: {
       type: "object",
       properties: {
-        pedido_id: { type: "number" }
+        indicacao_id: { type: "number" }
       },
-      required: ["pedido_id"],
+      required: ["indicacao_id"],
     },
     execute: async (args: any, ctx) => {
-      const { data: pedido, error: errBusca } = await ctx.supabase.from("pedidos_indicacao").select("*").eq("id", args.pedido_id).eq("organizacao_id", ctx.organization_id).single();
+      const orgId = requireOrganization(ctx);
+      const indicacaoId = args.indicacao_id ?? args.pedido_id;
+      const { data: indicacao, error: errBusca } = await ctx.supabase
+        .from("indicacoes")
+        .select("*")
+        .eq("id", indicacaoId)
+        .eq("organizacao_id", orgId)
+        .single();
       if (errBusca) throw errBusca;
 
       const { data: lead, error: errLead } = await ctx.supabase.from("leads").insert({
-        organizacao_id: ctx.organization_id,
-        nome: pedido.nome_indicado,
-        empresa: pedido.empresa_indicada,
-        telefone: pedido.telefone_indicado,
-        email: pedido.email_indicado,
-        crm_stage: "Lead",
+        organizacao_id: orgId,
+        nome: indicacao.indicado_nome,
+        empresa: indicacao.indicado_empresa,
+        cargo: indicacao.indicado_cargo,
+        whatsapp: indicacao.indicado_whatsapp,
+        email: indicacao.indicado_email,
+        linkedin: indicacao.indicado_linkedin,
+        crm_stage: DEFAULT_CRM_STAGE,
+        funnel_stage: "base_bruta",
         fonte: "indicacao",
-        responsavel_id: ctx.user_id
+        responsavel_id: ctx.user_id,
+        indicacao_id: indicacao.id,
       }).select("id").single();
       if (errLead) throw errLead;
 
-      await ctx.supabase.from("pedidos_indicacao").update({ status: "aprovado" }).eq("id", args.pedido_id);
+      await ctx.supabase
+        .from("indicacoes")
+        .update({ status: "virou_lead", lead_convertido_id: lead.id, data_convertido: new Date().toISOString() })
+        .eq("id", indicacao.id)
+        .eq("organizacao_id", orgId);
       return { sucesso: true, mensagem: `Indicação aprovada e Lead gerado com sucesso (ID: ${lead.id}).` };
     }
   },
@@ -459,7 +691,12 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["indicacao_id"],
     },
     execute: async (args: any, ctx) => {
-      const { error } = await ctx.supabase.from("indicacoes").update({ recompensa_status: "paga" }).eq("id", args.indicacao_id).eq("organizacao_id", ctx.organization_id);
+      const orgId = requireOrganization(ctx);
+      const { error } = await ctx.supabase
+        .from("indicacoes")
+        .update({ recompensa_paga: true, recompensa_paga_em: new Date().toISOString() })
+        .eq("id", args.indicacao_id)
+        .eq("organizacao_id", orgId);
       if (error) throw error;
       return { sucesso: true, mensagem: "Recompensa marcada como paga." };
     }
@@ -475,9 +712,23 @@ export const TOOLS: Record<string, AgentTool> = {
       properties: {},
     },
     execute: async (args: any, ctx) => {
-      const { data, error } = await ctx.supabase.from("health_score_cache").select("score_geral, score_atendimento, score_engajamento, ultima_atualizacao").eq("organizacao_id", ctx.organization_id).single();
+      const orgId = requireOrganization(ctx);
+      const { data, error } = await ctx.supabase
+        .from("health_score_cache")
+        .select("health_score, categoria, computed_at")
+        .eq("organizacao_id", orgId);
       if (error) throw error;
-      return { health_score: data || { aviso: "Ainda não calculado." } };
+      const rows = data || [];
+      if (rows.length === 0) return { health_score: { aviso: "Ainda não calculado." } };
+      const media = rows.reduce((sum: number, row: any) => sum + Number(row.health_score || 0), 0) / rows.length;
+      return {
+        health_score: {
+          media: Math.round(media),
+          total_leads: rows.length,
+          em_risco: rows.filter((row: any) => row.categoria === "em_risco").length,
+          ultima_atualizacao: rows.map((row: any) => row.computed_at).sort().at(-1) || null,
+        },
+      };
     }
   },
 
@@ -493,11 +744,19 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["url"],
     },
     execute: async (args: any, ctx) => {
+      const orgId = requireGestor(ctx);
+      const url = validateWebhookUrl(String(args.url ?? ""));
+      const events = Array.isArray(args.eventos) ? args.eventos.map(String) : [];
+      const invalidEvents = events.filter((event) => !VALID_WEBHOOK_EVENTS.has(event));
+      if (invalidEvents.length > 0) {
+        throw new Error(`Eventos invalidos: ${invalidEvents.slice(0, 3).join(", ")}`);
+      }
       const payload = {
-        organizacao_id: ctx.organization_id,
-        url: args.url,
-        secret: "wh_sec_" + Math.random().toString(36).substr(2, 9),
-        ativo: true
+        organizacao_id: orgId,
+        url,
+        events,
+        secret: `whsec_${randomHex(24)}`,
+        active: true
       };
       const { data: wh, error } = await ctx.supabase.from("webhooks").insert(payload).select("id").single();
       if (error) throw error;
@@ -516,13 +775,14 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["nome"],
     },
     execute: async (args: any, ctx) => {
-      const keyStr = "gld_" + Math.random().toString(36).substr(2, 15);
+      const orgId = requireGestor(ctx);
+      const keyStr = `gc_live_${randomHex(32)}`;
+      const keyHash = await sha256Hex(keyStr);
       const payload = {
-        organizacao_id: ctx.organization_id,
-        nome: args.nome,
-        key_hash: keyStr, // Na vida real seria hasheado, mas para o copilot retornar...
-        criado_por: ctx.user_id,
-        ativo: true
+        organizacao_id: orgId,
+        name: args.nome,
+        key_hash: keyHash,
+        prefix: `${keyStr.slice(0, 12)}...`,
       };
       const { error } = await ctx.supabase.from("api_keys").insert(payload);
       if (error) throw error;
@@ -542,6 +802,7 @@ export const TOOLS: Record<string, AgentTool> = {
       required: ["email"],
     },
     execute: async (args: any, ctx) => {
+      requireGestor(ctx);
       // Simula o invite (normalmente chamaria a admin API do auth)
       return { sucesso: true, mensagem: `Convite enviado para ${args.email} com a role ${args.role || 'Membro'}.` };
     }

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { getBillingAccessState } from "@/lib/billing";
 
 /**
  * Proxy do Next 16 — substitui o file convention `middleware.ts` (deprecado).
@@ -89,7 +90,62 @@ export async function proxy(req: NextRequest) {
     }
   }
 
+  if (user && !isPublic && !isBillingAllowedPath(pathname)) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("home_organizacao_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const activeOrgCookie = req.cookies.get("x-organizacao-ativa")?.value;
+    const requestedOrg = activeOrgCookie || profile?.home_organizacao_id;
+    let org: any = null;
+
+    if (requestedOrg) {
+      const { data: membership } = await supabase
+        .from("membros_organizacao")
+        .select("organizacao_id, ativo, organizacao:organizacoes(id, ativa, billing_status, trial_ends_at)")
+        .eq("profile_id", user.id)
+        .eq("organizacao_id", requestedOrg)
+        .eq("ativo", true)
+        .maybeSingle();
+
+      org = (membership as any)?.organizacao ?? null;
+    }
+
+    if (!org) {
+      const { data: fallbackMembership } = await supabase
+        .from("membros_organizacao")
+        .select("organizacao_id, ativo, organizacao:organizacoes(id, ativa, billing_status, trial_ends_at)")
+        .eq("profile_id", user.id)
+        .eq("ativo", true)
+        .limit(1)
+        .maybeSingle();
+
+      org = (fallbackMembership as any)?.organizacao ?? null;
+    }
+
+    if (org) {
+      const access = getBillingAccessState(org);
+      if (!access.allowed) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/configuracoes/billing";
+        url.searchParams.set("blocked", access.reason);
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   return res;
+}
+
+function isBillingAllowedPath(pathname: string) {
+  return pathname === "/configuracoes/billing"
+    || pathname === "/configuracoes/perfil"
+    || pathname === "/trocar-senha"
+    || pathname === "/api/logout"
+    || pathname.startsWith("/api/billing")
+    || pathname.startsWith("/auth/callback");
 }
 
 export const config = {

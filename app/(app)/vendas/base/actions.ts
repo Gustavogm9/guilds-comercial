@@ -67,6 +67,8 @@ export async function criarLead(input: {
   fonte?: string;
   observacoes?: string;
   responsavel_id?: string;
+  temperatura?: "Frio" | "Morno" | "Quente";
+  prioridade?: "A" | "B" | "C";
   newsletter_optin?: boolean;
   direto_pipeline?: boolean;
 }) {
@@ -101,6 +103,8 @@ export async function criarLead(input: {
     fonte: input.fonte ?? null,
     observacoes: input.observacoes ?? null,
     responsavel_id: input.responsavel_id ?? user?.id ?? null,
+    temperatura: input.temperatura ?? "Morno",
+    prioridade: input.prioridade ?? "B",
     newsletter_optin: input.newsletter_optin ?? false,
     funnel_stage: direto ? "pipeline" : "base_bruta",
     crm_stage: direto ? "Prospecção" : null,

@@ -192,10 +192,29 @@ async function callGemini(contents: any[], agentType: string, plan: string) {
 async function resolveUserContext(token: string) {
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return null;
-  const { data: orgData } = await supabase.from("membros_organizacao").select("organizacao_id").eq("user_id", data.user.id).limit(1).single();
+
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", data.user.id)
+    .eq("ativo", true)
+    .maybeSingle();
+  if (profileError || !profileData) return null;
+
+  const { data: orgData, error: orgError } = await supabase
+    .from("membros_organizacao")
+    .select("organizacao_id, role, organizacoes!inner(id, ativa)")
+    .eq("profile_id", data.user.id)
+    .eq("ativo", true)
+    .eq("organizacoes.ativa", true)
+    .limit(1)
+    .maybeSingle();
+  if (orgError || !orgData?.organizacao_id) return null;
+
   return {
     user_id: data.user.id,
-    organization_id: orgData?.organizacao_id || null,
+    organization_id: orgData.organizacao_id,
+    role: orgData.role,
   };
 }
 
@@ -244,6 +263,7 @@ Deno.serve(async (req) => {
     const ctx = makeContext(supabase, {
       user_id: userCtx.user_id,
       organization_id: userCtx.organization_id,
+      role: userCtx.role,
       channel,
     });
 

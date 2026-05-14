@@ -212,7 +212,7 @@ async function processarUm(supa: any, cnpj: string, job: any): Promise<Resultado
       segmento: cnae,
       cidade_uf: cidadeUf,
       funnel_stage: "base_bruta",
-      crm_stage: "Base",
+      crm_stage: null,
       temperatura: "Frio",
       prioridade: "C",
       fonte: "bulk_import",

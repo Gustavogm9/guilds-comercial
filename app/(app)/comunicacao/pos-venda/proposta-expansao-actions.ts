@@ -42,12 +42,21 @@ export async function gerarPropostaExpansao(input: {
   // Busca expansão + cliente
   const { data: exp } = await supabase
     .from("expansoes")
-    .select("id, tipo, titulo, descricao, valor_potencial, valor_recorrente_mensal, cliente_lead_id, data_identificada")
+    .select("id, tipo, titulo, descricao, valor_potencial, valor_recorrente_mensal, cliente_lead_id, produto_id, data_identificada")
     .eq("id", input.expansao_id)
     .eq("organizacao_id", orgId)
     .maybeSingle();
 
   if (!exp) throw new Error("Expansão não encontrada.");
+
+  const { data: produto } = exp.produto_id
+    ? await supabase
+      .from("produtos")
+      .select("nome, descricao, categoria, recorrente, valor_base, valor_max")
+      .eq("id", exp.produto_id)
+      .eq("organizacao_id", orgId)
+      .maybeSingle()
+    : { data: null };
 
   const { data: lead } = await supabase
     .from("leads")
@@ -99,6 +108,10 @@ export async function gerarPropostaExpansao(input: {
   if (npsScore != null && npsScore >= 9) contextoUsado.push("NPS promotor");
   if (dor) contextoUsado.push("dor atual");
 
+  const ofertaNome = produto?.nome ?? exp.titulo;
+  const ofertaDescricao = produto?.descricao ?? null;
+  if (produto?.nome) contextoUsado.push("oferta recomendada");
+
   const valorFmt = valor > 0
     ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(valor)
     : null;
@@ -123,6 +136,8 @@ export async function gerarPropostaExpansao(input: {
     tipoHumano,
     tipoCode: String(exp.tipo),
     titulo: exp.titulo,
+    ofertaNome,
+    ofertaDescricao,
     descricao: exp.descricao ?? null,
     valorFmt,
     valorMensalFmt,
@@ -138,6 +153,7 @@ export async function gerarPropostaExpansao(input: {
     tipoHumano,
     tipoCode: String(exp.tipo),
     titulo: exp.titulo,
+    ofertaNome,
     valorFmt,
     mesesCliente,
     npsPromotor: npsScore != null && npsScore >= 9,
@@ -149,6 +165,8 @@ export async function gerarPropostaExpansao(input: {
     empresa,
     tipoHumano,
     titulo: exp.titulo,
+    ofertaNome,
+    ofertaDescricao,
     descricao: exp.descricao ?? null,
     valorFmt,
     valorMensalFmt,
@@ -176,6 +194,8 @@ function montarEmailCorpo(c: {
   tipoHumano: string;
   tipoCode: string;
   titulo: string;
+  ofertaNome: string;
+  ofertaDescricao: string | null;
   descricao: string | null;
   valorFmt: string | null;
   valorMensalFmt: string | null;
@@ -193,13 +213,13 @@ function montarEmailCorpo(c: {
   if (c.tipoCode === "renovacao") {
     racional = `Estamos chegando no fim do ciclo atual${c.valorFmt ? ` (${c.valorFmt})` : ""}. Quero fechar a renovação cedo pra garantir continuidade sem buracos${c.valorMensalFmt ? ` — mantendo o mensal em ${c.valorMensalFmt}` : ""}.`;
   } else if (c.tipoCode === "upsell") {
-    racional = `Pelo histórico que a gente tem aqui, faz sentido subir pra um plano que entrega mais${c.descricao ? `: ${c.descricao}` : ""}. ${c.valorFmt ? `Investimento estimado: ${c.valorFmt}.` : ""}`;
+    racional = `Pelo histórico que a gente tem aqui, faz sentido avançar para ${c.ofertaNome}${(c.ofertaDescricao ?? c.descricao) ? `: ${c.ofertaDescricao ?? c.descricao}` : ""}. ${c.valorFmt ? `Investimento estimado: ${c.valorFmt}.` : ""}`;
   } else if (c.tipoCode === "cross_sell") {
-    racional = `Sou capaz de pegar a próxima frente — ${c.titulo}${c.descricao ? ` (${c.descricao})` : ""}. ${c.valorFmt ? `Proposta: ${c.valorFmt}.` : ""} ${c.dor ? `Ataca diretamente o ponto que você levantou: "${String(c.dor).slice(0, 100)}".` : ""}`;
+    racional = `Sou capaz de pegar a próxima frente — ${c.ofertaNome}${(c.ofertaDescricao ?? c.descricao) ? ` (${c.ofertaDescricao ?? c.descricao})` : ""}. ${c.valorFmt ? `Proposta: ${c.valorFmt}.` : ""} ${c.dor ? `Ataca diretamente o ponto que você levantou: "${String(c.dor).slice(0, 100)}".` : ""}`;
   } else if (c.tipoCode === "expansao_seats") {
     racional = `Vi que o time da ${c.empresa} cresceu. Faz sentido expandir os acessos${c.valorFmt ? ` — proposta: ${c.valorFmt}` : ""}.`;
   } else {
-    racional = `${c.titulo}${c.descricao ? `: ${c.descricao}` : ""}.${c.valorFmt ? ` Investimento: ${c.valorFmt}.` : ""}`;
+    racional = `${c.ofertaNome}${(c.ofertaDescricao ?? c.descricao) ? `: ${c.ofertaDescricao ?? c.descricao}` : ""}.${c.valorFmt ? ` Investimento: ${c.valorFmt}.` : ""}`;
   }
 
   const cta = c.npsPromotor
@@ -223,6 +243,7 @@ function montarWhatsapp(c: {
   tipoHumano: string;
   tipoCode: string;
   titulo: string;
+  ofertaNome: string;
   valorFmt: string | null;
   mesesCliente: number | null;
   npsPromotor: boolean;
@@ -231,9 +252,9 @@ function montarWhatsapp(c: {
     return `Oi ${c.primeiroNome}! Estamos chegando no fim do ciclo do contrato${c.mesesCliente ? ` (já são ${c.mesesCliente}m juntos)` : ""}. Posso preparar a renovação${c.valorFmt ? ` em ${c.valorFmt}` : ""}? Confirma se mantém os mesmos termos.`;
   }
   if (c.npsPromotor) {
-    return `Oi ${c.primeiroNome}! Já que o NPS deu top, queria propor o próximo passo: ${c.titulo}.${c.valorFmt ? ` Estimativa: ${c.valorFmt}.` : ""} Posso mandar detalhes?`;
+    return `Oi ${c.primeiroNome}! Já que o NPS deu top, queria propor o próximo passo: ${c.ofertaNome}.${c.valorFmt ? ` Estimativa: ${c.valorFmt}.` : ""} Posso mandar detalhes?`;
   }
-  return `Oi ${c.primeiroNome}! Identifiquei uma oportunidade pra ${c.empresa}: ${c.titulo}.${c.valorFmt ? ` Investimento: ${c.valorFmt}.` : ""} Te explico em 5min?`;
+  return `Oi ${c.primeiroNome}! Identifiquei uma oportunidade pra ${c.empresa}: ${c.ofertaNome}.${c.valorFmt ? ` Investimento: ${c.valorFmt}.` : ""} Te explico em 5min?`;
 }
 
 function montarCallScript(c: {
@@ -241,6 +262,8 @@ function montarCallScript(c: {
   empresa: string;
   tipoHumano: string;
   titulo: string;
+  ofertaNome: string;
+  ofertaDescricao: string | null;
   descricao: string | null;
   valorFmt: string | null;
   valorMensalFmt: string | null;
@@ -255,8 +278,8 @@ function montarCallScript(c: {
     c.npsPromotor ? "  • Mencionar NPS promotor: 'sua resposta foi 9 ou 10, valeu muito.'" : "  • Lembrar de um resultado entregue recentemente.",
     "",
     "Contexto (1min):",
-    `  • Por que essa conversa agora: ${c.titulo}.`,
-    c.descricao ? `  • Detalhe: ${c.descricao}` : "  • Detalhar o escopo em 1-2 frases.",
+    `  • Por que essa conversa agora: ${c.ofertaNome}.`,
+    (c.ofertaDescricao ?? c.descricao) ? `  • Detalhe: ${c.ofertaDescricao ?? c.descricao}` : "  • Detalhar o escopo em 1-2 frases.",
     c.dor ? `  • Conectar com a dor original: "${String(c.dor).slice(0, 100)}"` : "  • Reforçar dor atual ou nova oportunidade.",
     "",
     "Proposta (2min):",

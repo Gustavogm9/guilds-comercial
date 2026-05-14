@@ -77,7 +77,7 @@ export default function ActivationChecklist({ role, marcos, userId }: Props) {
     return (
       <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 text-xs">
         <span className="text-muted-foreground">
-          Setup incompleto: <strong className="text-foreground">{totalFeitos}/{total}</strong> marcos concluÃ­dos
+          Setup incompleto: <strong className="text-foreground">{totalFeitos}/{total}</strong> marcos concluídos
         </span>
         <button
           type="button"

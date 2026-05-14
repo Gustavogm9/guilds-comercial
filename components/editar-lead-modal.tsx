@@ -26,6 +26,8 @@ export default function EditarLeadModal({
     data_entrada: lead.data_entrada || "",
     data_fechamento: lead.data_fechamento || "",
     responsavel_id: lead.responsavel_id || "",
+    temperatura: lead.temperatura || "Morno",
+    prioridade: lead.prioridade || "B",
     crm_stage: lead.crm_stage || ""
   });
 
@@ -37,6 +39,8 @@ export default function EditarLeadModal({
           data_entrada: form.data_entrada || undefined,
           data_fechamento: form.data_fechamento || undefined,
           responsavel_id: form.responsavel_id || undefined,
+          temperatura: form.temperatura,
+          prioridade: form.prioridade,
           crm_stage: form.crm_stage || null
         } as Partial<LeadEnriched>);
         onSuccess();
@@ -76,6 +80,35 @@ export default function EditarLeadModal({
                   <option key={p.id} value={p.id}>{p.display_name}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">Temperatura</label>
+                <select
+                  value={form.temperatura}
+                  onChange={(e) => setForm(f => ({ ...f, temperatura: e.target.value as typeof form.temperatura }))}
+                  className="input-base text-sm w-full"
+                >
+                  <option value="Frio">Frio</option>
+                  <option value="Morno">Morno</option>
+                  <option value="Quente">Quente</option>
+                </select>
+                <p className="mt-1 text-[10px] text-muted-foreground">Sinal de intenção do lead.</p>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1 block">Prioridade</label>
+                <select
+                  value={form.prioridade}
+                  onChange={(e) => setForm(f => ({ ...f, prioridade: e.target.value as typeof form.prioridade }))}
+                  className="input-base text-sm w-full"
+                >
+                  <option value="A">A — tratar primeiro</option>
+                  <option value="B">B — normal</option>
+                  <option value="C">C — baixa</option>
+                </select>
+                <p className="mt-1 text-[10px] text-muted-foreground">A é mais urgente, C é menor.</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

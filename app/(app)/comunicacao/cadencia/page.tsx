@@ -174,9 +174,9 @@ export default async function CadenciaPage(
       {cadencias.length === 0 && (
         <div className="card p-6 mb-4 text-center">
           <MessageSquare className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" aria-hidden="true" />
-          <p className="text-sm text-foreground/80 mb-1">Nenhuma cadÃªncia encontrada para estes filtros.</p>
+          <p className="text-sm text-foreground/80 mb-1">Nenhuma cadência encontrada para estes filtros.</p>
           <p className="text-xs text-muted-foreground mb-3">
-            Inicie uma cadÃªncia em leads do pipeline ou limpe os filtros para ver o trabalho pendente.
+            Inicie uma cadência em leads do pipeline ou limpe os filtros para ver o trabalho pendente.
           </p>
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <IniciarCadenciaModal />

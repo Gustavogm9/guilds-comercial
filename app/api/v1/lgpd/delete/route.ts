@@ -13,6 +13,17 @@ export async function DELETE(req: Request) {
   }
 
   const { supabaseAdmin, organizacao_id } = auth;
+  const confirmHeader = req.headers.get('x-lgpd-confirm');
+  const adminSecret = req.headers.get('x-lgpd-admin-secret');
+  const configuredSecret = process.env.LGPD_DELETE_SECRET;
+
+  if (!configuredSecret || adminSecret !== configuredSecret) {
+    return NextResponse.json({ error: 'LGPD delete requires privileged confirmation' }, { status: 403 });
+  }
+
+  if (confirmHeader !== `DELETE_ORG_${organizacao_id}`) {
+    return NextResponse.json({ error: 'Missing destructive action confirmation' }, { status: 400 });
+  }
 
   try {
     // 1. Apagar Leads (ou obfuscar nomes e contatos se houver histórico contábil)

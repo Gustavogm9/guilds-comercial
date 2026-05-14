@@ -65,6 +65,7 @@ type Props = {
   } | null;
   hipoteses?: { id: number; nome: string; cor?: string; segmentos?: string[]; cidades?: string[]; cargos?: string[] }[];
   produtos?: { id: number; nome: string }[];
+  hasExternalProspectingKeys?: boolean;
 };
 
 const MODOS: { key: Modo; icon: typeof Globe; label: string; badge?: string }[] = [
@@ -75,9 +76,17 @@ const MODOS: { key: Modo; icon: typeof Globe; label: string; badge?: string }[] 
   { key: "campanhas", icon: Rocket,  label: "Campanhas",   badge: "Auto" },
 ];
 
-export default function ProspeccaoHub({ orgId, icp, hipoteseId, hipotesePre, hipoteses = [], produtos = [] }: Props) {
-  // Se veio do ICP Lab, abre direto no look-alike
-  const [modo, setModo] = useState<Modo>(hipoteseId ? "lookalike" : "url");
+export default function ProspeccaoHub({
+  orgId,
+  icp,
+  hipoteseId,
+  hipotesePre,
+  hipoteses = [],
+  produtos = [],
+  hasExternalProspectingKeys = true,
+}: Props) {
+  // Se veio do ICP Lab, abre direto no look-alike. Sem chaves externas, prioriza CNPJ.
+  const [modo, setModo] = useState<Modo>(hipoteseId ? "lookalike" : hasExternalProspectingKeys ? "url" : "cnpj");
   const [leads, setLeads] = useState<LeadParaAtivar[]>([]);
   const [fingerprint, setFingerprint] = useState<FingerprintICP | null>(null);
   const [filtros, setFiltros] = useState<FiltrosProspeccao>({});

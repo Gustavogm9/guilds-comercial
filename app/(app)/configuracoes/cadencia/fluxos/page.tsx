@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { Plus, Workflow, CheckCircle2, Archive, Edit2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
-import ConfigTabs from "../../config-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +31,6 @@ export default async function FluxosPage() {
 
   return (
     <div className="max-w-5xl">
-      <ConfigTabs isGestor={true} />
-
       <header className="mb-6 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">

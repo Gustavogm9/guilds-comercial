@@ -37,13 +37,9 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  const { data: rows, error: fetchErr } = await supa
-    .from("push_outbox")
-    .select("*")
-    .eq("status", "pending")
-    .lte("scheduled_for", new Date().toISOString())
-    .order("created_at", { ascending: true })
-    .limit(BATCH_SIZE);
+  const { data: rows, error: fetchErr } = await supa.rpc("claim_push_outbox", {
+    _limit: BATCH_SIZE,
+  });
 
   if (fetchErr) {
     return NextResponse.json({ error: fetchErr.message }, { status: 500 });
@@ -76,6 +72,7 @@ export async function POST(req: Request) {
             status: "sent",
             sent_at: new Date().toISOString(),
             attempts: row.attempts + 1,
+            processing_started_at: null,
           })
           .eq("id", row.id);
         sent += 1;
@@ -86,6 +83,7 @@ export async function POST(req: Request) {
             status: "skipped",
             attempts: row.attempts + 1,
             last_error: r.pulado,
+            processing_started_at: null,
           })
           .eq("id", row.id);
         skipped += 1;
@@ -99,6 +97,7 @@ export async function POST(req: Request) {
             status: novoStatus,
             attempts,
             last_error: `falhas=${r.falhas} removidas=${r.removidas}`,
+            processing_started_at: null,
           })
           .eq("id", row.id);
         if (novoStatus === "abandoned") abandoned += 1;
@@ -114,6 +113,7 @@ export async function POST(req: Request) {
           status: novoStatus,
           attempts,
           last_error: msg.slice(0, 500),
+          processing_started_at: null,
         })
         .eq("id", row.id);
       if (novoStatus === "abandoned") abandoned += 1;

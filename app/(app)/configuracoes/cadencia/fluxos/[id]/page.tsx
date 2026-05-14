@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
-import ConfigTabs from "../../../config-tabs";
 import FluxoEditor from "./fluxo-editor";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +31,6 @@ export default async function FluxoEditPage(props: {
 
   return (
     <div className="max-w-5xl">
-      <ConfigTabs isGestor={true} />
       <Link href="/configuracoes/cadencia/fluxos" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="w-3 h-3" /> Voltar pros fluxos
       </Link>

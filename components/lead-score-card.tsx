@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { atualizarPercepcao, marcarTomUltimaInteracao } from "@/app/(app)/hoje/actions";
 import { PERCEPCOES_VENDEDOR, type PercepcaoVendedor, type TomInteracao } from "@/lib/types";
-import { TrendingUp, TrendingDown, Minus, Check, Zap } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Check } from "lucide-react";
 import NextBestActionCard from "./ai/next-best-action-card";
 
 type Breakdown = {
@@ -76,6 +76,14 @@ export default function LeadScoreCard({
     : score >= 20 ? "Baixa chance"
     : "Friíssimo";
 
+  const percepcaoLabels: Record<PercepcaoVendedor, { top?: string; bottom: string }> = {
+    "Muito baixa": { top: "Muito", bottom: "baixa" },
+    Baixa: { bottom: "Baixa" },
+    Média: { bottom: "Média" },
+    Alta: { bottom: "Alta" },
+    "Muito alta": { top: "Muito", bottom: "alta" },
+  };
+
   function handlePercepcao(nova: PercepcaoVendedor) {
     setPercepcao(nova);
     start(async () => {
@@ -121,29 +129,40 @@ export default function LeadScoreCard({
         </div>
 
         {/* Percepção do vendedor */}
-        <div className="min-w-[220px]">
+        <div className="min-w-[280px] max-w-full">
           <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold mb-1">
             Sua percepção
           </div>
-          <div className="grid grid-cols-5 gap-1">
-            {PERCEPCOES_VENDEDOR.map((p) => (
-              <button
-                key={p}
-                disabled={pending}
-                onClick={() => handlePercepcao(p)}
-                title={p}
-                className={`text-[10px] py-1.5 rounded border transition-colors ${
-                  percepcao === p
-                    ? "bg-primary text-primary-foreground border-primary font-semibold"
-                    : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground dark:bg-white/[0.02] dark:border-white/[0.08]"
-                }`}
-              >
-                {p.charAt(0) + (p === "Muito baixa" ? "B" : p === "Muito alta" ? "A" : "")}
-              </button>
-            ))}
+          <div className="text-xs text-muted-foreground mb-2 leading-snug">
+            Chance percebida pelo vendedor: vai de muito baixa a muito alta e ajusta até 15 pts do score.
           </div>
-          <div className="text-[10px] text-muted-foreground/70 mt-1">
-            {percepcao ?? "Não avaliado — entra como neutro no score"}
+          <div className="grid grid-cols-5 gap-1">
+            {PERCEPCOES_VENDEDOR.map((p) => {
+              const label = percepcaoLabels[p];
+
+              return (
+                <button
+                  key={p}
+                  disabled={pending}
+                  onClick={() => handlePercepcao(p)}
+                  title={`Percepção: ${p}`}
+                  aria-label={`Definir percepção como ${p}`}
+                  className={`min-h-12 rounded border px-1.5 py-1 text-[10px] leading-tight transition-colors ${
+                    percepcao === p
+                      ? "bg-primary text-primary-foreground border-primary font-semibold"
+                      : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground dark:bg-white/[0.02] dark:border-white/[0.08]"
+                  }`}
+                >
+                  <span className="block">{label.top ?? "\u00a0"}</span>
+                  <span className="block font-medium">{label.bottom}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-[11px] text-muted-foreground/80 mt-2">
+            {percepcao
+              ? `Avaliação atual: ${percepcao}.`
+              : "Não avaliado — usa peso neutro no score."}
           </div>
         </div>
       </div>

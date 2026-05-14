@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import type { EmpresaEnriquecida } from "@/lib/prospeccao";
 
@@ -21,10 +22,15 @@ export const maxDuration = 30;
  */
 export async function POST(req: NextRequest) {
   try {
-    const me = await getCurrentProfile();
+    const engineSecret = process.env.PROSPECCAO_ENGINE_SECRET?.trim();
+    const isInternalEngine = req.headers.get("x-internal-engine") === "1"
+      && Boolean(engineSecret)
+      && req.headers.get("x-engine-secret") === engineSecret;
+
+    const me = isInternalEngine ? ({ id: null } as any) : await getCurrentProfile();
     if (!me) return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
 
-    const orgId = await getCurrentOrgId();
+    const orgId = isInternalEngine ? req.headers.get("x-internal-org-id") : await getCurrentOrgId();
     if (!orgId) return NextResponse.json({ erro: "Sem organização ativa." }, { status: 403 });
 
     const { leads, job_id, hipotese_id, produto_id, iniciar_cadencia = false } = await req.json() as {
@@ -39,7 +45,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: "Nenhum lead para ativar." }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = isInternalEngine
+      ? createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+      : createClient();
     const agora = new Date().toISOString();
     let criados = 0;
     let duplicados = 0;
@@ -79,12 +87,14 @@ export async function POST(req: NextRequest) {
         cidade_uf:      empresa.cidade_uf,
         observacoes:    empresa.descricao,
         responsavel_id: me.id,
-        funnel_stage:   "base_bruta",
-        crm_stage:      "Base",
+        funnel_stage:   iniciar_cadencia ? "pipeline" : "base_bruta",
+        crm_stage:      iniciar_cadencia ? "Prospecção" : null,
         temperatura:    "Frio",
         prioridade:     "C",
         fonte:          "motor_prospeccao",
         data_entrada:   agora,
+        proxima_acao:   iniciar_cadencia ? "Enviar D0" : null,
+        data_proxima_acao: iniciar_cadencia ? agora.slice(0, 10) : null,
         hipotese_id:    hipotese_id ?? null,
         origem_prospeccao: {
           job_id:     job_id ?? null,
@@ -117,9 +127,8 @@ export async function POST(req: NextRequest) {
           await supabase.from("lead_produtos").insert({
             lead_id: novo.id,
             produto_id: produto_id,
-            status: "ativo",
-            atribuido_em: agora,
-            atribuido_por: me.id,
+            status: "interesse",
+            added_at: agora,
           });
         }
       }

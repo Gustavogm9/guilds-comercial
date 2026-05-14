@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getTrialState, PLANS, TRIAL_DAYS } from "@/lib/billing";
+import { getBillingAccessState, getTrialState, PLANS, TRIAL_DAYS } from "@/lib/billing";
 
 describe("getTrialState", () => {
   afterEach(() => vi.useRealTimers());
@@ -61,6 +61,49 @@ describe("PLANS", () => {
     expect(s.limits.seats).toBeLessThan(g.limits.seats as number);
     expect(s.limits.leadsMonth).toBeLessThan(g.limits.leadsMonth as number);
     expect(s.limits.aiActionsMonth).toBeLessThan(g.limits.aiActionsMonth as number);
+  });
+});
+
+describe("getBillingAccessState", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("permite organizacao ativa com billing active", () => {
+    expect(getBillingAccessState({ ativa: true, billing_status: "active" })).toEqual({
+      allowed: true,
+      reason: "active",
+    });
+  });
+
+  it("permite trialing dentro do prazo", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-27T10:00:00Z"));
+    expect(getBillingAccessState({
+      ativa: true,
+      billing_status: "trialing",
+      trial_ends_at: "2026-05-04T10:00:00Z",
+    })).toEqual({
+      allowed: true,
+      reason: "trialing",
+    });
+  });
+
+  it("bloqueia trialing vencido", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-27T10:00:00Z"));
+    expect(getBillingAccessState({
+      ativa: true,
+      billing_status: "trialing",
+      trial_ends_at: "2026-04-26T10:00:00Z",
+    })).toEqual({
+      allowed: false,
+      reason: "trial_expired",
+    });
+  });
+
+  it("bloqueia past_due, canceled e organizacao inativa", () => {
+    expect(getBillingAccessState({ ativa: true, billing_status: "past_due" }).reason).toBe("past_due");
+    expect(getBillingAccessState({ ativa: true, billing_status: "canceled" }).reason).toBe("canceled");
+    expect(getBillingAccessState({ ativa: false, billing_status: "active" }).reason).toBe("inactive");
   });
 });
 

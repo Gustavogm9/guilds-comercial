@@ -10,14 +10,20 @@ type Tab = {
   i18nKey: string;
   href: string;
   gestorOnly?: boolean;
+  nonGestorOnly?: boolean;
 };
 
-const TABS: Tab[] = [
-  { i18nKey: "sidebar.equipe", href: "/gestao/equipe", gestorOnly: true },
-  { i18nKey: "sidebar.time", href: "/gestao/time" },
-];
+function getTabs(vendedorId?: string): Tab[] {
+  return [
+    { i18nKey: "sidebar.equipe", href: "/gestao/equipe", gestorOnly: true },
+    { i18nKey: "sidebar.time", href: "/gestao/time", gestorOnly: true },
+    { i18nKey: "Metas", href: "/gestao/metas", gestorOnly: true },
+    { i18nKey: "Comissões", href: "/gestao/comissoes", gestorOnly: true },
+    ...(vendedorId ? [{ i18nKey: "Meu desempenho", href: `/gestao/vendedor/${vendedorId}`, nonGestorOnly: true }] : []),
+  ];
+}
 
-export default function GestaoTabs({ isGestor }: { isGestor: boolean }) {
+export default function GestaoTabs({ isGestor, vendedorId }: { isGestor: boolean; vendedorId?: string }) {
   const pathname = usePathname();
   const [locale, setLocale] = useState<Locale>("pt-BR");
   
@@ -28,11 +34,11 @@ export default function GestaoTabs({ isGestor }: { isGestor: boolean }) {
   const t = getT(locale);
 
   // Filter tabs based on user role
-  const visibleTabs = TABS.filter((tab) => !tab.gestorOnly || isGestor);
-
-  // If user is not gestor, only Time is available, and typically we don't show tabs for just 1 item,
-  // but for consistency we might show it or hide the tabs component entirely.
-  // For now, we will render it.
+  const visibleTabs = getTabs(vendedorId).filter((tab) => {
+    if (tab.gestorOnly && !isGestor) return false;
+    if (tab.nonGestorOnly && isGestor) return false;
+    return true;
+  });
   if (visibleTabs.length === 0) return null;
 
   return (
