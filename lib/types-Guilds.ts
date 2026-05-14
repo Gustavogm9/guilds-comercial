@@ -96,6 +96,7 @@ export type AiFeatureCodigo =
   | "briefing_pre_call"
   | "objection_handler"
   | "gerar_proposta"
+  | "gerar_contrato"
   | "sugerir_motivo_perda"
   | "detectar_risco"
   | "resumo_diario"
@@ -107,7 +108,7 @@ export type AiFeatureCodigo =
 export const AI_FEATURES: AiFeatureCodigo[] = [
   "enriquecer_lead", "gerar_oferta_raiox", "gerar_documento_raiox",
   "gerar_mensagem_cadencia", "extrair_ligacao", "next_best_action",
-  "briefing_pre_call", "objection_handler", "gerar_proposta",
+  "briefing_pre_call", "objection_handler", "gerar_proposta", "gerar_contrato",
   "sugerir_motivo_perda", "detectar_risco", "resumo_diario",
   "digest_semanal", "reativar_nutricao", "forecast_ml", "analisar_whatsapp",
 ];

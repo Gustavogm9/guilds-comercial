@@ -396,3 +396,63 @@ export async function salvarPropostaSkillConfig(input: {
   revalidatePath("/admin/ai");
   revalidatePath("/vendas/propostas");
 }
+
+export async function salvarContratoSkillConfig(input: {
+  id?: number;
+  nome: string;
+  modo: "contrato_template" | "briefing_juridico" | "revisao_juridica";
+  template_docx_nome?: string;
+  template_docx_ref?: string;
+  skill_chain: string;
+  modelo_referencia?: string;
+  ativo?: boolean;
+  padrao?: boolean;
+}) {
+  const orgId = await requireGestor();
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const nome = input.nome.trim().slice(0, 120);
+  const skillChain = input.skill_chain.trim().slice(0, 12000);
+  if (!nome) throw new Error("Nome da configuracao e obrigatorio.");
+  if (!skillChain) throw new Error("Sequencia de skills e obrigatoria.");
+
+  const payload = {
+    nome,
+    modo: input.modo,
+    template_docx_nome: input.template_docx_nome?.trim().slice(0, 240) || null,
+    template_docx_ref: input.template_docx_ref?.trim().slice(0, 500) || null,
+    skill_chain: skillChain,
+    modelo_referencia: input.modelo_referencia?.trim().slice(0, 12000) || null,
+    ativo: input.ativo ?? true,
+    padrao: input.padrao ?? false,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (payload.padrao) {
+    await supabase
+      .from("contrato_skill_configs")
+      .update({ padrao: false })
+      .eq("organizacao_id", orgId)
+      .eq("modo", payload.modo);
+  }
+
+  if (input.id) {
+    const { error } = await supabase
+      .from("contrato_skill_configs")
+      .update(payload)
+      .eq("id", input.id)
+      .eq("organizacao_id", orgId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("contrato_skill_configs").insert({
+      ...payload,
+      organizacao_id: orgId,
+      criado_por: user?.id ?? null,
+    });
+    if (error) throw error;
+  }
+
+  revalidatePath("/admin/ai");
+  revalidatePath("/vendas/contratos");
+}

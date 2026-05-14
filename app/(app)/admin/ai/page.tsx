@@ -9,7 +9,7 @@ import type { FewshotExemplo } from "@/components/ai/fewshot-tab";
 
 export const dynamic = "force-dynamic";
 
-type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos" | "propostas";
+type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos" | "propostas" | "contratos";
 
 export default async function AdminAiPage(
   props: {
@@ -38,6 +38,7 @@ export default async function AdminAiPage(
     { data: experimentosData },
     { data: resultadosData },
     { data: propostaSkillConfigs },
+    { data: contratoSkillConfigs },
   ] = await Promise.all([
     supabase.from("ai_features").select("*").eq("organizacao_id", orgId),
     supabase.from("ai_features").select("*").is("organizacao_id", null),
@@ -49,6 +50,7 @@ export default async function AdminAiPage(
     supabase.from("ai_prompt_experiments").select("*").eq("organizacao_id", orgId).order("started_at", { ascending: false }).limit(50),
     supabase.from("v_ai_experimento_resultado").select("*"),
     supabase.from("proposta_skill_configs").select("*").eq("organizacao_id", orgId).order("padrao", { ascending: false }).order("created_at", { ascending: false }),
+    supabase.from("contrato_skill_configs").select("*").eq("organizacao_id", orgId).order("padrao", { ascending: false }).order("created_at", { ascending: false }),
   ]);
 
   // Merge: org override se existir, senão global
@@ -84,6 +86,7 @@ export default async function AdminAiPage(
         experimentos={(experimentosData ?? []) as any}
         resultadosExperimento={resultados as any}
         propostaSkillConfigs={(propostaSkillConfigs ?? []) as any}
+        contratoSkillConfigs={(contratoSkillConfigs ?? []) as any}
       />
     </>
   );
@@ -109,6 +112,19 @@ export type PropostaSkillConfig = {
   id: number;
   nome: string;
   formato: "proposta_comercial" | "escopo_tecnico" | "email_executivo" | "whatsapp_resumo";
+  skill_chain: string;
+  modelo_referencia: string | null;
+  ativo: boolean;
+  padrao: boolean;
+  created_at: string;
+};
+
+export type ContratoSkillConfig = {
+  id: number;
+  nome: string;
+  modo: "contrato_template" | "briefing_juridico" | "revisao_juridica";
+  template_docx_nome: string | null;
+  template_docx_ref: string | null;
   skill_chain: string;
   modelo_referencia: string | null;
   ativo: boolean;

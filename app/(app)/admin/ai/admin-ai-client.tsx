@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import Link from "next/link";
 import type { AiFeature, AiPrompt, AiProvider, AiUso30d, AiFeatureCodigo, AiProviderCodigo } from "@/lib/types";
-import type { LogRow, PropostaSkillConfig } from "./page";
+import type { ContratoSkillConfig, LogRow, PropostaSkillConfig } from "./page";
 import {
   toggleFeature, atualizarFeatureConfig, criarVersaoPrompt,
-  reverterParaVersao, atualizarProvider, checarApiKeyEnv, salvarPropostaSkillConfig,
+  reverterParaVersao, atualizarProvider, checarApiKeyEnv, salvarPropostaSkillConfig, salvarContratoSkillConfig,
 } from "./actions";
 import {
   Bot, FileCode, Plug, Activity, ChevronRight, Save, RotateCcw,
@@ -16,11 +16,11 @@ import {
 import FewshotTab, { type FewshotExemplo } from "@/components/ai/fewshot-tab";
 import ExperimentosTab from "@/components/ai/experimentos-tab";
 
-type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos" | "propostas";
+type Tab = "features" | "prompts" | "providers" | "logs" | "fewshot" | "experimentos" | "propostas" | "contratos";
 
 export default function AdminAiClient({
   tab, featureAberta, features, providers, prompts, uso, logs,
-  fewshot, experimentos, resultadosExperimento, propostaSkillConfigs,
+  fewshot, experimentos, resultadosExperimento, propostaSkillConfigs, contratoSkillConfigs,
 }: {
   tab: Tab;
   featureAberta: string | null;
@@ -33,6 +33,7 @@ export default function AdminAiClient({
   experimentos: any[];
   resultadosExperimento: any[];
   propostaSkillConfigs: PropostaSkillConfig[];
+  contratoSkillConfigs: ContratoSkillConfig[];
 }) {
   const featuresLite = features.map((f) => ({ codigo: f.codigo, nome: f.nome }));
   const experimentosRodando = experimentos.filter((e) => e.status === "rodando").length;
@@ -64,6 +65,7 @@ export default function AdminAiClient({
         <TabBtn t="fewshot"      cur={tab} icon={<Sparkles className="w-3.5 h-3.5" />} label="Few-shot" count={fewshot.length} />
         <TabBtn t="experimentos" cur={tab} icon={<FlaskConical className="w-3.5 h-3.5" />} label="A/B Testing" count={experimentosRodando} />
         <TabBtn t="propostas"    cur={tab} icon={<FileText className="w-3.5 h-3.5" />} label="Propostas" count={propostaSkillConfigs.length} />
+        <TabBtn t="contratos"    cur={tab} icon={<FileText className="w-3.5 h-3.5" />} label="Contratos" count={contratoSkillConfigs.length} />
         <TabBtn t="logs"         cur={tab} icon={<Activity className="w-3.5 h-3.5" />} label="Logs" count={logs.length} />
       </nav>
 
@@ -73,6 +75,7 @@ export default function AdminAiClient({
       {tab === "fewshot"      && <FewshotTab      exemplos={fewshot} features={featuresLite} />}
       {tab === "experimentos" && <ExperimentosTab experimentos={experimentos} prompts={prompts} features={featuresLite} resultados={resultadosExperimento} />}
       {tab === "propostas"    && <PropostaSkillsTab configs={propostaSkillConfigs} />}
+      {tab === "contratos"    && <ContratoSkillsTab configs={contratoSkillConfigs} />}
       {tab === "logs"         && <LogsTab         logs={logs} />}
     </div>
   );
@@ -503,6 +506,129 @@ function PropostaSkillsTab({ configs }: { configs: PropostaSkillConfig[] }) {
           <label className="inline-flex items-center gap-2 text-sm">
             <input type="checkbox" checked={padrao} onChange={(e) => setPadrao(e.target.checked)} />
             Padrao deste formato
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
+            Ativa
+          </label>
+          <button onClick={salvar} disabled={pending} className="btn-primary text-sm ml-auto">
+            <Save className="w-3.5 h-3.5" /> {pending ? "Salvando..." : "Salvar skills"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ContratoSkillsTab({ configs }: { configs: ContratoSkillConfig[] }) {
+  const [pending, start] = useTransition();
+  const [id, setId] = useState<number | undefined>(configs[0]?.id);
+  const selecionada = configs.find((config) => config.id === id);
+  const [nome, setNome] = useState(selecionada?.nome ?? "Contrato padrao");
+  const [modo, setModo] = useState<ContratoSkillConfig["modo"]>(selecionada?.modo ?? "contrato_template");
+  const [templateDocxNome, setTemplateDocxNome] = useState(selecionada?.template_docx_nome ?? "");
+  const [templateDocxRef, setTemplateDocxRef] = useState(selecionada?.template_docx_ref ?? "");
+  const [skillChain, setSkillChain] = useState(selecionada?.skill_chain ?? "");
+  const [modeloReferencia, setModeloReferencia] = useState(selecionada?.modelo_referencia ?? "");
+  const [padrao, setPadrao] = useState(selecionada?.padrao ?? true);
+  const [ativo, setAtivo] = useState(selecionada?.ativo ?? true);
+  const router = useRouter();
+
+  function carregar(config?: ContratoSkillConfig) {
+    setId(config?.id);
+    setNome(config?.nome ?? "Contrato padrao");
+    setModo(config?.modo ?? "contrato_template");
+    setTemplateDocxNome(config?.template_docx_nome ?? "");
+    setTemplateDocxRef(config?.template_docx_ref ?? "");
+    setSkillChain(config?.skill_chain ?? "");
+    setModeloReferencia(config?.modelo_referencia ?? "");
+    setPadrao(config?.padrao ?? true);
+    setAtivo(config?.ativo ?? true);
+  }
+
+  function salvar() {
+    start(async () => {
+      await salvarContratoSkillConfig({
+        id,
+        nome,
+        modo,
+        template_docx_nome: templateDocxNome,
+        template_docx_ref: templateDocxRef,
+        skill_chain: skillChain,
+        modelo_referencia: modeloReferencia,
+        padrao,
+        ativo,
+      });
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+      <aside className="card p-3">
+        <button onClick={() => carregar(undefined)} className="btn-primary text-xs w-full mb-3">
+          Nova configuracao
+        </button>
+        <div className="space-y-2">
+          {configs.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-2">Nenhuma skill juridica configurada.</p>
+          ) : configs.map((config) => (
+            <button
+              key={config.id}
+              onClick={() => carregar(config)}
+              className={`w-full text-left rounded-lg border p-3 text-xs transition ${
+                id === config.id ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30"
+              }`}
+            >
+              <div className="font-semibold text-foreground">{config.nome}</div>
+              <div className="text-muted-foreground mt-1">{config.modo}</div>
+              <div className="flex gap-1 mt-2">
+                {config.padrao && <span className="pill-ok">padrao</span>}
+                {!config.ativo && <span className="pill-warn">inativa</span>}
+              </div>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <section className="card p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="label">Nome</span>
+            <input value={nome} onChange={(e) => setNome(e.target.value)} className="input-base text-sm" />
+          </label>
+          <label className="block">
+            <span className="label">Modo</span>
+            <select value={modo} onChange={(e) => setModo(e.target.value as ContratoSkillConfig["modo"])} className="input-base text-sm">
+              <option value="contrato_template">Contrato por template</option>
+              <option value="briefing_juridico">Briefing juridico</option>
+              <option value="revisao_juridica">Revisao juridica</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">Template DOCX</span>
+            <input value={templateDocxNome} onChange={(e) => setTemplateDocxNome(e.target.value)} className="input-base text-sm" placeholder="Contrato Padrao v4.docx" />
+          </label>
+          <label className="block">
+            <span className="label">Referencia</span>
+            <input value={templateDocxRef} onChange={(e) => setTemplateDocxRef(e.target.value)} className="input-base text-sm" placeholder="Drive, SharePoint ou caminho interno" />
+          </label>
+        </div>
+
+        <label className="block mt-3">
+          <span className="label">Sequencia de skills juridicas</span>
+          <textarea value={skillChain} onChange={(e) => setSkillChain(e.target.value)} rows={10} className="input-base text-xs font-mono" />
+        </label>
+
+        <label className="block mt-3">
+          <span className="label">Modelo/referencia juridica</span>
+          <textarea value={modeloReferencia} onChange={(e) => setModeloReferencia(e.target.value)} rows={7} className="input-base text-xs font-mono" />
+        </label>
+
+        <div className="flex flex-wrap items-center gap-4 mt-4">
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={padrao} onChange={(e) => setPadrao(e.target.checked)} />
+            Padrao deste modo
           </label>
           <label className="inline-flex items-center gap-2 text-sm">
             <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />

@@ -268,6 +268,20 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
           {/* Card de próxima ação recomendada por etapa — orienta o vendedor */}
           <NextActionCard crmStage={lead.crm_stage} leadId={lead.id} />
 
+          {lead.crm_stage === "Fechado" && (
+            <div className="card p-4 border-success-500/20 bg-success-500/[0.03]">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">Contrato pos-fechamento</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Gere contrato por template DOCX, briefing juridico ou revisao.</p>
+                </div>
+                <Link href={`/vendas/contratos?lead=${lead.id}`} className="btn-primary text-xs shrink-0">
+                  <FileText className="w-3.5 h-3.5" /> Gerar contrato
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* P5: Configuração de renovação automática (só aparece em Fechado) */}
           <RenovacaoConfigCard
             lead={{
