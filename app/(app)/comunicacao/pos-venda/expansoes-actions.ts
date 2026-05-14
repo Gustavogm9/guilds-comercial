@@ -44,6 +44,25 @@ async function assertLeadDaOrg(
   return data;
 }
 
+async function assertProdutoDaOrg(
+  supabase: ReturnType<typeof createClient>,
+  produto_id: number | null | undefined,
+  orgId: string,
+) {
+  if (produto_id == null) return null;
+  if (!Number.isInteger(produto_id) || produto_id <= 0) {
+    throw new Error("Produto inválido.");
+  }
+  const { data } = await supabase
+    .from("produtos")
+    .select("id, nome")
+    .eq("id", produto_id)
+    .eq("organizacao_id", orgId)
+    .maybeSingle();
+  if (!data) throw new Error("Produto não encontrado nesta organização.");
+  return data;
+}
+
 async function assertExpansaoDaOrg(
   supabase: ReturnType<typeof createClient>,
   expansao_id: number,
@@ -59,8 +78,25 @@ async function assertExpansaoDaOrg(
   return data;
 }
 
+async function refletirProdutoFechadoNoLead(
+  supabase: ReturnType<typeof createClient>,
+  leadId: number,
+  produtoId: number | null | undefined,
+) {
+  if (produtoId == null) return;
+  const { error } = await supabase
+    .from("lead_produtos")
+    .upsert({
+      lead_id: leadId,
+      produto_id: produtoId,
+      status: "fechado",
+    }, { onConflict: "lead_id,produto_id" });
+  if (error) throw error;
+}
+
 export async function criarExpansao(input: {
   cliente_lead_id: number;
+  produto_id?: number | null;
   tipo: TipoExpansao;
   titulo: string;
   descricao?: string;
@@ -100,6 +136,7 @@ export async function criarExpansao(input: {
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
   const lead = await assertLeadDaOrg(supabase, input.cliente_lead_id, orgId);
+  await assertProdutoDaOrg(supabase, input.produto_id, orgId);
 
   // Recomendado: expansão só em quem já é cliente. Não bloqueio (gestor pode
   // querer pré-cadastrar antes do fechamento), mas aviso via observação.
@@ -113,6 +150,7 @@ export async function criarExpansao(input: {
       organizacao_id: orgId,
       cliente_lead_id: input.cliente_lead_id,
       responsavel_id: user?.id ?? null,
+      produto_id: input.produto_id ?? null,
       tipo: input.tipo,
       titulo,
       descricao: input.descricao?.slice(0, 2000) ?? null,
@@ -137,11 +175,13 @@ export async function criarExpansao(input: {
       tipo: input.tipo,
       titulo,
       valor_potencial: valor,
+      produto_id: input.produto_id ?? null,
       origem: input.origem ?? "vendedor",
     },
   });
 
   revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath("/growth/funil");
   revalidatePath(`/vendas/pipeline/${input.cliente_lead_id}`);
   return { expansao_id: data!.id };
@@ -166,7 +206,17 @@ export async function atualizarEstagioExpansao(input: {
   const orgId = await requireOrg();
   const exp = await assertExpansaoDaOrg(supabase, input.expansao_id, orgId);
 
-  if (exp.estagio === input.estagio) return; // no-op
+  if (exp.estagio === input.estagio) {
+    if (input.estagio === "fechada") {
+      await refletirProdutoFechadoNoLead(supabase, exp.cliente_lead_id, exp.produto_id);
+      revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
+      if (exp.produto_id) {
+        revalidatePath("/vendas/portfolio");
+        revalidatePath(`/vendas/portfolio/${exp.produto_id}/pipeline`);
+      }
+    }
+    return; // no-op
+  }
 
   const update: Record<string, unknown> = { estagio: input.estagio };
   if (input.estagio === "perdida") {
@@ -182,13 +232,23 @@ export async function atualizarEstagioExpansao(input: {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
+  if (input.estagio === "fechada") {
+    await refletirProdutoFechadoNoLead(supabase, exp.cliente_lead_id, exp.produto_id);
+  }
+
   revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath("/growth/funil");
   revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
+  if (exp.produto_id) {
+    revalidatePath("/vendas/portfolio");
+    revalidatePath(`/vendas/portfolio/${exp.produto_id}/pipeline`);
+  }
 }
 
 export async function atualizarExpansao(input: {
   expansao_id: number;
+  produto_id?: number | null;
   titulo?: string;
   descricao?: string;
   valor_potencial?: number;
@@ -203,8 +263,13 @@ export async function atualizarExpansao(input: {
   const supabase = createClient();
   const orgId = await requireOrg();
   const exp = await assertExpansaoDaOrg(supabase, input.expansao_id, orgId);
+  await assertProdutoDaOrg(supabase, input.produto_id, orgId);
 
   const update: Record<string, unknown> = {};
+
+  if (input.produto_id !== undefined) {
+    update.produto_id = input.produto_id;
+  }
 
   if (input.titulo !== undefined) {
     const titulo = input.titulo.trim();
@@ -247,8 +312,18 @@ export async function atualizarExpansao(input: {
     .eq("organizacao_id", orgId);
   if (error) throw error;
 
+  const produtoIdFinal = input.produto_id !== undefined ? input.produto_id : exp.produto_id;
+  if (exp.estagio === "fechada") {
+    await refletirProdutoFechadoNoLead(supabase, exp.cliente_lead_id, produtoIdFinal);
+  }
+
   revalidatePath("/pos-venda");
+  revalidatePath("/comunicacao/pos-venda");
   revalidatePath(`/vendas/pipeline/${exp.cliente_lead_id}`);
+  if (produtoIdFinal) {
+    revalidatePath("/vendas/portfolio");
+    revalidatePath(`/vendas/portfolio/${produtoIdFinal}/pipeline`);
+  }
 }
 
 export async function removerExpansao(expansao_id: number) {

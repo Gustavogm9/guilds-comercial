@@ -13,9 +13,38 @@ import LeadProdutosWidget from "@/components/lead-produtos-widget";
 import type { TimelineEvento } from "@/components/lead-timeline-360";
 import { STAGE_COLORS } from "@/lib/lists";
 import type { LeadEnriched, LeadScore } from "@/lib/types";
-import { ChevronLeft, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin } from "lucide-react";
+import { ChevronLeft, PhoneCall, FileText, MapPin, Briefcase, User2, Phone, Mail, Linkedin, Sparkles, Target, Tag, ArrowRight } from "lucide-react";
 import ObjectionHandler from "@/components/objection-handler";
 import { getServerLocale, getT, type Locale } from "@/lib/i18n";
+
+type ProdutoOferta = {
+  id: number;
+  nome: string;
+  categoria?: string | null;
+  descricao?: string | null;
+  recorrente?: boolean | null;
+  valor_base?: number | null;
+  valor_max?: number | null;
+  segmentos_alvo?: string[] | null;
+  cargos_alvo?: string[] | null;
+  icp_extraido?: Record<string, unknown> | null;
+};
+
+type LeadProdutoOferta = {
+  lead_id: number;
+  produto_id: number;
+  status: string;
+  produtos?: { nome: string; categoria?: string; recorrente?: boolean } | null;
+};
+
+type NextBestOffer = {
+  produto: ProdutoOferta;
+  score: number;
+  tipo: "upsell" | "cross_sell" | "expansao_seats" | "oferta_inicial";
+  valorSugerido: number;
+  motivos: string[];
+  proximaAcao: string;
+};
 
 /**
  * Detalhe do lead — visão completa pra trabalhar pipeline.
@@ -128,7 +157,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       .select("lead_id, produto_id, status, produtos(nome, categoria, recorrente)")
       .eq("lead_id", id),
     supabase.from("produtos")
-      .select("id, nome, categoria")
+      .select("id, nome, categoria, descricao, recorrente, valor_base, valor_max, segmentos_alvo, cargos_alvo, icp_extraido")
       .eq("organizacao_id", orgId)
       .eq("ativo", true)
       .order("ordem"),
@@ -136,8 +165,8 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
 
   if (!leadRow) notFound();
   const lead = leadRow as LeadEnriched;
-  const leadProdutos = (leadProdutosData ?? []) as any[];
-  const todosProdutos = (todosProdutosData ?? []) as { id: number; nome: string; categoria?: string }[];
+  const leadProdutos = (leadProdutosData ?? []) as unknown as LeadProdutoOferta[];
+  const todosProdutos = (todosProdutosData ?? []) as ProdutoOferta[];
   const score = scoreRow as LeadScore | null;
   const stage = lead.crm_stage ? STAGE_COLORS[lead.crm_stage] : null;
   const stageLabel = lead.crm_stage ? t(`pipeline_etapas.${lead.crm_stage}`) : null;
@@ -162,6 +191,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       .order("created_at", { ascending: false });
     if (data) outrasOportunidades = data as LeadEnriched[];
   }
+  const nextBestOffers = calcularNextBestOffers(lead, leadProdutos, todosProdutos);
 
   // Helper para formatação de data curta
   const fmt = (d: string, l: string) => {
@@ -207,7 +237,11 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
               <LeadProdutosWidget
                 leadId={lead.id}
                 leadProdutosIniciais={leadProdutos}
-                produtos={todosProdutos}
+                produtos={todosProdutos.map((p) => ({
+                  id: p.id,
+                  nome: p.nome,
+                  categoria: p.categoria ?? undefined,
+                }))}
               />
             </div>
           )}
@@ -244,6 +278,12 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
               valor_renovacao: (lead as any).valor_renovacao ?? null,
               valor_potencial: lead.valor_potencial ?? null,
             }}
+          />
+          <NextBestOfferCard
+            leadId={lead.id}
+            currency={currency}
+            locale={locale}
+            offers={nextBestOffers}
           />
         </div>
 
@@ -527,6 +567,172 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       </section>
     </div>
   );
+}
+
+function calcularNextBestOffers(
+  lead: LeadEnriched & { produto_scores?: Record<string, number> | null },
+  leadProdutos: LeadProdutoOferta[],
+  produtos: ProdutoOferta[],
+): NextBestOffer[] {
+  if (produtos.length === 0) return [];
+
+  const produtosFechados = new Set(
+    leadProdutos.filter((lp) => lp.status === "fechado").map((lp) => lp.produto_id),
+  );
+  const produtosTrabalhados = new Set(leadProdutos.map((lp) => lp.produto_id));
+  const temCompra = produtosFechados.size > 0 || lead.crm_stage === "Fechado";
+  const segmentoLead = norm(lead.segmento);
+  const cargoLead = norm(lead.cargo);
+  const dorLead = norm(lead.dor_principal);
+
+  return produtos
+    .filter((p) => !produtosFechados.has(p.id))
+    .map((produto) => {
+      const motivos: string[] = [];
+      let score = 20;
+      const scoreProduto = Number((lead.produto_scores ?? {})[String(produto.id)] ?? 0);
+      if (scoreProduto > 0) {
+        score += Math.min(45, scoreProduto * 0.45);
+        motivos.push(`fit IA ${Math.round(scoreProduto)}%`);
+      }
+
+      if (produto.segmentos_alvo?.some((s) => norm(s) === segmentoLead) && segmentoLead) {
+        score += 20;
+        motivos.push(`segmento ${lead.segmento}`);
+      }
+
+      if (produto.cargos_alvo?.some((c) => cargoLead.includes(norm(c)) || norm(c).includes(cargoLead)) && cargoLead) {
+        score += 14;
+        motivos.push(`cargo ${lead.cargo}`);
+      }
+
+      if (produtosTrabalhados.has(produto.id)) {
+        score += 18;
+        motivos.push("já existe interesse mapeado");
+      }
+
+      const doresIcp = Array.isArray(produto.icp_extraido?.dores_comuns)
+        ? produto.icp_extraido?.dores_comuns as string[]
+        : [];
+      if (dorLead && doresIcp.some((d) => dorLead.includes(norm(d)) || norm(d).includes(dorLead))) {
+        score += 12;
+        motivos.push("conecta com a dor registrada");
+      }
+
+      if (temCompra && produto.recorrente) {
+        score += 8;
+        motivos.push("aumenta receita recorrente");
+      }
+
+      if (motivos.length === 0) {
+        motivos.push("oferta ainda não trabalhada nesta conta");
+      }
+
+      const valorSugerido = Number(produto.valor_max ?? produto.valor_base ?? Math.round((lead.valor_potencial || 0) * 0.3) ?? 0);
+      const tipo: NextBestOffer["tipo"] = temCompra
+        ? (produto.recorrente ? "upsell" : "cross_sell")
+        : "oferta_inicial";
+
+      return {
+        produto,
+        score: Math.min(100, Math.round(score)),
+        tipo,
+        valorSugerido,
+        motivos: motivos.slice(0, 3),
+        proximaAcao: temCompra
+          ? `Validar fit de ${produto.nome} e abrir oportunidade de expansão`
+          : `Conectar ${produto.nome} à dor e avançar proposta`,
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.valorSugerido - a.valorSugerido)
+    .slice(0, 3);
+}
+
+function NextBestOfferCard({
+  offers,
+  leadId,
+  currency,
+  locale,
+}: {
+  offers: NextBestOffer[];
+  leadId: number;
+  currency: string;
+  locale: Locale;
+}) {
+  if (offers.length === 0) return null;
+  const principal = offers[0];
+  const fmtMoney = (v: number) =>
+    v > 0
+      ? v.toLocaleString(locale, { style: "currency", currency, maximumFractionDigits: 0 })
+      : "Valor a definir";
+
+  return (
+    <div className="mt-3 rounded-lg border border-primary/20 bg-primary/[0.04] p-4">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-lg bg-primary/10 grid place-items-center shrink-0">
+          <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-sm font-semibold">Próxima melhor venda</div>
+            <span className="text-[10px] uppercase tracking-[0.12em] rounded border border-primary/25 bg-primary/10 text-primary px-1.5 py-0.5">
+              {principal.score}% fit
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.12em] rounded bg-secondary text-muted-foreground px-1.5 py-0.5">
+              {principal.tipo.replace("_", " ")}
+            </span>
+          </div>
+          <div className="mt-1 text-sm font-medium flex items-center gap-1.5">
+            <Tag className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+            {principal.produto.nome}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Ticket sugerido: <span className="font-medium text-foreground">{fmtMoney(principal.valorSugerido)}</span>
+            {principal.produto.recorrente ? " · recorrente" : ""}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {principal.motivos.map((m) => (
+              <span key={m} className="text-[10px] rounded bg-card border border-border px-2 py-1 text-muted-foreground">
+                {m}
+              </span>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <Link href="/comunicacao/pos-venda?tab=expansoes" className="btn-primary text-xs">
+              <Target className="w-3.5 h-3.5" aria-hidden="true" />
+              Criar expansão
+            </Link>
+            <Link href={`/vendas/portfolio/${principal.produto.id}/pipeline`} className="btn-ghost text-xs">
+              Ver produto <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+            </Link>
+            <span className="text-[11px] text-muted-foreground">{principal.proximaAcao}</span>
+          </div>
+        </div>
+      </div>
+      {offers.length > 1 && (
+        <div className="mt-3 pt-3 border-t border-border/60 grid gap-1.5">
+          {offers.slice(1).map((offer) => (
+            <Link
+              key={offer.produto.id}
+              href={`/vendas/portfolio/${offer.produto.id}/pipeline`}
+              className="flex items-center justify-between gap-2 text-xs rounded-md px-2 py-1.5 hover:bg-card border border-transparent hover:border-border"
+            >
+              <span className="truncate">{offer.produto.nome}</span>
+              <span className="text-muted-foreground tabular-nums">{offer.score}%</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function norm(value: string | null | undefined) {
+  return (value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 function Field({ icon: Icon, label, value }: any) {

@@ -5,7 +5,7 @@ import {
   ListChecks, Star, Layers, Plus, X, ArrowRight,
   CheckCircle2, AlertCircle, Loader2, TrendingUp, Users,
   AlertTriangle, MessageSquare, Heart, Rocket, DollarSign,
-  RotateCw, Save, Calendar,
+  RotateCw, Save, Calendar, Tag,
 } from "lucide-react";
 import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 import type {
@@ -37,6 +37,7 @@ import {
 import HealthBreakdownModal from "@/components/health-breakdown-modal";
 import OnboardingChecklistModal from "@/components/onboarding-checklist-modal";
 import NpsInsightsCard from "@/components/nps-insights-card";
+import PropostaExpansaoModal from "@/components/proposta-expansao-modal";
 import { bulkAtualizarRenovacoes } from "./renovacoes-bulk-actions";
 import ComunicacaoTabs from "../comunicacao-tabs";
 
@@ -53,6 +54,14 @@ interface RenovacaoLead {
   valor_renovacao: number | null;
   responsavel_id: string | null;
 }
+type ProdutoOferta = {
+  id: number;
+  nome: string;
+  categoria: string | null;
+  recorrente: boolean | null;
+  valor_base: number | null;
+  valor_max: number | null;
+};
 type Feedback = { tipo: "sucesso" | "erro"; mensagem: string };
 type T = (key: string) => string;
 
@@ -78,6 +87,7 @@ export default function PosVendaClient({
   expansoesResumo,
   expansoesHistorico,
   renovacoesLeads,
+  produtos,
 }: {
   meId: string;
   isGestor: boolean;
@@ -92,6 +102,7 @@ export default function PosVendaClient({
   expansoesResumo: ExpansoesResumo | null;
   expansoesHistorico: Expansao[];
   renovacoesLeads: Array<RenovacaoLead>;
+  produtos: ProdutoOferta[];
 }) {
   const [tab, setTab] = useState<Tab>("onboarding");
   const [locale, setLocale] = useState<Locale>("pt-BR");
@@ -155,6 +166,7 @@ export default function PosVendaClient({
           resumo={expansoesResumo}
           historico={expansoesHistorico}
           healthScores={healthScores}
+          produtos={produtos}
           t={t}
           locale={locale}
           onSucesso={onSucesso}
@@ -1069,12 +1081,13 @@ function CategoriaHealthBadge({ cat }: { cat: CategoriaHealth }) {
 
 // ======================== Tab Expansões ========================
 function ExpansoesTab({
-  ativas, resumo, historico, healthScores, t, locale, onSucesso, onErro,
+  ativas, resumo, historico, healthScores, produtos, t, locale, onSucesso, onErro,
 }: {
   ativas: ExpansaoAtiva[];
   resumo: ExpansoesResumo | null;
   historico: Expansao[];
   healthScores: HealthScore[];
+  produtos: ProdutoOferta[];
   t: T;
   locale: Locale;
   onSucesso: (m: string) => void;
@@ -1082,6 +1095,7 @@ function ExpansoesTab({
 }) {
   const [showNova, setShowNova] = useState(false);
   const [editing, setEditing] = useState<ExpansaoAtiva | null>(null);
+  const [propostaPara, setPropostaPara] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
 
   const fmtBRL = (v: number) =>
@@ -1203,7 +1217,14 @@ function ExpansoesTab({
                       {e.tipo.replace("_", " ")}
                     </td>
                     <td className="px-3 py-2 text-xs">
-                      {e.titulo}
+                      <div className="font-medium text-foreground">{e.titulo}</div>
+                      {e.produto_nome && (
+                        <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-primary">
+                          <Tag className="w-3 h-3" aria-hidden="true" />
+                          {e.produto_nome}
+                          {e.produto_categoria ? ` · ${e.produto_categoria}` : ""}
+                        </div>
+                      )}
                       {e.origem.startsWith("sistema") && (
                         <span className="ml-1.5 text-[10px] uppercase tracking-[0.12em] text-warning-500" title="Sugerido pelo sistema">
                           ✨ auto
@@ -1252,6 +1273,13 @@ function ExpansoesTab({
                       )}
                     </td>
                     <td className="px-3 py-2 text-right">
+                      <button
+                        onClick={() => setPropostaPara(e.id)}
+                        className="btn-ghost text-xs text-primary"
+                        aria-label="Ver template de proposta"
+                      >
+                        Proposta
+                      </button>
                       <button
                         onClick={() => setEditing(e)}
                         className="btn-ghost text-xs"
@@ -1324,6 +1352,7 @@ function ExpansoesTab({
         <NovaExpansaoModal
           t={t}
           healthScores={healthScores}
+          produtos={produtos}
           onClose={() => setShowNova(false)}
           onSucesso={(m) => { setShowNova(false); onSucesso(m); }}
           onErro={onErro}
@@ -1333,18 +1362,26 @@ function ExpansoesTab({
       {editing && (
         <EditarExpansaoModal
           expansao={editing}
+          produtos={produtos}
           onClose={() => setEditing(null)}
           onSucesso={(m) => { setEditing(null); onSucesso(m); }}
           onErro={onErro}
         />
       )}
+
+      <PropostaExpansaoModal
+        expansaoId={propostaPara}
+        open={propostaPara != null}
+        onClose={() => setPropostaPara(null)}
+      />
     </>
   );
 }
 
-function NovaExpansaoModal({ t, healthScores, onClose, onSucesso, onErro }: {
+function NovaExpansaoModal({ t, healthScores, produtos, onClose, onSucesso, onErro }: {
   t: T;
   healthScores: HealthScore[];
+  produtos: ProdutoOferta[];
   onClose: () => void;
   onSucesso: (m: string) => void;
   onErro: (e: unknown) => void;
@@ -1352,6 +1389,7 @@ function NovaExpansaoModal({ t, healthScores, onClose, onSucesso, onErro }: {
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState({
     cliente_lead_id: 0,
+    produto_id: null as number | null,
     tipo: "upsell" as TipoExpansao,
     titulo: "",
     descricao: "",
@@ -1360,6 +1398,7 @@ function NovaExpansaoModal({ t, healthScores, onClose, onSucesso, onErro }: {
     data_proxima_acao: "",
     proxima_acao: "",
   });
+  const produtoSelecionado = produtos.find((p) => p.id === form.produto_id);
 
   function handleCriar() {
     if (!form.cliente_lead_id) { onErro(new Error("Selecione um cliente.")); return; }
@@ -1368,6 +1407,7 @@ function NovaExpansaoModal({ t, healthScores, onClose, onSucesso, onErro }: {
       try {
         await criarExpansao({
           cliente_lead_id: form.cliente_lead_id,
+          produto_id: form.produto_id,
           tipo: form.tipo,
           titulo: form.titulo,
           descricao: form.descricao || undefined,
@@ -1419,6 +1459,38 @@ function NovaExpansaoModal({ t, healthScores, onClose, onSucesso, onErro }: {
             <p className="text-[11px] text-muted-foreground mt-1">
               Lista vem dos clientes em "Fechado" da org.
             </p>
+          </div>
+          <div>
+            <label className="label">Oferta recomendada</label>
+            <select
+              value={form.produto_id ?? ""}
+              onChange={(e) => {
+                const produtoId = e.target.value ? parseInt(e.target.value, 10) : null;
+                const produto = produtos.find((p) => p.id === produtoId);
+                setForm({
+                  ...form,
+                  produto_id: produtoId,
+                  titulo: produto && !form.titulo ? `Vender ${produto.nome}` : form.titulo,
+                  valor_potencial: produto?.valor_max ?? produto?.valor_base ?? form.valor_potencial,
+                  valor_recorrente_mensal: produto?.recorrente ? (produto.valor_base ?? form.valor_recorrente_mensal) : form.valor_recorrente_mensal,
+                });
+              }}
+              className="input-base !text-sm w-full mt-1"
+              aria-label="Oferta recomendada"
+            >
+              <option value="">Sem produto específico</option>
+              {produtos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}{p.categoria ? ` · ${p.categoria}` : ""}
+                </option>
+              ))}
+            </select>
+            {produtoSelecionado && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {produtoSelecionado.recorrente ? "Recorrente" : "Pontual"}
+                {produtoSelecionado.valor_base ? ` · a partir de R$ ${Number(produtoSelecionado.valor_base).toLocaleString("pt-BR")}` : ""}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1501,14 +1573,16 @@ function NovaExpansaoModal({ t, healthScores, onClose, onSucesso, onErro }: {
   );
 }
 
-function EditarExpansaoModal({ expansao, onClose, onSucesso, onErro }: {
+function EditarExpansaoModal({ expansao, produtos, onClose, onSucesso, onErro }: {
   expansao: ExpansaoAtiva;
+  produtos: ProdutoOferta[];
   onClose: () => void;
   onSucesso: (m: string) => void;
   onErro: (e: unknown) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState({
+    produto_id: expansao.produto_id,
     titulo: expansao.titulo,
     descricao: expansao.descricao ?? "",
     valor_potencial: expansao.valor_potencial,
@@ -1522,6 +1596,7 @@ function EditarExpansaoModal({ expansao, onClose, onSucesso, onErro }: {
       try {
         await atualizarExpansao({
           expansao_id: expansao.id,
+          produto_id: form.produto_id,
           titulo: form.titulo,
           descricao: form.descricao,
           valor_potencial: form.valor_potencial,
@@ -1556,6 +1631,22 @@ function EditarExpansaoModal({ expansao, onClose, onSucesso, onErro }: {
         </div>
 
         <div className="overflow-y-auto p-5 space-y-3">
+          <div>
+            <label className="label">Oferta recomendada</label>
+            <select
+              value={form.produto_id ?? ""}
+              onChange={(e) => setForm({ ...form, produto_id: e.target.value ? parseInt(e.target.value, 10) : null })}
+              className="input-base text-sm mt-1"
+              aria-label="Oferta recomendada"
+            >
+              <option value="">Sem produto específico</option>
+              {produtos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}{p.categoria ? ` · ${p.categoria}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="label">Título</label>
             <input

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import { computarFingerprint, gerarQueriesLookalike, mapIcpToFingerprint } from "@/lib/prospeccao-lookalike";
 import { buscarEmpresasPorNicho, estimarCusto } from "@/lib/prospeccao";
@@ -19,19 +20,26 @@ export const maxDuration = 120; // campanhas podem ser longas
  *   6. Incrementa métricas da hipótese
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const me = await getCurrentProfile();
+  const engineSecret = process.env.PROSPECCAO_ENGINE_SECRET?.trim();
+  const isInternalEngine = req.headers.get("x-internal-engine") === "1"
+    && Boolean(engineSecret)
+    && req.headers.get("x-engine-secret") === engineSecret;
+
+  const me = isInternalEngine ? ({ id: null } as any) : await getCurrentProfile();
   if (!me) return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
-  const orgId = await getCurrentOrgId();
+  let orgId = isInternalEngine ? req.headers.get("x-internal-org-id") : await getCurrentOrgId();
   if (!orgId) return NextResponse.json({ erro: "Sem org." }, { status: 403 });
 
   const { id } = await params;
   const campanhaId = parseInt(id, 10);
   if (isNaN(campanhaId)) return NextResponse.json({ erro: "ID inválido." }, { status: 400 });
 
-  const supabase = createClient();
+  const supabase = isInternalEngine
+    ? createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    : createClient();
 
   // Carrega campanha
   const { data: campanha } = await supabase
@@ -147,7 +155,15 @@ export async function POST(
       new URL("/api/prospeccao/ativar", process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-internal-campanha": campanhaId.toString() },
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-campanha": campanhaId.toString(),
+          ...(isInternalEngine && engineSecret && orgId ? {
+            "x-internal-engine": "1",
+            "x-engine-secret": engineSecret,
+            "x-internal-org-id": orgId,
+          } : {}),
+        },
         body: JSON.stringify({
           leads: unicos.slice(0, maxLeads).map(e => ({
             nome: null,

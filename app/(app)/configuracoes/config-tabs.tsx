@@ -16,6 +16,8 @@ const TABS: Tab[] = [
   { i18nKey: "configuracoes.perfil", href: "/configuracoes/perfil" },
   { i18nKey: "configuracoes.organizacao", href: "/configuracoes/organizacao", gestorOnly: true },
   { i18nKey: "configuracoes.cadencia", href: "/configuracoes/cadencia", gestorOnly: true },
+  { i18nKey: "Landing Pages", href: "/configuracoes/landing-pages", gestorOnly: true },
+  { i18nKey: "Campos", href: "/configuracoes/campos", gestorOnly: true },
   { i18nKey: "configuracoes.api_webhooks", href: "/configuracoes/desenvolvedores", gestorOnly: true },
   { i18nKey: "sidebar.raio_x", href: "/configuracoes/raio-x", gestorOnly: true },
   { i18nKey: "configuracoes.whatsapp", href: "/configuracoes/whatsapp", gestorOnly: true },

@@ -70,17 +70,11 @@ export async function processWebhookQueue(opts: {
   limit?: number;
 } = {}): Promise<{ processed: number; succeeded: number; failed: number }> {
   const supabaseAdmin = admin();
-  let q = supabaseAdmin
-    .from('webhook_events')
-    .select('id, event_type, payload, attempts, webhooks(url, secret)')
-    .eq('status', 'pending')
-    .lte('next_attempt_at', new Date().toISOString())
-    .order('next_attempt_at', { ascending: true })
-    .limit(opts.limit ?? 50);
+  const { data: events, error } = await supabaseAdmin.rpc('claim_webhook_events', {
+    _limit: opts.limit ?? 50,
+    _org: opts.organizacao_id ?? null,
+  });
 
-  if (opts.organizacao_id) q = q.eq('organizacao_id', opts.organizacao_id);
-
-  const { data: events, error } = await q;
   if (error || !events || events.length === 0) {
     return { processed: 0, succeeded: 0, failed: 0 };
   }
@@ -89,19 +83,18 @@ export async function processWebhookQueue(opts: {
   let failed = 0;
 
   for (const event of events) {
-    const webhook = event.webhooks as any;
-    if (!webhook) continue;
+    if (!event.webhook_url || !event.webhook_secret) continue;
 
     const bodyStr = JSON.stringify(event.payload);
     const signature = crypto
-      .createHmac('sha256', webhook.secret)
+      .createHmac('sha256', event.webhook_secret)
       .update(bodyStr)
       .digest('hex');
 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
-      const res = await fetch(webhook.url, {
+      const res = await fetch(event.webhook_url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,6 +114,7 @@ export async function processWebhookQueue(opts: {
             attempts: event.attempts + 1,
             last_attempt_at: new Date().toISOString(),
             error_message: null,
+            processing_started_at: null,
           })
           .eq('id', event.id);
         succeeded++;
@@ -142,6 +136,7 @@ export async function processWebhookQueue(opts: {
           last_attempt_at: new Date().toISOString(),
           next_attempt_at: exhausted ? new Date().toISOString() : nextAttempt.toISOString(),
           error_message: message,
+          processing_started_at: null,
         })
         .eq('id', event.id);
       if (exhausted) failed++;

@@ -20,6 +20,7 @@ export default async function ProspeccaoPage({ searchParams }: Props) {
 
   const role = await getCurrentRole();
   const isGestor = role === "gestor";
+  const hasExternalProspectingKeys = Boolean(process.env.FIRECRAWL_API_KEY || process.env.TAVILY_API_KEY);
 
   const params = await searchParams;
   const hipoteseId = params.hipotese ? parseInt(params.hipotese, 10) : undefined;
@@ -99,7 +100,7 @@ export default async function ProspeccaoPage({ searchParams }: Props) {
                 <span className="text-muted-foreground"> · {hipotesePre.segmentos.join(", ")}</span>
               ) : null}
             </div>
-            <a href="/prospeccao" className="ml-auto text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0">
+            <a href="/vendas/prospeccao" className="ml-auto text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0">
               Limpar filtro →
             </a>
           </div>
@@ -114,6 +115,7 @@ export default async function ProspeccaoPage({ searchParams }: Props) {
         hipotesePre={hipotesePre}
         hipoteses={hipoteses as any[]}
         produtos={produtos as any[]}
+        hasExternalProspectingKeys={hasExternalProspectingKeys}
       />
 
       {/* Histórico */}

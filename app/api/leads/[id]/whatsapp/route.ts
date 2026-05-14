@@ -146,9 +146,13 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // Dispara análise IA em background (best-effort)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const internalSecret = process.env.WHATSAPP_ANALYZE_SECRET || process.env.CRON_SECRET;
   fetch(`${appUrl}/api/leads/${leadId}/whatsapp/${conversa.id}/analisar`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(internalSecret ? { "x-internal-secret": internalSecret } : {}),
+    },
   }).catch(() => null);
 
   return NextResponse.json({

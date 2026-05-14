@@ -41,6 +41,7 @@ export default async function PosVendaPage() {
     expansoesResumoRes,
     expansoesFechadasRes,
     renovacoesLeadsRes,
+    produtosRes,
   ] = await Promise.all([
     supabase
       .from("v_onboarding_pendente")
@@ -108,6 +109,12 @@ export default async function PosVendaPage() {
       .eq("crm_stage", "Fechado")
       .order("data_fechamento", { ascending: false })
       .limit(500),
+    supabase
+      .from("produtos")
+      .select("id, nome, categoria, recorrente, valor_base, valor_max")
+      .eq("organizacao_id", orgId)
+      .eq("ativo", true)
+      .order("ordem", { ascending: true }),
   ]);
 
   return (
@@ -134,6 +141,14 @@ export default async function PosVendaPage() {
         ciclo_renovacao_meses: number | null;
         valor_renovacao: number | null;
         responsavel_id: string | null;
+      }>}
+      produtos={(produtosRes.data ?? []) as Array<{
+        id: number;
+        nome: string;
+        categoria: string | null;
+        recorrente: boolean | null;
+        valor_base: number | null;
+        valor_max: number | null;
       }>}
     />
   );

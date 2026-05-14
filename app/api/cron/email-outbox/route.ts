@@ -55,14 +55,9 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  // Pega lote de pendentes
-  const { data: rows, error: fetchErr } = await supa
-    .from("email_outbox")
-    .select("*")
-    .eq("status", "pending")
-    .lte("scheduled_for", new Date().toISOString())
-    .order("created_at", { ascending: true })
-    .limit(BATCH_SIZE);
+  const { data: rows, error: fetchErr } = await supa.rpc("claim_email_outbox", {
+    _limit: BATCH_SIZE,
+  });
 
   if (fetchErr) {
     return NextResponse.json({ error: fetchErr.message }, { status: 500 });
@@ -93,6 +88,7 @@ export async function POST(req: Request) {
           .update({
             status: "abandoned",
             attempts: row.attempts + 1,
+            processing_started_at: null,
             last_error: "BREVO_API_KEY ausente — email pulado",
           })
           .eq("id", row.id);
@@ -106,6 +102,7 @@ export async function POST(req: Request) {
           status: "sent",
           sent_at: new Date().toISOString(),
           attempts: row.attempts + 1,
+          processing_started_at: null,
         })
         .eq("id", row.id);
       sent += 1;
@@ -126,6 +123,7 @@ export async function POST(req: Request) {
           attempts,
           last_error: msg.slice(0, 500),
           scheduled_for: novoStatus === "abandoned" ? row.scheduled_for : nextScheduled.toISOString(),
+          processing_started_at: null,
         })
         .eq("id", row.id);
 

@@ -48,7 +48,14 @@ export async function POST(req: Request) {
   for (const vn of (voiceNotas ?? []) as any[]) {
     if (Date.now() - startedAt > BATCH_TIME_MS) break;
     try {
-      await supa.from("lead_voice_nota").update({ status: "processando" }).eq("id", vn.id);
+      const { data: claimed } = await supa
+        .from("lead_voice_nota")
+        .update({ status: "processando" })
+        .eq("id", vn.id)
+        .eq("status", "pendente")
+        .select("id")
+        .maybeSingle();
+      if (!claimed) continue;
 
       // Contexto do lead
       const { data: lead } = await supa
@@ -94,7 +101,14 @@ export async function POST(req: Request) {
     for (const lt of (ligacoes ?? []) as any[]) {
       if (Date.now() - startedAt > BATCH_TIME_MS) break;
       try {
-        await supa.from("ligacao_transcricao").update({ status: "transcrevendo" }).eq("id", lt.id);
+        const { data: claimed } = await supa
+          .from("ligacao_transcricao")
+          .update({ status: "transcrevendo" })
+          .eq("id", lt.id)
+          .eq("status", "pendente")
+          .select("id")
+          .maybeSingle();
+        if (!claimed) continue;
 
         const tr = await transcreverAudio(lt.audio_url);
         await supa.from("ligacao_transcricao").update({

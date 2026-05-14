@@ -22,6 +22,8 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
     email: "", whatsapp: "", linkedin: "",
     segmento: "", cidade_uf: "", fonte: "",
     responsavel_id: "", observacoes: "",
+    temperatura: "Morno" as "Frio" | "Morno" | "Quente",
+    prioridade: "B" as "A" | "B" | "C",
     newsletter_optin: false,
     direto_pipeline: false,
   });
@@ -32,6 +34,8 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
       email: "", whatsapp: "", linkedin: "",
       segmento: "", cidade_uf: "", fonte: "",
       responsavel_id: "", observacoes: "",
+      temperatura: "Morno",
+      prioridade: "B",
       newsletter_optin: false,
       direto_pipeline: false,
     });
@@ -54,6 +58,8 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
           fonte: form.fonte || undefined,
           observacoes: form.observacoes || undefined,
           responsavel_id: form.responsavel_id || undefined,
+          temperatura: form.temperatura,
+          prioridade: form.prioridade,
           newsletter_optin: form.newsletter_optin,
           direto_pipeline: form.direto_pipeline,
         });
@@ -126,6 +132,28 @@ export default function NovoLeadModal({ profiles, variant = "button" }: {
                   <option value="">{t("modais.responsavel_eu")}</option>
                   {profiles.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
                 </select>
+              </div>
+
+              <div>
+                <label className="label">Temperatura</label>
+                <select value={form.temperatura} onChange={(e) => setForm({...form, temperatura: e.target.value as typeof form.temperatura})}
+                  className="input-base mt-1">
+                  <option value="Frio">Frio</option>
+                  <option value="Morno">Morno</option>
+                  <option value="Quente">Quente</option>
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">Sinal de intenção: frio, morno ou quente.</p>
+              </div>
+
+              <div>
+                <label className="label">Prioridade</label>
+                <select value={form.prioridade} onChange={(e) => setForm({...form, prioridade: e.target.value as typeof form.prioridade})}
+                  className="input-base mt-1">
+                  <option value="A">A — tratar primeiro</option>
+                  <option value="B">B — prioridade normal</option>
+                  <option value="C">C — baixa prioridade</option>
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">Ordem de atenção do time: A é mais urgente, C é menor.</p>
               </div>
 
               <div className="md:col-span-2">

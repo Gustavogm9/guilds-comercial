@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { Tag } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
-import ConfigTabs from "../config-tabs";
 import CamposClient from "./campos-client";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +24,6 @@ export default async function CamposPage() {
 
   return (
     <div className="max-w-4xl">
-      <ConfigTabs isGestor={true} />
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
           <Tag className="w-6 h-6 text-primary" aria-hidden="true" />

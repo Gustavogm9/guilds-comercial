@@ -8,7 +8,7 @@ import { adicionarResponsavelProduto, removerResponsavelProduto } from "./action
 
 const PAPEL_LABEL: Record<string, { label: string; icon: React.ReactNode; cor: string }> = {
   comercial: { label: "Comercial",  icon: <Shield className="w-3 h-3" />,    cor: "bg-blue-500/10 text-blue-700" },
-  tecnico:   { label: "TÃ©cnico",    icon: <Code2 className="w-3 h-3" />,      cor: "bg-purple-500/10 text-purple-700" },
+  tecnico:   { label: "Técnico",    icon: <Code2 className="w-3 h-3" />,      cor: "bg-purple-500/10 text-purple-700" },
   gestor:    { label: "Gestor",     icon: <Users className="w-3 h-3" />,      cor: "bg-amber-500/10 text-amber-700" },
   suporte:   { label: "Suporte",    icon: <Headphones className="w-3 h-3" />, cor: "bg-green-500/10 text-green-700" },
 };
@@ -71,7 +71,7 @@ export default function EquipeManager({ produtoId, responsaveisIniciais, membros
           <div className="flex gap-2">
             <select className="input-base flex-1 text-xs"
               value={profileId} onChange={e => setProfileId(e.target.value)}>
-              <option value="">Selecionar membroâ€¦</option>
+              <option value="">Selecionar membro…</option>
               {membrosDisponiveis.map(m => (
                 <option key={m.profile_id} value={m.profile_id}>
                   {m.profiles?.display_name ?? m.profiles?.email}

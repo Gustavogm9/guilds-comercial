@@ -39,6 +39,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: "Arquivo muito grande (max 5MB / ~60s)." }, { status: 413 });
     }
 
+    const supabase = createClient();
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("id", leadId)
+      .eq("organizacao_id", orgId)
+      .maybeSingle();
+
+    if (!lead) {
+      return NextResponse.json({ erro: "Lead não encontrado nesta organização." }, { status: 404 });
+    }
+
     // Upload pro Storage (bucket "voice-notes")
     const supa = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,7 +78,6 @@ export async function POST(req: NextRequest) {
     const audioUrl = signed?.signedUrl ?? "";
 
     // Insere row
-    const supabase = createClient();
     const { data: row, error: insertErr } = await supabase
       .from("lead_voice_nota")
       .insert({

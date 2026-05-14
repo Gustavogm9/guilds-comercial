@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getCurrentRole } from "@/lib/supabase/org";
-import ConfigTabs from "../../../config-tabs";
 import NovoFluxoForm from "./novo-fluxo-form";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +12,6 @@ export default async function NovoFluxoPage() {
 
   return (
     <div className="max-w-3xl">
-      <ConfigTabs isGestor={true} />
       <Link href="/configuracoes/cadencia/fluxos" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-3">
         <ArrowLeft className="w-3 h-3" /> Voltar pros fluxos
       </Link>

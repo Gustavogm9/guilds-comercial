@@ -94,11 +94,11 @@ export default function TabProjetos({ projetos: inicial, produtos }: Props) {
             </div>
             <div className="md:col-span-2">
               <label className="label">Resultado / Impacto</label>
-              <textarea className="input-base min-h-[60px] text-sm" value={form.resultado ?? ""} onChange={e => set("resultado", e.target.value)} placeholder="Ex: Reduziu 40% do tempo de vendas, gerou R$120k em contratosâ€¦" />
+              <textarea className="input-base min-h-[60px] text-sm" value={form.resultado ?? ""} onChange={e => set("resultado", e.target.value)} placeholder="Ex: Reduziu 40% do tempo de vendas, gerou R$120k em contratos…" />
             </div>
             <div className="md:col-span-2">
               <label className="label">Tecnologias/Ferramentas <span className="text-muted-foreground font-normal">(separadas por vírgula)</span></label>
-              <input className="input-base" value={(form.tecnologias ?? []).join(", ")} onChange={e => set("tecnologias", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} placeholder="Next.js, Supabase, n8n, IA generativaâ€¦" />
+              <input className="input-base" value={(form.tecnologias ?? []).join(", ")} onChange={e => set("tecnologias", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} placeholder="Next.js, Supabase, n8n, IA generativa…" />
             </div>
             <div>
               <label className="label">Link externo (opcional)</label>

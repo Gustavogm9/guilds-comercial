@@ -12,7 +12,10 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SECRET = Deno.env.get("PROSPECCAO_ENGINE_SECRET") ?? "change-me";
+const SECRET = Deno.env.get("PROSPECCAO_ENGINE_SECRET")?.trim();
+if (!SECRET || SECRET === "change-me") {
+  throw new Error("PROSPECCAO_ENGINE_SECRET must be configured with a non-default value.");
+}
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const APP_URL = Deno.env.get("NEXT_PUBLIC_APP_URL") ?? "http://localhost:3000";
@@ -50,6 +53,7 @@ Deno.serve(async (req: Request) => {
             "Content-Type": "application/json",
             "x-internal-engine": "1",
             "x-engine-secret": SECRET,
+            "x-internal-org-id": campanha.organizacao_id,
           },
         });
         const data = await res.json();

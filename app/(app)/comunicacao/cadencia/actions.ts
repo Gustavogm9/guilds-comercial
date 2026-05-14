@@ -10,6 +10,52 @@ type StatusCadencia = "pendente" | "enviado" | "respondido" | "pular" | "removid
 
 const STATUS_VALIDOS: StatusCadencia[] = ["pendente", "enviado", "respondido", "pular", "removido"];
 
+async function sincronizarLeadAposToqueCadencia(
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+  leadId: number,
+  status: Extract<StatusCadencia, "enviado" | "respondido">,
+  hoje: string,
+) {
+  if (status === "respondido") {
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        data_ultimo_toque: hoje,
+        proxima_acao: "Qualificar resposta da cadência",
+        data_proxima_acao: hoje,
+      })
+      .eq("id", leadId)
+      .eq("organizacao_id", orgId);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  const { data: proximoPasso, error: proximoError } = await supabase
+    .from("cadencia")
+    .select("passo, objetivo, data_prevista")
+    .eq("lead_id", leadId)
+    .eq("organizacao_id", orgId)
+    .eq("status", "pendente")
+    .order("data_prevista", { ascending: true, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (proximoError) throw new Error(proximoError.message);
+
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      data_ultimo_toque: hoje,
+      proxima_acao: proximoPasso
+        ? (proximoPasso.objetivo || `Executar ${proximoPasso.passo}`)
+        : "Aguardar resposta da cadência",
+      data_proxima_acao: proximoPasso?.data_prevista ?? null,
+    })
+    .eq("id", leadId)
+    .eq("organizacao_id", orgId);
+  if (error) throw new Error(error.message);
+}
+
 /**
  * Salva a mensagem gerada por IA num passo de cadência específico (lead+passo)
  * e marca como enviado. Usado quando o vendedor copia ou abre WhatsApp do
@@ -43,8 +89,12 @@ export async function salvarMensagemPassoEnviada(input: {
 
   if (error) throw new Error(error.message);
 
+  await sincronizarLeadAposToqueCadencia(supabase, orgId, input.leadId, "enviado", hoje);
+
   revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   revalidatePath(`/vendas/pipeline/${input.leadId}`);
+  revalidatePath("/hoje");
   return { ok: true };
 }
 
@@ -73,9 +123,10 @@ export async function marcarPassoCadencia(
   const supabase = createClient();
 
   const update: Record<string, unknown> = { status: novoStatus };
+  const hoje = new Date().toISOString().slice(0, 10);
 
   if (novoStatus === "enviado" || novoStatus === "respondido") {
-    update.data_executada = new Date().toISOString().slice(0, 10);
+    update.data_executada = hoje;
   }
   if (typeof observacoes === "string" && observacoes.trim()) {
     update.observacoes = observacoes.trim();
@@ -97,9 +148,17 @@ export async function marcarPassoCadencia(
 
   if (error) throw new Error(error.message);
 
+  if ((novoStatus === "enviado" || novoStatus === "respondido") && cadenciaRow?.lead_id) {
+    await sincronizarLeadAposToqueCadencia(supabase, orgId, cadenciaRow.lead_id, novoStatus, hoje);
+  }
+
   revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   revalidatePath("/hoje");
   revalidatePath("/vendas/pipeline");
+  if (cadenciaRow?.lead_id) {
+    revalidatePath(`/vendas/pipeline/${cadenciaRow.lead_id}`);
+  }
 
   // Quando o lead responde, sugerimos qualificação imediata
   // O componente frontend usa esse flag para exibir um popover contextual
@@ -148,6 +207,7 @@ export async function adiarPassoCadencia(cadenciaId: number, dias: number) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   return { ok: true, novaData };
 }
 
@@ -207,6 +267,7 @@ export async function iniciarCadenciaManual(leadId: number) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
   revalidatePath("/vendas/pipeline");
   revalidatePath(`/vendas/pipeline/${leadId}`);
   return { ok: true };

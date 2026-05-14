@@ -905,6 +905,7 @@ export interface Expansao {
   organizacao_id: string;
   cliente_lead_id: number;
   responsavel_id: string | null;
+  produto_id: number | null;
   tipo: TipoExpansao;
   titulo: string;
   descricao: string | null;
@@ -928,6 +929,9 @@ export interface ExpansaoAtiva extends Expansao {
   cliente_nome: string | null;
   cliente_crm_stage: CrmStage | null;
   responsavel_nome: string | null;
+  produto_nome: string | null;
+  produto_categoria: string | null;
+  produto_recorrente: boolean | null;
   dias_aberta: number;
   dias_ate_acao: number | null;
 }

@@ -81,3 +81,26 @@ export function getTrialState(trialEndsAt?: string | null, billingStatus?: strin
     expired: daysLeft <= 0,
   };
 }
+
+export type BillingAccessState = {
+  allowed: boolean;
+  reason: "active" | "trialing" | "trial_expired" | "past_due" | "canceled" | "inactive";
+};
+
+export function getBillingAccessState(org?: {
+  ativa?: boolean | null;
+  billing_status?: string | null;
+  trial_ends_at?: string | null;
+} | null): BillingAccessState {
+  if (!org?.ativa) return { allowed: false, reason: "inactive" };
+
+  if (org.billing_status === "active") return { allowed: true, reason: "active" };
+  if (org.billing_status === "past_due") return { allowed: false, reason: "past_due" };
+  if (org.billing_status === "canceled") return { allowed: false, reason: "canceled" };
+
+  const trial = getTrialState(org.trial_ends_at, org.billing_status);
+  if (trial.isTrial && trial.expired) return { allowed: false, reason: "trial_expired" };
+  if (trial.isTrial) return { allowed: true, reason: "trialing" };
+
+  return { allowed: false, reason: "canceled" };
+}

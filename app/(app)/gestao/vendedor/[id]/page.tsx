@@ -77,8 +77,27 @@ export default async function VendedorPage(
       .gte("data_hora", cutIso),
   ]);
 
-  if (!kpi) notFound();
-  const k = kpi as KpiResp;
+  const isGestor = role === "gestor";
+  const membroAtual = membros.find(m => m.profile_id === params.id);
+  if (!kpi && isGestor) notFound();
+  const k = (kpi ?? {
+    id: params.id,
+    display_name: membroAtual?.display_name ?? me.display_name ?? "Meu desempenho",
+    email: me.email ?? "",
+    role: membroAtual?.role ?? role ?? "comercial",
+    leads_ativos: 0,
+    qualificados: 0,
+    raiox_feito: 0,
+    raiox_pagos: 0,
+    calls_total: 0,
+    propostas: 0,
+    fechados: 0,
+    newsletter_ativos: 0,
+    acoes_hoje: 0,
+    acoes_vencidas: 0,
+    pipeline_ponderado: 0,
+    receita_fechada: 0,
+  }) as KpiResp;
 
   const allLeads = (leads ?? []) as LeadEnriched[];
   const leadsPorEtapa = new Map<string, LeadEnriched[]>();
@@ -110,12 +129,9 @@ export default async function VendedorPage(
     semProximaAcao: semProximaAcao.length,
   });
 
-  const isGestor = role === "gestor";
-  const membroAtual = membros.find(m => m.profile_id === params.id);
-
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <GestaoTabs isGestor={isGestor} />
+      <GestaoTabs isGestor={isGestor} vendedorId={me.id} />
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           {isGestor && (
