@@ -145,7 +145,7 @@ export default function NextActionCard({ crmStage, leadId }: Props) {
               // Ação especial: link para proposta IA ou script interno
               crmStage === "Diagnóstico Pago" ? (
                 <Link
-                  href={`/proposta/${leadId}`}
+                  href={`/vendas/propostas?lead=${leadId}`}
                   className={`inline-flex items-center gap-1 text-xs font-semibold ${config.cor} hover:underline`}
                 >
                   {config.hrefLabel} <ArrowRight className="w-3 h-3" />

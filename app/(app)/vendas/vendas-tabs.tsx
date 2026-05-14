@@ -17,6 +17,7 @@ const TABS: Tab[] = [
   { i18nKey: "sidebar.base_leads", href: "/vendas/base" },
   { i18nKey: "sidebar.prospeccao", href: "/vendas/prospeccao" },
   { i18nKey: "sidebar.portfolio", href: "/vendas/portfolio" },
+  { i18nKey: "sidebar.propostas", href: "/vendas/propostas" },
 ];
 
 export default function VendasTabs({ isGestor = false }: { isGestor?: boolean }) {

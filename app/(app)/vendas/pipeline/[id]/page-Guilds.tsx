@@ -420,7 +420,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
         <section className="mt-6 space-y-4">
           <ObjectionHandler leadId={lead.id} empresa={lead.empresa} segmento={lead.segmento} />
           {(lead.crm_stage === "Proposta" || lead.crm_stage === "Negociação") && (
-            <Link href={`/proposta/${lead.id}`} className="btn-secondary text-xs inline-flex items-center gap-1.5">
+            <Link href={`/vendas/propostas?lead=${lead.id}`} className="btn-secondary text-xs inline-flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5" /> {t("pipeline.actions_proposta_ai")}
             </Link>
           )}

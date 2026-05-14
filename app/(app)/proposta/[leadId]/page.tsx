@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import PropostaGerador from "@/components/proposta-gerador";
-import { ChevronLeft, FileText } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, FileText } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,8 @@ export default async function PropostaPage(props: { params: Promise<{ leadId: st
       </Link>
 
       <div className="card p-5 md:p-6 mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary/10 grid place-items-center text-primary">
             <FileText className="w-5 h-5" />
           </div>
@@ -46,6 +47,10 @@ export default async function PropostaPage(props: { params: Promise<{ leadId: st
               {Number(lead.valor_potencial ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
             </p>
           </div>
+          </div>
+          <Link href={`/vendas/propostas?lead=${leadId}`} className="btn-primary text-xs shrink-0">
+            Abrir bancada <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
       </div>
 

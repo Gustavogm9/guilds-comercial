@@ -7,11 +7,36 @@ import { getCurrentProfile } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 const VARIACOES_VALIDAS = ["conservadora", "recomendada", "premium"] as const;
+const FORMATOS_VALIDOS = ["proposta_comercial", "escopo_tecnico", "email_executivo", "whatsapp_resumo"] as const;
+
+type CamposProposta = {
+  formato?: typeof FORMATOS_VALIDOS[number];
+  objetivo?: string;
+  escopo?: string;
+  entregas?: string;
+  cronograma?: string;
+  investimento?: string;
+  condicoes?: string;
+  observacoes?: string;
+  validade?: string;
+};
+
+function clean(value?: string | null, max = 1200) {
+  return String(value ?? "").trim().slice(0, max);
+}
+
+function labelFormato(formato?: string | null) {
+  if (formato === "escopo_tecnico") return "Escopo tecnico / SOW";
+  if (formato === "email_executivo") return "Email executivo de envio";
+  if (formato === "whatsapp_resumo") return "Resumo para WhatsApp";
+  return "Proposta comercial consultiva";
+}
 
 export async function gerarPropostaAction(input: {
   leadId: number;
   variacao: "conservadora" | "recomendada" | "premium";
   produtoId?: number | null;
+  campos?: CamposProposta;
 }) {
   // Validação de input
   if (!Number.isInteger(input.leadId) || input.leadId <= 0) {
@@ -20,6 +45,10 @@ export async function gerarPropostaAction(input: {
   if (!VARIACOES_VALIDAS.includes(input.variacao)) {
     return { ok: false, texto: "", erro: "Variação inválida" };
   }
+
+  const formato = input.campos?.formato && FORMATOS_VALIDOS.includes(input.campos.formato)
+    ? input.campos.formato
+    : "proposta_comercial";
 
   const supabase = createClient();
   const orgId = await getCurrentOrgId();
@@ -60,6 +89,19 @@ export async function gerarPropostaAction(input: {
     `- Case: ${c.titulo} | Segmento: ${c.cliente_segmento ?? "—"} | Resultado: ${c.resultado ?? "—"}`
   ).join("\n");
 
+  const campos = input.campos ?? {};
+  const briefingComercial = [
+    `Formato escolhido: ${labelFormato(formato)}`,
+    `Objetivo da proposta: ${clean(campos.objetivo) || "nao informado"}`,
+    `Escopo desejado: ${clean(campos.escopo) || "nao informado"}`,
+    `Entregas combinadas: ${clean(campos.entregas) || "nao informado"}`,
+    `Cronograma/prazo: ${clean(campos.cronograma, 500) || "nao informado"}`,
+    `Investimento/ancoragem: ${clean(campos.investimento, 500) || "usar valor potencial e portfolio"}`,
+    `Condicoes comerciais: ${clean(campos.condicoes, 700) || "nao informado"}`,
+    `Validade: ${clean(campos.validade, 120) || "nao informado"}`,
+    `Observacoes do vendedor: ${clean(campos.observacoes) || "nao informado"}`,
+  ].join("\n");
+
   const result = await invokeAI({
     feature: "gerar_proposta",
     leadId: input.leadId,
@@ -69,9 +111,19 @@ export async function gerarPropostaAction(input: {
       nome: lead.nome ?? "não informado",
       segmento: lead.segmento ?? "não informado",
       dorPrincipal: lead.dor_principal ?? "não informado",
+      dor_principal: lead.dor_principal ?? "não informado",
       observacoes: lead.observacoes ?? "",
       valorPotencial: lead.valor_potencial ?? 0,
+      valor_potencial: lead.valor_potencial ?? 0,
+      raiox_score: 0,
+      perda_anual: 0,
       variacao: input.variacao,
+      formato_proposta: labelFormato(formato),
+      briefing_comercial: briefingComercial,
+      preferencias: [
+        lead.observacoes ?? "",
+        briefingComercial,
+      ].filter(Boolean).join("\n\n"),
       // Contexto enriquecido com portfólio
       produtos_disponiveis: produtoCtx || "Não configurados ainda.",
       cases_relevantes: casesCtx || "Nenhum case cadastrado ainda.",
@@ -121,6 +173,7 @@ export async function gerarPropostaAction(input: {
     revalidatePath("/vendas/pipeline");
     revalidatePath("/vendas/base");
     revalidatePath("/vendas/portfolio");
+    revalidatePath("/vendas/propostas");
     revalidatePath("/hoje");
   }
 
