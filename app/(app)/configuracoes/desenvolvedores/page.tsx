@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { requireActiveOrg } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
 import { Terminal } from "lucide-react";
