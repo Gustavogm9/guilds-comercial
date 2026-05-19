@@ -256,7 +256,7 @@ export const TOOLS: Record<string, AgentTool> = {
       type: "object",
       properties: {
         lead_id: { type: "string" },
-        passo: { type: "string", description: "Passo da cadência: D0, D3, D7, D11, D16 ou D30. Opcional; se omitido, usa o próximo disponível." },
+        passo: { type: "string", description: "Nome do passo da cadência. Opcional; se omitido, usa o próximo passo sequencial disponível." },
         canal: { type: "string", description: "'WhatsApp', 'Email', 'Ligação' ou 'Reunião'" },
         objetivo: { type: "string", description: "O que deve ser feito (ex: Retorno da proposta)" },
         data_prevista: { type: "string", description: "Data no formato YYYY-MM-DD" }
@@ -274,17 +274,19 @@ export const TOOLS: Record<string, AgentTool> = {
       if (leadError) throw leadError;
       if (!lead) throw new Error("Lead não encontrado nesta organização.");
 
-      const validPassos = ["D0", "D3", "D7", "D11", "D16", "D30"];
-      let passo = typeof args.passo === "string" && validPassos.includes(args.passo) ? args.passo : null;
+      let ordem: number | null = null;
+      let passo = typeof args.passo === "string" && args.passo.trim()
+        ? args.passo.trim().slice(0, 80)
+        : null;
       if (!passo) {
         const { data: existentes, error: cadenciaError } = await ctx.supabase
           .from("cadencia")
-          .select("passo")
+          .select("passo, ordem")
           .eq("lead_id", args.lead_id)
           .eq("organizacao_id", orgId);
         if (cadenciaError) throw cadenciaError;
-        const usados = new Set((existentes || []).map((item: any) => item.passo));
-        passo = validPassos.find((item) => !usados.has(item)) || "D30";
+        ordem = Math.max(0, ...(existentes || []).map((item: any) => Number(item.ordem) || 0)) + 1;
+        passo = `P${ordem}`;
       }
 
       const payload = {
@@ -295,6 +297,7 @@ export const TOOLS: Record<string, AgentTool> = {
         objetivo: args.objetivo,
         data_prevista: args.data_prevista,
         status: "pendente",
+        ordem,
       };
       const { error } = await ctx.supabase.from("cadencia").insert(payload);
       if (error) throw error;

@@ -46,6 +46,21 @@ type NextBestOffer = {
   proximaAcao: string;
 };
 
+const PASSOS_CADENCIA_LEGADO = ["D0", "D3", "D7", "D11", "D16", "D30"] as const;
+
+type CadenciaLeadRow = {
+  id?: number | null;
+  passo: string;
+  status?: string | null;
+  objetivo?: string | null;
+  canal?: string | null;
+  data_prevista?: string | null;
+  ordem?: number | null;
+  offset_dias?: number | null;
+  assunto_template?: string | null;
+  corpo_template?: string | null;
+};
+
 /**
  * Detalhe do lead — visão completa pra trabalhar pipeline.
  *
@@ -136,7 +151,14 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
   ] = await Promise.all([
     supabase.from("v_leads_enriched").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
     supabase.from("ligacoes").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("data_hora", { ascending: false }).limit(50),
-    supabase.from("cadencia").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("passo"),
+    supabase
+      .from("cadencia")
+      .select("*")
+      .eq("organizacao_id", orgId)
+      .eq("lead_id", id)
+      .order("ordem", { ascending: true, nullsFirst: false })
+      .order("data_prevista", { ascending: true, nullsFirst: false })
+      .order("passo"),
     supabase.from("raio_x").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }).limit(10),
     supabase.from("lead_evento").select("*").eq("organizacao_id", orgId).eq("lead_id", id).order("created_at", { ascending: false }).limit(50),
     supabase.from("v_lead_score").select("*").eq("organizacao_id", orgId).eq("id", id).maybeSingle(),
@@ -201,6 +223,31 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
     if (data) outrasOportunidades = data as LeadEnriched[];
   }
   const nextBestOffers = calcularNextBestOffers(lead, leadProdutos, todosProdutos);
+  const cadenciaRows = ((cadencia ?? []) as CadenciaLeadRow[]).filter((c) => c.passo);
+  const cadenciaAjuste = cadenciaRows.map((c) => ({
+    id: c.id ?? null,
+    passo: c.passo,
+    dias: c.offset_dias ?? undefined,
+    ordem: c.ordem ?? undefined,
+    offsetDias: c.offset_dias ?? undefined,
+    dataPrevista: c.data_prevista ?? null,
+    status: c.status ?? null,
+    objetivo: c.objetivo ?? null,
+  }));
+  const cadenciaPassos = cadenciaRows.length > 0
+    ? cadenciaRows
+    : PASSOS_CADENCIA_LEGADO.map((passo) => ({
+        id: null,
+        passo,
+        status: "pendente",
+        objetivo: "â€”",
+        canal: "Email",
+        data_prevista: "",
+        ordem: null,
+        offset_dias: null,
+        assunto_template: null,
+        corpo_template: null,
+      }));
 
   // Helper para formatação de data curta
   const fmt = (d: string, l: string) => {
@@ -238,8 +285,8 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
           </div>
         </div>
 
-        <div className="mt-4">
-          <LeadDetailActions lead={lead} vendedor={me.display_name} />
+        <div id="acoes-lead" className="mt-4 scroll-mt-24">
+          <LeadDetailActions lead={lead} vendedor={me.display_name} cadencia={cadenciaAjuste} />
           {/* Produtos de interesse — widget de tags de produto */}
           {todosProdutos.length > 0 && (
             <div className="mt-3">
@@ -505,13 +552,12 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
             <p className="text-sm text-muted-foreground">{t("pipeline.detail_section_cadencia_vazio")}</p>
           )}
           <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {(["D0","D3","D7","D11","D16","D30"] as const).map(p => {
-              const c = (cadencia ?? []).find((x: any) => x.passo === p);
+            {cadenciaPassos.map((c) => {
               return (
                 <CadenciaPassoCard
-                  key={p}
+                  key={c.id ?? c.passo}
                   cadenciaId={c?.id ?? null}
-                  passo={p}
+                  passo={c.passo}
                   status={c?.status ?? "pendente"}
                   objetivo={c?.objetivo ?? "—"}
                   canal={c?.canal ?? "Email"}
@@ -520,6 +566,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
                   empresa={lead.empresa ?? "—"}
                   nome={lead.nome ?? "—"}
                   cargo={lead.cargo ?? undefined}
+                  segmento={lead.segmento ?? undefined}
                   dorPrincipal={lead.dor_principal ?? undefined}
                   ultimaInteracao={(ligacoes ?? [])[0]?.resultado ?? "Sem interações"}
                   tomAnterior={(ligacoes ?? [])[0]?.tom_interacao ?? null}
@@ -528,6 +575,8 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
                   vendedor={me.display_name}
                   whatsapp={lead.whatsapp ?? undefined}
                   paisOrg={(lead as any).pais_org ?? "BR"}
+                  assuntoTemplate={c.assunto_template ?? null}
+                  corpoTemplate={c.corpo_template ?? null}
                 />
               );
             })}

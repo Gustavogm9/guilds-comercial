@@ -514,7 +514,7 @@ function EmpresaCard({
             onClick={() => onAtivar(empresa, { iniciarCadencia: true })}
             disabled={ativando || pending}
             className="btn-ghost text-xs text-primary"
-            title="Salva + envia D0 da cadência"
+            title="Salva + inicia a cadência configurada"
           >
             + iniciar cadência
           </button>

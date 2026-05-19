@@ -87,7 +87,8 @@ export async function registrarLigacao(input: {
 export async function registrarToque(input: {
   lead_id: number;
   canal: string;
-  passo?: "D0" | "D3" | "D7" | "D11" | "D16" | "D30";
+  cadencia_id?: number | null;
+  passo?: string;
   observacoes?: string;
   proxima_acao?: string;
   data_proxima_acao?: string;
@@ -98,11 +99,17 @@ export async function registrarToque(input: {
   await assertLeadDaOrg(supabase, input.lead_id, orgId);
   const hoje = new Date().toISOString().slice(0, 10);
 
-  if (input.passo) {
-    await supabase.from("cadencia").update({
+  if (input.cadencia_id || input.passo) {
+    let query = supabase.from("cadencia").update({
       status: "enviado",
       data_executada: hoje,
-    }).eq("lead_id", input.lead_id).eq("passo", input.passo);
+    }).eq("organizacao_id", orgId).eq("lead_id", input.lead_id);
+
+    query = input.cadencia_id
+      ? query.eq("id", input.cadencia_id)
+      : query.eq("passo", input.passo);
+
+    await query;
   }
 
   await supabase.from("leads").update({

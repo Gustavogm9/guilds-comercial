@@ -11,9 +11,9 @@ import ComunicacaoTabs from "../comunicacao-tabs";
 export const dynamic = "force-dynamic";
 
 const PASSOS = ["D0", "D3", "D7", "D11", "D16", "D30"] as const;
-type Passo = (typeof PASSOS)[number];
+type Passo = string;
 
-const PASSO_OBJETIVO: Record<Passo, string> = {
+const PASSO_OBJETIVO: Record<(typeof PASSOS)[number], string> = {
   "D0":  "Contexto / dor",
   "D3":  "Impacto / custo invisível",
   "D7":  "Autoridade / case",
@@ -25,7 +25,7 @@ const PASSO_OBJETIVO: Record<Passo, string> = {
 type CadenciaRow = {
   id: number;
   lead_id: number;
-  passo: Passo;
+  passo: string;
   canal: string | null;
   objetivo: string | null;
   data_prevista: string | null;
@@ -33,6 +33,8 @@ type CadenciaRow = {
   status: "pendente" | "enviado" | "respondido" | "pular" | "removido";
   mensagem_enviada: string | null;
   responsavel_id: string | null;
+  ordem: number | null;
+  offset_dias: number | null;
   leads: {
     empresa: string | null;
     nome: string | null;
@@ -72,13 +74,14 @@ export default async function CadenciaPage(
     .from("cadencia")
     .select(`
       id, lead_id, passo, canal, objetivo, data_prevista, data_executada,
-      status, mensagem_enviada, responsavel_id,
+      status, mensagem_enviada, responsavel_id, ordem, offset_dias,
       leads ( empresa, nome, cargo, segmento, crm_stage, whatsapp, email )
     `)
     .eq("organizacao_id", orgId)
     .neq("status", "removido")
     .or(`status.eq.pendente,data_executada.gte.${cutoff.toISOString().slice(0, 10)}`)
-    .order("data_prevista", { ascending: true, nullsFirst: false });
+    .order("data_prevista", { ascending: true, nullsFirst: false })
+    .order("ordem", { ascending: true, nullsFirst: false });
 
   // Filtro por responsável: ou o do passo, OU o do lead (passo pode não ter responsavel_id)
   if (respFiltro !== "all") {
@@ -110,7 +113,10 @@ export default async function CadenciaPage(
 
   // Agrupa por passo
   const hoje = new Date().toISOString().slice(0, 10);
-  const agrupado = PASSOS.reduce<Record<Passo, CadenciaRow[]>>((acc, p) => {
+  const passosComDados = Array.from(new Set(cadencias.map((c) => c.passo).filter(Boolean)));
+  const temPassoCustom = passosComDados.some((p) => !PASSOS.includes(p as (typeof PASSOS)[number]));
+  const passosVisiveis = temPassoCustom ? ordenarPassos(passosComDados) : [...PASSOS];
+  const agrupado = passosVisiveis.reduce<Record<Passo, CadenciaRow[]>>((acc, p) => {
     acc[p] = cadencias.filter((c) => c.passo === p);
     return acc;
   }, {} as Record<Passo, CadenciaRow[]>);
@@ -173,7 +179,7 @@ export default async function CadenciaPage(
 
       {/* Colunas por passo (kanban temporal) */}
       <div className="flex gap-3 overflow-x-auto pb-4">
-        {PASSOS.map((p) => {
+        {passosVisiveis.map((p) => {
           const list = agrupado[p];
           const pendentes = list.filter((c) => c.status === "pendente").length;
           const vencidas = list.filter(
@@ -191,7 +197,7 @@ export default async function CadenciaPage(
                     <div className="text-xs font-semibold text-foreground" style={{ letterSpacing: "-0.13px" }}>
                       {p}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">{PASSO_OBJETIVO[p]}</div>
+                    <div className="text-[10px] text-muted-foreground">{objetivoDoPasso(p, list)}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-xs font-medium text-foreground/80 tabular-nums">{pendentes}</div>
@@ -322,4 +328,18 @@ function KPI({ label, v, tone, icon }: {
 
 function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
+function objetivoDoPasso(passo: string, rows: CadenciaRow[]) {
+  if (passo in PASSO_OBJETIVO) return PASSO_OBJETIVO[passo as keyof typeof PASSO_OBJETIVO];
+  return rows.find((row) => row.objetivo)?.objetivo ?? "Passo customizado";
+}
+
+function ordenarPassos(passos: string[]) {
+  return [...passos].sort((a, b) => inferirDia(a) - inferirDia(b) || a.localeCompare(b));
+}
+
+function inferirDia(passo: string) {
+  const match = passo.match(/\d+/);
+  return match ? Number(match[0]) : Number.MAX_SAFE_INTEGER;
 }

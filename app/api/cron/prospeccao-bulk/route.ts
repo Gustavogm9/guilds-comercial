@@ -12,6 +12,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { iniciarCadenciaConfiguravel } from "@/lib/cadencia-fluxos";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -226,16 +227,14 @@ async function processarUm(supa: any, cnpj: string, job: any): Promise<Resultado
       },
     }).select("id").single();
 
-    // Cadência D0 se solicitado
     if (job.iniciar_cadencia && lead?.id) {
       try {
-        await supa.from("cadencia").insert({
+        await iniciarCadenciaConfiguravel({
+          supabase: supa,
           organizacao_id: job.organizacao_id,
           lead_id: lead.id,
-          passo: "D0",
-          canal: "email",
-          status: "pendente",
-          data_prevista: new Date().toISOString().slice(0, 10),
+          baseIso: new Date().toISOString().slice(0, 10),
+          preservarExecutados: false,
         });
       } catch {/* swallow — cadência já existir é OK */ }
     }

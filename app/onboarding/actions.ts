@@ -4,6 +4,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getTemplatesByLocale } from "@/lib/cadencia-templates";
+import { iniciarCadenciaConfiguravel } from "@/lib/cadencia-fluxos";
 import { getServerLocale, getT, type Locale } from "@/lib/i18n";
 import { getAppUrl, sendInviteEmail, sendWelcomeEmail } from "@/lib/email";
 import { slugify } from "@/lib/utils/slugify";
@@ -189,7 +190,8 @@ export async function finalizarOnboarding(dados: {
   }).catch(console.error);
 
   if (dados.gerarDemo) {
-    await supabaseAdmin.from("leads").insert({
+    const hoje = new Date().toISOString().slice(0, 10);
+    const { data: leadDemo, error: leadDemoError } = await supabaseAdmin.from("leads").insert({
       organizacao_id: org.id,
       nome: "Carlos Silva",
       empresa: "Empresa Exemplo LTDA",
@@ -201,10 +203,21 @@ export async function finalizarOnboarding(dados: {
       segmento: segmentoFinal,
       valor_potencial: 5000,
       responsavel_id: user.id,
-      data_primeiro_contato: new Date().toISOString().slice(0, 10),
-      proxima_acao: proximaAcaoDemo(cadenciaInicialFinal),
-      data_proxima_acao: new Date().toISOString().slice(0, 10),
-    });
+      data_primeiro_contato: null,
+      proxima_acao: null,
+      data_proxima_acao: null,
+    }).select("id").single();
+
+    if (leadDemoError) throw new Error("Erro ao criar lead demo: " + leadDemoError.message);
+    if (leadDemo?.id) {
+      await iniciarCadenciaConfiguravel({
+        supabase: supabaseAdmin,
+        organizacao_id: org.id,
+        lead_id: leadDemo.id,
+        baseIso: hoje,
+        preservarExecutados: false,
+      });
+    }
   }
 
   const convites = normalizarConvites(dados.convites ?? []);
@@ -248,10 +261,4 @@ export async function finalizarOnboarding(dados: {
   });
 
   return { sucesso: true, organizacao_id: org.id };
-}
-
-function proximaAcaoDemo(cadencia: string) {
-  if (cadencia === "whatsapp_followup") return "Enviar WhatsApp de abertura";
-  if (cadencia === "pos_venda") return "Agendar check-in de sucesso";
-  return "Enviar D0";
 }
