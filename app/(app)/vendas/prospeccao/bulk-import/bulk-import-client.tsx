@@ -138,7 +138,7 @@ export default function BulkImportClient({ jobs }: { jobs: Job[] }) {
               className="mt-0.5"
             />
             <div className="flex-1">
-              <div className="text-sm font-medium">+ Iniciar cadência D0 em cada lead criado</div>
+              <div className="text-sm font-medium">+ Iniciar cadência configurada em cada lead criado</div>
               <div className="text-xs text-muted-foreground">
                 Cuidado: dispara cadência massa. Garanta que CNPJs são qualificados.
               </div>
@@ -231,7 +231,7 @@ function JobRow({ job, onCancel }: { job: Job; onCancel: (id: number) => void })
           )}
           <div className="text-[11px] text-muted-foreground mt-1.5">
             {job.ativar_como_lead ? "Ativa como leads" : "Só enriquece"}
-            {job.iniciar_cadencia ? " · Inicia cadência D0" : ""}
+            {job.iniciar_cadencia ? " · Inicia cadência configurada" : ""}
           </div>
         </div>
         {ativo && (

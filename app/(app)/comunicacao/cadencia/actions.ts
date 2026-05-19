@@ -4,11 +4,34 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import { revalidatePath } from "next/cache";
 import { getServerLocale, getT } from "@/lib/i18n";
-import { montarCadenciaRows } from "@/lib/cadencia-templates";
+import { PASSOS_CADENCIA, type CadenciaPasso } from "@/lib/cadencia-templates";
+import { iniciarCadenciaConfiguravel, offsetFromPasso } from "@/lib/cadencia-fluxos";
 
 type StatusCadencia = "pendente" | "enviado" | "respondido" | "pular" | "removido";
 
 const STATUS_VALIDOS: StatusCadencia[] = ["pendente", "enviado", "respondido", "pular", "removido"];
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseIsoDateUtc(value: string): Date | null {
+  if (!ISO_DATE.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+function addDaysIso(value: string, days: number): string {
+  const date = parseIsoDateUtc(value);
+  if (!date) throw new Error("Data inválida.");
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
 
 async function sincronizarLeadAposToqueCadencia(
   supabase: ReturnType<typeof createClient>,
@@ -38,6 +61,7 @@ async function sincronizarLeadAposToqueCadencia(
     .eq("organizacao_id", orgId)
     .eq("status", "pendente")
     .order("data_prevista", { ascending: true, nullsFirst: false })
+    .order("ordem", { ascending: true, nullsFirst: false })
     .limit(1)
     .maybeSingle();
   if (proximoError) throw new Error(proximoError.message);
@@ -63,7 +87,8 @@ async function sincronizarLeadAposToqueCadencia(
  */
 export async function salvarMensagemPassoEnviada(input: {
   leadId: number;
-  passo: "D0" | "D3" | "D7" | "D11" | "D16" | "D30";
+  cadenciaId?: number | null;
+  passo: string;
   mensagem: string;
 }) {
   const t = getT(await getServerLocale());
@@ -76,16 +101,20 @@ export async function salvarMensagemPassoEnviada(input: {
   const supabase = createClient();
   const hoje = new Date().toISOString().slice(0, 10);
 
-  const { error } = await supabase
+  let query = supabase
     .from("cadencia")
     .update({
       status: "enviado",
       data_executada: hoje,
       mensagem_enviada: input.mensagem.slice(0, 5000),
     })
-    .eq("lead_id", input.leadId)
-    .eq("passo", input.passo)
     .eq("organizacao_id", orgId);
+
+  query = input.cadenciaId
+    ? query.eq("id", input.cadenciaId).eq("lead_id", input.leadId)
+    : query.eq("lead_id", input.leadId).eq("passo", input.passo);
+
+  const { error } = await query;
 
   if (error) throw new Error(error.message);
 
@@ -211,6 +240,237 @@ export async function adiarPassoCadencia(cadenciaId: number, dias: number) {
   return { ok: true, novaData };
 }
 
+export async function ajustarDiaCadenciaLead(input: {
+  leadId: number;
+  cadenciaIdAtual?: number | null;
+  passoAtual: string;
+  dataPrevistaPasso: string;
+}) {
+  const t = getT(await getServerLocale());
+  const me = await getCurrentProfile();
+  if (!me) throw new Error(t("erros.usuario_nao_autenticado"));
+
+  const orgId = await getCurrentOrgId();
+  if (!orgId) throw new Error(t("erros.sem_org"));
+
+  if (!Number.isInteger(input.leadId) || input.leadId <= 0) {
+    throw new Error("Lead inválido.");
+  }
+
+  if (!parseIsoDateUtc(input.dataPrevistaPasso)) {
+    throw new Error("Data inválida.");
+  }
+
+  const supabase = createClient();
+
+  const { data: leadCheck } = await supabase
+    .from("leads")
+    .select("id")
+    .eq("id", input.leadId)
+    .eq("organizacao_id", orgId)
+    .maybeSingle();
+  if (!leadCheck) throw new Error(t("erros.lead_nao_encontrado"));
+
+  if (input.cadenciaIdAtual) {
+    const { data: linhas, error: linhasError } = await supabase
+      .from("cadencia")
+      .select("id, passo, status, ordem, offset_dias")
+      .eq("lead_id", input.leadId)
+      .eq("organizacao_id", orgId)
+      .order("ordem", { ascending: true, nullsFirst: false })
+      .order("data_prevista", { ascending: true, nullsFirst: false });
+    if (linhasError) throw new Error(linhasError.message);
+
+    const rows = (linhas ?? []) as Array<{
+      id: number;
+      passo: string;
+      status: StatusCadencia;
+      ordem: number | null;
+      offset_dias: number | null;
+    }>;
+    const selecionada = rows.find((row) => row.id === input.cadenciaIdAtual);
+    if (!selecionada) throw new Error("Passo inválido.");
+
+    const offsetSelecionado = selecionada.offset_dias ?? offsetFromPasso(selecionada.passo) ?? 0;
+    const ordemSelecionada = selecionada.ordem ?? rows.findIndex((row) => row.id === selecionada.id) + 1;
+    const dataPrimeiroContatoCustom = addDaysIso(input.dataPrevistaPasso, -offsetSelecionado);
+
+    for (const row of rows) {
+      if (row.status === "enviado" || row.status === "respondido") continue;
+      const ordem = row.ordem ?? rows.findIndex((item) => item.id === row.id) + 1;
+      const offset = row.offset_dias ?? offsetFromPasso(row.passo) ?? 0;
+      const status: Extract<StatusCadencia, "pendente" | "pular"> =
+        ordem < ordemSelecionada ? "pular" : "pendente";
+      const { error } = await supabase
+        .from("cadencia")
+        .update({
+          data_prevista: addDaysIso(dataPrimeiroContatoCustom, offset),
+          data_executada: null,
+          status,
+          ...(status === "pular" ? { observacoes: "Pulado ao ajustar dia da cadência" } : {}),
+        })
+        .eq("id", row.id)
+        .eq("organizacao_id", orgId);
+      if (error) throw new Error(error.message);
+    }
+
+    const { data: proximoPasso, error: proximoError } = await supabase
+      .from("cadencia")
+      .select("passo, objetivo, data_prevista")
+      .eq("lead_id", input.leadId)
+      .eq("organizacao_id", orgId)
+      .eq("status", "pendente")
+      .order("data_prevista", { ascending: true, nullsFirst: false })
+      .order("ordem", { ascending: true, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    if (proximoError) throw new Error(proximoError.message);
+
+    const proximaAcaoCustom = proximoPasso
+      ? (proximoPasso.objetivo || `Enviar ${proximoPasso.passo}`)
+      : "Aguardar resposta da cadência";
+    const { error: leadError } = await supabase
+      .from("leads")
+      .update({
+        data_primeiro_contato: dataPrimeiroContatoCustom,
+        proxima_acao: proximaAcaoCustom,
+        data_proxima_acao: proximoPasso?.data_prevista ?? null,
+      })
+      .eq("id", input.leadId)
+      .eq("organizacao_id", orgId);
+    if (leadError) throw new Error(leadError.message);
+
+    await supabase.from("lead_evento").insert({
+      organizacao_id: orgId,
+      lead_id: input.leadId,
+      ator_id: me.id,
+      tipo: "cadencia_ajustada",
+      payload: {
+        cadencia_id_atual: input.cadenciaIdAtual,
+        passo_atual: selecionada.passo,
+        data_prevista_passo: input.dataPrevistaPasso,
+        data_primeiro_contato: dataPrimeiroContatoCustom,
+      },
+    });
+
+    revalidatePath("/cadencia");
+    revalidatePath("/comunicacao/cadencia");
+    revalidatePath("/vendas/pipeline");
+    revalidatePath(`/vendas/pipeline/${input.leadId}`);
+    revalidatePath("/hoje");
+
+    return {
+      ok: true,
+      proxima_acao: proximaAcaoCustom,
+      data_proxima_acao: proximoPasso?.data_prevista ?? null,
+      data_primeiro_contato: dataPrimeiroContatoCustom,
+    };
+  }
+
+  const passoAtual = PASSOS_CADENCIA.find((p) => p.passo === input.passoAtual);
+  if (!passoAtual) throw new Error("Passo inválido.");
+
+  const dataPrimeiroContato = addDaysIso(input.dataPrevistaPasso, -passoAtual.dias);
+
+  const { data: existentes, error: existentesError } = await supabase
+    .from("cadencia")
+    .select("id, passo, status")
+    .eq("lead_id", input.leadId)
+    .eq("organizacao_id", orgId);
+  if (existentesError) throw new Error(existentesError.message);
+
+  const porPasso = new Map(
+    (existentes ?? []).map((row) => [
+      row.passo as CadenciaPasso,
+      row as { id: number; passo: CadenciaPasso; status: StatusCadencia },
+    ]),
+  );
+
+  for (const passo of PASSOS_CADENCIA) {
+    const existente = porPasso.get(passo.passo);
+    if (existente?.status === "enviado" || existente?.status === "respondido") {
+      continue;
+    }
+
+    const status: Extract<StatusCadencia, "pendente" | "pular"> =
+      passo.dias < passoAtual.dias ? "pular" : "pendente";
+    const payload = {
+      canal: passo.canal,
+      objetivo: passo.objetivo,
+      data_prevista: addDaysIso(dataPrimeiroContato, passo.dias),
+      data_executada: null,
+      status,
+      ...(status === "pular" ? { observacoes: "Pulado ao ajustar dia da cadência" } : {}),
+    };
+
+    if (existente) {
+      const { error } = await supabase
+        .from("cadencia")
+        .update(payload)
+        .eq("id", existente.id)
+        .eq("organizacao_id", orgId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("cadencia").insert({
+        organizacao_id: orgId,
+        lead_id: input.leadId,
+        passo: passo.passo,
+        ...payload,
+      });
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  const { data: proximoPasso, error: proximoError } = await supabase
+    .from("cadencia")
+    .select("passo, data_prevista")
+    .eq("lead_id", input.leadId)
+    .eq("organizacao_id", orgId)
+    .eq("status", "pendente")
+    .order("data_prevista", { ascending: true, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (proximoError) throw new Error(proximoError.message);
+
+  const proximaAcao = proximoPasso ? `Enviar ${proximoPasso.passo}` : "Aguardar resposta da cadência";
+
+  const { error: leadError } = await supabase
+    .from("leads")
+    .update({
+      data_primeiro_contato: dataPrimeiroContato,
+      proxima_acao: proximaAcao,
+      data_proxima_acao: proximoPasso?.data_prevista ?? null,
+    })
+    .eq("id", input.leadId)
+    .eq("organizacao_id", orgId);
+  if (leadError) throw new Error(leadError.message);
+
+  await supabase.from("lead_evento").insert({
+    organizacao_id: orgId,
+    lead_id: input.leadId,
+    ator_id: me.id,
+    tipo: "cadencia_ajustada",
+    payload: {
+      passo_atual: input.passoAtual,
+      data_prevista_passo: input.dataPrevistaPasso,
+      data_primeiro_contato: dataPrimeiroContato,
+    },
+  });
+
+  revalidatePath("/cadencia");
+  revalidatePath("/comunicacao/cadencia");
+  revalidatePath("/vendas/pipeline");
+  revalidatePath(`/vendas/pipeline/${input.leadId}`);
+  revalidatePath("/hoje");
+
+  return {
+    ok: true,
+    proxima_acao: proximaAcao,
+    data_proxima_acao: proximoPasso?.data_prevista ?? null,
+    data_primeiro_contato: dataPrimeiroContato,
+  };
+}
+
 /**
  * Inicia ou reinicia a cadência de um lead manualmente.
  *
@@ -219,12 +479,10 @@ export async function adiarPassoCadencia(cadenciaId: number, dias: number) {
  *     real de comunicação não é apagado. Esses passos viram "histórico" e ficam
  *     visíveis no detalhe do lead.
  *   - REMOVE passos pendentes ou marcados como pular — serão recriados do zero.
- *   - RECRIA os 6 passos D0/D3/D7/D11/D16/D30 com data_prevista a partir de hoje.
- *
- * Usa `upsert` com `onConflict: "lead_id,passo"` — bate com o padrão de
- * `app/(app)/base/actions.ts` quando promove lead pra pipeline.
+ *   - RECRIA os passos a partir do fluxo publicado/default da organização.
+ *     Se não houver fluxo configurado, cai no playbook legado D0/D3/D7/D11/D16/D30.
  */
-export async function iniciarCadenciaManual(leadId: number) {
+export async function iniciarCadenciaManual(leadId: number, fluxoId?: number | null) {
   const t = getT(await getServerLocale());
   const me = await getCurrentProfile();
   if (!me) throw new Error(t("erros.usuario_nao_autenticado"));
@@ -244,28 +502,13 @@ export async function iniciarCadenciaManual(leadId: number) {
     .maybeSingle();
   if (!leadCheck) throw new Error(t("erros.lead_nao_encontrado"));
 
-  // Remove APENAS passos pendentes ou pular — preserva enviados/respondidos
-  // (histórico real de comunicação não pode ser apagado por reiniciar cadência).
-  await supabase
-    .from("cadencia")
-    .delete()
-    .eq("lead_id", leadId)
-    .eq("organizacao_id", orgId)
-    .in("status", ["pendente", "pular"]);
-
-  // Constrói os 6 rows da cadência (D0/D3/D7/D11/D16/D30) com canal + objetivo
-  // canônicos (lib/cadencia-templates → PASSOS_CADENCIA).
-  const cadenciaRows = montarCadenciaRows({ organizacao_id: orgId, lead_id: leadId });
-
-  // upsert com onConflict — se um passo D0 já estiver marcado como enviado/respondido,
-  // o passo NÃO foi apagado acima e o upsert vai pular pelo unique (lead_id,passo).
-  // Resultado: só passos novos/recriados entram, histórico preservado.
-  const { error } = await supabase
-    .from("cadencia")
-    .upsert(cadenciaRows, { onConflict: "lead_id,passo", ignoreDuplicates: true });
-
-  if (error) throw new Error(error.message);
-
+  await iniciarCadenciaConfiguravel({
+    supabase,
+    organizacao_id: orgId,
+    lead_id: leadId,
+    fluxoId,
+    preservarExecutados: true,
+  });
   revalidatePath("/cadencia");
   revalidatePath("/comunicacao/cadencia");
   revalidatePath("/vendas/pipeline");

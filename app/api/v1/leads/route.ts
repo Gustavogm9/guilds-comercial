@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateApiKey } from "@/lib/api-auth";
+import { iniciarCadenciaConfiguravel } from "@/lib/cadencia-fluxos";
 
 function clampLimit(raw: string | null) {
   const n = Number.parseInt(raw || "50", 10);
@@ -99,9 +100,9 @@ export async function POST(req: Request) {
       fonte: fonte || "API",
       funnel_stage: "pipeline",
       crm_stage: "Prospecção",
-      data_primeiro_contato: hoje,
-      proxima_acao: "Enviar D0",
-      data_proxima_acao: hoje,
+      data_primeiro_contato: null,
+      proxima_acao: null,
+      data_proxima_acao: null,
     })
     .select()
     .single();
@@ -110,8 +111,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create lead", details: error.message }, { status: 500 });
   }
 
-  const { dispatchWebhook } = await import("@/lib/webhooks");
-  await dispatchWebhook(auth.organizacao_id, "lead.created", data);
+  await iniciarCadenciaConfiguravel({
+    supabase: auth.supabaseAdmin!,
+    organizacao_id: auth.organizacao_id,
+    lead_id: data.id,
+    baseIso: hoje,
+    preservarExecutados: false,
+  });
 
-  return NextResponse.json({ data }, { status: 201 });
+  const { data: leadAtualizado } = await auth.supabaseAdmin!
+    .from("leads")
+    .select()
+    .eq("id", data.id)
+    .eq("organizacao_id", auth.organizacao_id)
+    .maybeSingle();
+
+  const { dispatchWebhook } = await import("@/lib/webhooks");
+  await dispatchWebhook(auth.organizacao_id, "lead.created", leadAtualizado ?? data);
+
+  return NextResponse.json({ data: leadAtualizado ?? data }, { status: 201 });
 }

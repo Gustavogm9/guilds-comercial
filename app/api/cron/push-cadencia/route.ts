@@ -38,10 +38,10 @@ export async function POST(req: Request) {
   // Busca cadências pendentes hoje nos passos críticos (incluindo organizacao_id pra locale)
   const { data: cadencias } = await supa
     .from("cadencia")
-    .select("id, lead_id, passo, canal, organizacao_id, leads(empresa, nome, responsavel_id)")
-    .in("passo", ["D7", "D11"])
+    .select("id, lead_id, passo, canal, objetivo, ordem, organizacao_id, leads(empresa, nome, responsavel_id)")
     .eq("status", "pendente")
     .eq("data_prevista", hoje)
+    .order("ordem", { ascending: true, nullsFirst: false })
     .limit(500);
 
   if (!cadencias || cadencias.length === 0) {

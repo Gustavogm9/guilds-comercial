@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentOrgId, getCurrentRole } from "@/lib/supabase/org";
 import { createClient } from "@/lib/supabase/server";
-import { BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen, Workflow } from "lucide-react";
 import TemplatesClient from "./templates-client";
 import type { TemplateDB } from "./actions";
 
@@ -37,6 +38,22 @@ export default async function CadenciaConfigPage() {
           Personalize as mensagens da cadência D0→D30 para sua organização. Os templates aqui sobrepõem os padrões da plataforma.
           Editar um template cria uma nova versão — o histórico completo fica disponível para restauração.
         </p>
+
+        <Link
+          href="/configuracoes/cadencia/fluxos"
+          className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-primary/15 bg-primary/5 p-3 text-sm hover:border-primary/30 hover:bg-primary/10 transition-colors"
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <Workflow className="w-4 h-4 text-primary shrink-0" />
+            <span>
+              <span className="font-medium text-foreground">Editar fluxo completo</span>
+              <span className="block text-xs text-muted-foreground">
+                Configure número de passos, dias, canais e diretrizes usadas ao iniciar novas cadências.
+              </span>
+            </span>
+          </span>
+          <ArrowRight className="w-4 h-4 text-primary shrink-0" />
+        </Link>
 
         <div className="mb-6 p-3 rounded-lg bg-primary/5 border border-primary/15 text-xs text-muted-foreground space-y-1">
           <p><strong>Variáveis disponíveis:</strong></p>

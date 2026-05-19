@@ -6,6 +6,7 @@ import { ETAPAS_EXIGEM_MOTIVO } from "@/lib/lists";
 import CadenciaModal from "@/components/cadencia-modal";
 import QuickActions from "@/components/quick-actions";
 import MotivoSaidaModal from "@/components/motivo-saida-modal";
+import AjustarCadenciaButton, { type AjustarCadenciaPasso } from "@/components/ajustar-cadencia-button";
 import type { CrmStage, LeadEnriched } from "@/lib/types";
 import { MessageSquareQuote, Play, AlertCircle, CheckCircle2, X, Loader2, Stethoscope } from "lucide-react";
 import { iniciarCadenciaManual } from "@/app/(app)/comunicacao/cadencia/actions";
@@ -25,10 +26,11 @@ import { createClient as createBrowserClient } from "@/lib/supabase/client";
  *   - Issue 36: aria-label no select
  */
 export default function LeadDetailActions({
-  lead, vendedor,
+  lead, vendedor, cadencia,
 }: {
   lead: LeadEnriched;
   vendedor: string;
+  cadencia?: AjustarCadenciaPasso[];
 }) {
   const [open, setOpen] = useState(false);
   const [raioxOpen, setRaioxOpen] = useState(false);
@@ -143,6 +145,12 @@ export default function LeadDetailActions({
         </select>
 
         <QuickActions lead={lead} />
+        <AjustarCadenciaButton
+          leadId={lead.id}
+          proximaAcao={lead.proxima_acao}
+          dataProximaAcao={lead.data_proxima_acao}
+          passos={cadencia}
+        />
 
         <button
           onClick={() => setOpen(true)}

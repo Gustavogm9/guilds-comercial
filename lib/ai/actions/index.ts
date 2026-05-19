@@ -107,7 +107,7 @@ export async function gerarMensagemCadencia(input: {
   empresa: string;
   nome: string;
   cargo?: string;
-  passo: "D0" | "D3" | "D7" | "D11" | "D16" | "D30";
+  passo: string;
   canal: "WhatsApp" | "Email" | "LinkedIn";
   dor_principal?: string;
   ultima_interacao?: string;

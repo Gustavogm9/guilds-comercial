@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { MotivoPerda, LeadEnriched } from "@/lib/types";
 import { MOTIVOS_PERDA } from "@/lib/types";
-import { montarCadenciaRows } from "@/lib/cadencia-templates";
+import { iniciarCadenciaConfiguravel } from "@/lib/cadencia-fluxos";
 
 async function requireOrg() {
   const orgId = await getCurrentOrgId();
@@ -108,9 +108,9 @@ export async function criarLead(input: {
     newsletter_optin: input.newsletter_optin ?? false,
     funnel_stage: direto ? "pipeline" : "base_bruta",
     crm_stage: direto ? "Prospecção" : null,
-    data_primeiro_contato: direto ? hoje : null,
-    proxima_acao: direto ? "Enviar D0" : null,
-    data_proxima_acao: direto ? hoje : null,
+    data_primeiro_contato: null,
+    proxima_acao: null,
+    data_proxima_acao: null,
   }).select("id").single();
 
   if (error) throw error;
@@ -134,9 +134,13 @@ export async function criarLead(input: {
   }
 
   if (direto) {
-    // Cria os 6 passos canônicos D0/D3/D7/D11/D16/D30 (lib/cadencia-templates)
-    const cadenciaRows = montarCadenciaRows({ organizacao_id: orgId, lead_id: data!.id });
-    await supabase.from("cadencia").upsert(cadenciaRows, { onConflict: "lead_id,passo" });
+    await iniciarCadenciaConfiguravel({
+      supabase,
+      organizacao_id: orgId,
+      lead_id: data!.id,
+      baseIso: hoje,
+      preservarExecutados: false,
+    });
   }
 
   // Disparar Webhook
@@ -411,7 +415,7 @@ export async function qualificarBase(input: {
 }
 
 /** Promove um lead da base → pipeline */
-export async function promoverParaPipeline(lead_id: number, proxima_acao: string = "Enviar D0") {
+export async function promoverParaPipeline(lead_id: number, proxima_acao?: string | null) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const orgId = await requireOrg();
@@ -422,13 +426,17 @@ export async function promoverParaPipeline(lead_id: number, proxima_acao: string
     funnel_stage: "pipeline",
     crm_stage: "Prospecção",
     data_primeiro_contato: hoje,
-    proxima_acao,
-    data_proxima_acao: hoje,
+    proxima_acao: proxima_acao ?? null,
+    data_proxima_acao: proxima_acao ? hoje : null,
   }).eq("id", lead_id).eq("organizacao_id", orgId);
 
-  // Cria os 6 passos canônicos D0/D3/D7/D11/D16/D30 (lib/cadencia-templates)
-  const cadenciaRows = montarCadenciaRows({ organizacao_id: orgId, lead_id });
-  await supabase.from("cadencia").upsert(cadenciaRows, { onConflict: "lead_id,passo" });
+  await iniciarCadenciaConfiguravel({
+    supabase,
+    organizacao_id: orgId,
+    lead_id,
+    baseIso: hoje,
+    preservarExecutados: true,
+  });
 
   await supabase.from("lead_evento").insert({
     organizacao_id: orgId,

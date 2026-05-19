@@ -3,6 +3,7 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentOrgId } from "@/lib/supabase/org";
 import type { EmpresaEnriquecida } from "@/lib/prospeccao";
+import { iniciarCadenciaConfiguravel } from "@/lib/cadencia-fluxos";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -93,8 +94,8 @@ export async function POST(req: NextRequest) {
         prioridade:     "C",
         fonte:          "motor_prospeccao",
         data_entrada:   agora,
-        proxima_acao:   iniciar_cadencia ? "Enviar D0" : null,
-        data_proxima_acao: iniciar_cadencia ? agora.slice(0, 10) : null,
+        proxima_acao:   null,
+        data_proxima_acao: null,
         hipotese_id:    hipotese_id ?? null,
         origem_prospeccao: {
           job_id:     job_id ?? null,
@@ -109,16 +110,13 @@ export async function POST(req: NextRequest) {
         idsGerados.push(novo.id);
         criados++;
 
-        // Inicia cadência D0 se solicitado
         if (iniciar_cadencia) {
-          await supabase.from("cadencia").insert({
+          await iniciarCadenciaConfiguravel({
+            supabase,
             organizacao_id: orgId,
-            lead_id:        novo.id,
-            passo:          "D0",
-            canal:          "WhatsApp",
-            objetivo:       "Primeiro contato",
-            data_prevista:  agora.slice(0, 10),
-            status:         "pendente",
+            lead_id: novo.id,
+            baseIso: agora.slice(0, 10),
+            preservarExecutados: false,
           });
         }
 

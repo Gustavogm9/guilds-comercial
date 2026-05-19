@@ -8,7 +8,7 @@ import { getClientLocale, getT, type Locale } from "@/lib/i18n";
 
 interface CadenciaPassoCardProps {
   cadenciaId: number | null;
-  passo: "D0" | "D3" | "D7" | "D11" | "D16" | "D30";
+  passo: string;
   status: string;
   objetivo: string;
   canal: string;
@@ -18,6 +18,7 @@ interface CadenciaPassoCardProps {
   empresa: string;
   nome: string;
   cargo?: string;
+  segmento?: string;
   dorPrincipal?: string;
   ultimaInteracao?: string;
   tomAnterior?: "positivo" | "neutro" | "negativo" | null;
@@ -27,6 +28,8 @@ interface CadenciaPassoCardProps {
   whatsapp?: string;
   /** Issue 8: país da org pra normalizar WhatsApp internacional */
   paisOrg?: string;
+  assuntoTemplate?: string | null;
+  corpoTemplate?: string | null;
 }
 
 /**
@@ -40,10 +43,10 @@ interface CadenciaPassoCardProps {
  */
 export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
   const {
-    passo, status: statusInicial, objetivo, canal, dataPrevista,
-    leadId, empresa, nome, cargo, dorPrincipal,
+    cadenciaId, passo, status: statusInicial, objetivo, canal, dataPrevista,
+    leadId, empresa, nome, cargo, segmento, dorPrincipal,
     ultimaInteracao, tomAnterior, raioxStatus, raioxScore,
-    vendedor, whatsapp, paisOrg,
+    vendedor, whatsapp, paisOrg, assuntoTemplate, corpoTemplate,
   } = props;
 
   const [status, setStatus] = useState(statusInicial);
@@ -66,6 +69,21 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
     setGerando(true);
     setErro(null);
     try {
+      const mensagemTemplate = montarMensagemTemplate({
+        assunto: assuntoTemplate,
+        corpo: corpoTemplate,
+        empresa,
+        nome,
+        cargo,
+        segmento,
+        dorPrincipal,
+        vendedor,
+      });
+      if (mensagemTemplate) {
+        setMensagem(mensagemTemplate);
+        return;
+      }
+
       const result = await gerarMensagemCadencia({
         leadId,
         empresa,
@@ -102,7 +120,12 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
     setStatus("enviado");
     startSave(async () => {
       try {
-        await salvarMensagemPassoEnviada({ leadId, passo, mensagem });
+        await salvarMensagemPassoEnviada({
+          leadId,
+          cadenciaId: cadenciaId ?? undefined,
+          passo,
+          mensagem,
+        });
       } catch (err) {
         // Rollback otimista — se falhar, volta pra status original
         setStatus(statusInicial);
@@ -159,7 +182,7 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
           {gerando ? (
             <><Loader2 className="w-3 h-3 animate-spin" /> {t("pipeline.passo_gerando")}</>
           ) : (
-            <><Sparkles className="w-3 h-3" /> {t("pipeline.passo_gerar_ia")}</>
+            <><Sparkles className="w-3 h-3" /> {corpoTemplate ? "Usar template" : t("pipeline.passo_gerar_ia")}</>
           )}
         </button>
       )}
@@ -218,4 +241,44 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
       )}
     </li>
   );
+}
+
+function montarMensagemTemplate(input: {
+  assunto?: string | null;
+  corpo?: string | null;
+  empresa: string;
+  nome: string;
+  cargo?: string;
+  segmento?: string;
+  dorPrincipal?: string;
+  vendedor: string;
+}) {
+  const corpo = preencherTemplate(input.corpo, input);
+  if (!corpo) return "";
+  const assunto = preencherTemplate(input.assunto, input);
+  return assunto ? `Assunto: ${assunto}\n\n${corpo}` : corpo;
+}
+
+function preencherTemplate(
+  template: string | null | undefined,
+  vars: {
+    empresa: string;
+    nome: string;
+    cargo?: string;
+    segmento?: string;
+    dorPrincipal?: string;
+    vendedor: string;
+  },
+) {
+  if (!template?.trim()) return "";
+  const valores: Record<string, string> = {
+    empresa: vars.empresa,
+    nome: vars.nome,
+    cargo: vars.cargo ?? "",
+    segmento: vars.segmento ?? "",
+    dor: vars.dorPrincipal ?? "esse desafio",
+    dor_principal: vars.dorPrincipal ?? "esse desafio",
+    vendedor: vars.vendedor,
+  };
+  return template.replace(/\{\{\s*([\w_]+)\s*\}\}/g, (_, key: string) => valores[key] ?? "");
 }
