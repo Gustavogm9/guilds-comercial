@@ -43,7 +43,17 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
   let parsedAbordagens = null;
   if (resultado) {
     try {
-      const cleanJson = resultado.replace(/```json/g, '').replace(/```/g, '').trim();
+      let cleanJson = resultado;
+      const match = resultado.match(/```(?:json)?([\s\S]*?)```/);
+      if (match) {
+        cleanJson = match[1].trim();
+      } else {
+        const start = resultado.indexOf('{');
+        const end = resultado.lastIndexOf('}');
+        if (start !== -1 && end !== -1 && end > start) {
+          cleanJson = resultado.substring(start, end + 1);
+        }
+      }
       parsedAbordagens = JSON.parse(cleanJson).abordagens;
     } catch (e) {
       // Ignora erro e cai no fallback de texto cru
