@@ -310,7 +310,9 @@ function PromptEditor({ prompt, historico }: { prompt: AiPrompt; historico: AiPr
   const [pending, start] = useTransition();
   const [sys, setSys] = useState(prompt.system_prompt ?? "");
   const [tpl, setTpl] = useState(prompt.user_template);
-  const [vars, setVars] = useState((prompt.variaveis_esperadas ?? []).join(", "));
+  const [vars, setVars] = useState(
+    (Array.isArray(prompt.variaveis_esperadas) ? prompt.variaveis_esperadas : []).join(", ")
+  );
   const [notas, setNotas] = useState("");
   const router = useRouter();
 
