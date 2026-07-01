@@ -543,7 +543,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       )}
 
       {/* Cadência */}
-      <section className="mt-6">
+      <section id="cadencia" className="mt-6">
         <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2">
           {t("pipeline.detail_section_cadencia")}
         </h2>
@@ -585,7 +585,7 @@ export default async function LeadDetailPage(props: { params: Promise<{ id: stri
       </section>
 
       {/* Ligações */}
-      <section className="mt-6">
+      <section id="ligacoes" className="mt-6">
         <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
           <PhoneCall className="w-3.5 h-3.5"/> {t("pipeline.detail_section_ligacoes").replace("{{n}}", String((ligacoes ?? []).length))}
         </h2>

@@ -120,7 +120,7 @@ export default function LeadScoreCard({
           <div>
             <div className="text-[10px] text-muted-foreground uppercase tracking-[0.12em] font-semibold">Score de fechamento</div>
             <div className={`text-lg font-semibold ${corScore}`}>{rotulo}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">
+            <div className="text-xs text-muted-foreground mt-0.5" suppressHydrationWarning>
               Valor esperado: <b className="text-foreground tabular-nums">{moeda(valorEsperado)}</b>
               {" "}
               <span className="text-muted-foreground/70 tabular-nums">de {moeda(valorPotencial)}</span>
