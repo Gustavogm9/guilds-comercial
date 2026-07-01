@@ -280,5 +280,7 @@ function preencherTemplate(
     dor_principal: vars.dorPrincipal ?? "esse desafio",
     vendedor: vars.vendedor,
   };
-  return template.replace(/\{\{\s*([\w_]+)\s*\}\}/g, (_, key: string) => valores[key] ?? "");
+  return template
+    .replace(/\{\{\s*([\w_]+)\s*\}\}/g, (_, key: string) => valores[key] ?? "")
+    .replace(/\\n/g, "\n");
 }

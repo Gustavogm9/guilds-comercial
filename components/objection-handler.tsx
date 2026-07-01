@@ -40,6 +40,16 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
     });
   }
 
+  let parsedAbordagens = null;
+  if (resultado) {
+    try {
+      const cleanJson = resultado.replace(/```json/g, '').replace(/```/g, '').trim();
+      parsedAbordagens = JSON.parse(cleanJson).abordagens;
+    } catch (e) {
+      // Ignora erro e cai no fallback de texto cru
+    }
+  }
+
   return (
     <div className="card p-4 border-warning-500/25 bg-warning-500/5">
       <div className="flex items-center gap-2 mb-3">
@@ -63,11 +73,25 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
       </form>
 
       {resultado && (
-        <div className="mt-3 p-3 rounded-lg bg-card border border-warning-500/25 text-xs text-foreground whitespace-pre-wrap leading-relaxed">
+        <div className="mt-3 p-3 rounded-lg bg-card border border-warning-500/25 text-xs text-foreground leading-relaxed">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.12em] text-warning-500 font-semibold mb-2">
             <Sparkles className="w-3 h-3" /> Sugestão de contorno
           </div>
-          {resultado}
+          
+          {parsedAbordagens && Array.isArray(parsedAbordagens) ? (
+            <div className="flex flex-col gap-3">
+              {parsedAbordagens.map((ab: any, idx: number) => (
+                <div key={idx} className="bg-background rounded p-2 border border-border">
+                  <div className="font-semibold text-warning-500 mb-1">{ab.nome}</div>
+                  <div className="text-[11px] opacity-80 mb-2 italic">{ab.racional}</div>
+                  <div className="p-2 bg-muted/50 rounded font-medium">"{ab.script}"</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="whitespace-pre-wrap">{resultado}</div>
+          )}
+
           <div className="mt-2 pt-2 border-t border-warning-500/15">
             <AiOutputActions invocationId={invocationId} texto={resultado} />
           </div>
