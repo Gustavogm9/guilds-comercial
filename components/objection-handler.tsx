@@ -60,6 +60,13 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
     }
   }
 
+  let copyText = resultado || "";
+  if (parsedAbordagens && Array.isArray(parsedAbordagens)) {
+    copyText = parsedAbordagens
+      .map((ab: any) => `${ab.nome}\n${ab.script}`)
+      .join('\n-------------\n\n');
+  }
+
   return (
     <div className="card p-4 border-warning-500/25 bg-warning-500/5">
       <div className="flex items-center gap-2 mb-3">
@@ -103,7 +110,7 @@ export default function ObjectionHandler({ leadId, empresa, segmento }: {
           )}
 
           <div className="mt-2 pt-2 border-t border-warning-500/15">
-            <AiOutputActions invocationId={invocationId} texto={resultado} />
+            <AiOutputActions invocationId={invocationId} texto={copyText} />
           </div>
         </div>
       )}
