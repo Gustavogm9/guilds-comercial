@@ -82,7 +82,7 @@ function TimelineItem({ ev }: { ev: TimelineEvento }) {
               : ev.metadata?.status_novo === "recusada"
               ? <XCircle className="w-3.5 h-3.5 text-destructive mt-0.5" /> : null
           )}
-          <span className="text-[10px] text-muted-foreground ml-auto">{fmtDate(ev.created_at)}</span>
+          <span className="text-[10px] text-muted-foreground ml-auto" suppressHydrationWarning>{fmtDate(ev.created_at)}</span>
         </div>
         <div className="mt-1">
           {ev.titulo && <div className="text-sm font-medium">{ev.titulo}</div>}
