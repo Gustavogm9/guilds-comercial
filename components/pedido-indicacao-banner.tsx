@@ -93,7 +93,7 @@ function BannerCard({
           <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" aria-hidden="true" />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-sm">{t("indicacoes.banner_titulo")}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">
+            <div className="text-xs text-muted-foreground mt-0.5" suppressHydrationWarning>
               {t("indicacoes.banner_sub")
                 .replace("{{data}}", new Date(pedido.data_pedido).toLocaleDateString(locale, { day: "2-digit", month: "short" }))
                 .replace("{{momento}}", t(`indicacoes.momento_${pedido.momento}`))}

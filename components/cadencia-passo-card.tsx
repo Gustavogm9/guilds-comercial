@@ -167,8 +167,8 @@ export default function CadenciaPassoCard(props: CadenciaPassoCardProps) {
         <span className="opacity-60 text-[10px]">{status}</span>
       </div>
       <div className="opacity-80 truncate">{objetivo}</div>
-      <div className="opacity-60 text-[10px]" suppressHydrationWarning>
-        {dataPrevista ? `${fmt(dataPrevista)} · ` : ""}{canal}
+      <div className="opacity-60 text-[10px]">
+        {dataPrevista ? <span suppressHydrationWarning>{fmt(dataPrevista)} · </span> : null}{canal}
       </div>
 
       {/* Botão Gerar com IA — só pra passos pendentes */}
