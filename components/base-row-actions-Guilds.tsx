@@ -32,7 +32,6 @@ export default function BaseRowActions({ lead, profiles }: { lead: LeadEnriched;
 
   const popRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number } | null>(null);
 
   // Click outside fecha popover
   useEffect(() => {
@@ -50,12 +49,22 @@ export default function BaseRowActions({ lead, profiles }: { lead: LeadEnriched;
   }, [open]);
 
   useEffect(() => {
-    if (open === "qual" && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPopoverCoords({
-        top: rect.bottom,
-        left: rect.right - 288, // w-72 = 288px
-      });
+    if (open === "qual" && btnRef.current && popRef.current) {
+      const updatePosition = () => {
+        if (!btnRef.current || !popRef.current) return;
+        const rect = btnRef.current.getBoundingClientRect();
+        popRef.current.style.top = `${rect.bottom + 4}px`;
+        popRef.current.style.left = `${rect.right - 288}px`;
+      };
+      
+      updatePosition();
+      window.addEventListener("scroll", updatePosition, true);
+      window.addEventListener("resize", updatePosition);
+      
+      return () => {
+        window.removeEventListener("scroll", updatePosition, true);
+        window.removeEventListener("resize", updatePosition);
+      };
     }
   }, [open]);
 
@@ -140,12 +149,11 @@ export default function BaseRowActions({ lead, profiles }: { lead: LeadEnriched;
             >
               <Check className="w-3.5 h-3.5"/> {t("base.row_qualificar")} <ChevronDown className="w-3 h-3"/>
             </button>
-            {open === "qual" && popoverCoords && typeof document !== "undefined" && createPortal(
+            {open === "qual" && typeof document !== "undefined" && createPortal(
               <div
                 ref={popRef}
                 role="menu"
-                style={{ top: popoverCoords.top + 4, left: popoverCoords.left }}
-                className="fixed z-[999] w-72 bg-popover text-popover-foreground border border-border rounded-md p-3 space-y-2 shadow-stripe-md dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08]"
+                className="fixed z-[9999] w-72 bg-popover text-popover-foreground border border-border rounded-md p-3 space-y-2 shadow-stripe-md dark:bg-[hsl(220_5%_10%)] dark:border-white/[0.08] shadow-2xl"
               >
                 <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
                   {t("base.row_qualificar_titulo")}
