@@ -13,7 +13,7 @@ export const anthropicAdapter: ProviderAdapter = {
   async call(input: ProviderCallInput): Promise<ProviderCallResult> {
     const base = input.baseUrl ?? "https://api.anthropic.com";
     const url = `${base}/v1/messages`;
-    const timeoutMs = input.timeoutMs ?? 30000;
+    const timeoutMs = input.timeoutMs ?? 55000;
 
     const body = {
       model: input.modelo,

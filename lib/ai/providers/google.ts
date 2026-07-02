@@ -12,7 +12,7 @@ export const googleAdapter: ProviderAdapter = {
   async call(input: ProviderCallInput): Promise<ProviderCallResult> {
     const base = input.baseUrl ?? "https://generativelanguage.googleapis.com";
     const url = `${base}/v1beta/models/${input.modelo}:generateContent?key=${input.apiKey}`;
-    const timeoutMs = input.timeoutMs ?? 30000;
+    const timeoutMs = input.timeoutMs ?? 55000;
 
     const body = {
       systemInstruction: input.systemPrompt

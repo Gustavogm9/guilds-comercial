@@ -12,7 +12,7 @@ export const openaiAdapter: ProviderAdapter = {
   async call(input: ProviderCallInput): Promise<ProviderCallResult> {
     const base = input.baseUrl ?? "https://api.openai.com";
     const url = `${base}/v1/chat/completions`;
-    const timeoutMs = input.timeoutMs ?? 30000;
+    const timeoutMs = input.timeoutMs ?? 55000;
 
     const messages: Array<{ role: string; content: string }> = [];
     if (input.systemPrompt) {
