@@ -1,5 +1,7 @@
 "use server";
 
+export const maxDuration = 60;
+
 import { invokeAI } from "@/lib/ai/dispatcher";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/org";
